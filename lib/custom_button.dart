@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class CustomElevatedButton extends StatelessWidget {
@@ -27,7 +25,12 @@ class CustomElevatedButton extends StatelessWidget {
           side: const BorderSide(color: Colors.black, width: 1),
         ),
       ),
-      child: Text(buttonText),
+      child: Text(
+        buttonText,
+        style: const TextStyle(
+          fontFamily: 'WorkSans',
+        ),
+      ),
     );
   }
 }

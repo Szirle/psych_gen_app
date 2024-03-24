@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:psych_gen_app/characteristic.dart';
 import 'package:psych_gen_app/characteristics_selector.dart';
 import 'package:psych_gen_app/custom_button.dart';
+import 'package:psych_gen_app/custom_number_text_field.dart';
 import 'package:psych_gen_app/filters.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -14,7 +15,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<Color> colors = [Colors.teal, Colors.deepPurpleAccent, Colors.orange];
+  List<Color> colors = [const Color(0xFF3DBDBA), const Color(0xFFD53F8C), const Color(0xFF4A90E2)];
   List<Characteristic> characteristics = [
     Characteristic(characteristicName: CharacteristicName.Dominance, value: 0.5)
   ];
@@ -43,19 +44,25 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       const Text(
                         "PsychGenApp",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                        style: TextStyle(
+                            fontFamily: 'WorkSans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            color: Color(0xFF2B3A55)),
                       )
                     ]),
-                    SizedBox(
+                    const SizedBox(
                       height: 32,
                     ),
                     Theme(
                       data: ThemeData().copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
+                        initiallyExpanded: true,
                         maintainState: true,
-                        title: Text(
+                        title: const Text(
                           'Experimental design',
                           style: TextStyle(
+                            fontFamily: 'WorkSans',
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -97,13 +104,19 @@ class _MyHomePageState extends State<MyHomePage> {
                       data: ThemeData().copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         maintainState: true,
-                        title: Text(
+                        title: const Text(
                           'Filters',
                           style: TextStyle(
+                            fontFamily: 'WorkSans',
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        children: <Widget>[FiltersSection()],
+                        children: <Widget>[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                            child: FiltersSection(),
+                          )
+                        ],
                         onExpansionChanged: (bool expanded) {},
                       ),
                     ),
@@ -111,35 +124,47 @@ class _MyHomePageState extends State<MyHomePage> {
                       data: ThemeData().copyWith(dividerColor: Colors.transparent),
                       child: ExpansionTile(
                         maintainState: true,
-                        title: Text(
+                        title: const Text(
                           'Export',
                           style: TextStyle(
+                            fontFamily: 'WorkSans',
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         children: <Widget>[
-                          Text('Number of images to generate for each condition'),
-                          SizedBox(width: 20),
-                          TextField(
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: '40',
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                          Text('A total of 1000 images will be generated.'),
-                          SizedBox(height: 20),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors. black87, // Background color
-                              onPrimary: Colors.white, // Text color
-                            ),
-                            onPressed: () {
-                              // Implement your download dataset functionality here
-                              print('Download dataset');
-                            },
-                            child: Text('Download dataset'),
-                          ),
+                          Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                              child: Column(children: [
+                                const Text(
+                                  'Number of images to generate for each condition',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                const CustomNumberTextField(),
+                                const Text(
+                                  'A total of 1000 images will be generated.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    onPrimary: Colors.white,
+                                    elevation: 0,
+                                    backgroundColor: const Color(0xFF2B3A55),
+                                    padding:
+                                        const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                  ),
+                                  onPressed: () {},
+                                  child: const Text('Generate dataset'),
+                                ),
+                              ]))
                         ],
                         onExpansionChanged: (bool expanded) {},
                       ),
@@ -148,7 +173,36 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
-            Expanded(child: Container())
+            Expanded(
+                child: Column(
+              children: [
+                const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 0, 0),
+                    child: Text(
+                      "Preview",
+                      style:
+                          TextStyle(fontFamily: 'WorkSans', fontSize: 32, color: Color(0xFF4A5568)),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 0, 0),
+                    child: Text(
+                      "filters  -->  experimental design  -->  download",
+                      style:
+                          TextStyle(fontFamily: 'WorkSans', fontSize: 12, color: Color(0xFF4A5568)),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 12, 0, 0),
+                    child: SizedBox(
+                      width: 200,
+                    ),
+                  )
+                ]),
+                Expanded(child: Container())
+              ],
+            ))
           ],
         ),
       ),
@@ -164,7 +218,7 @@ class DottedBackgroundPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     var dotSize = 2.0; // Size of the dots
-    var spaceBetween = 40.0; // Space between dots
+    var spaceBetween = 50.0; // Space between dots
 
     for (double i = 0; i < size.width; i += spaceBetween) {
       for (double j = 0; j < size.height; j += spaceBetween) {

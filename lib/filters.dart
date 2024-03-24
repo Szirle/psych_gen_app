@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:psych_gen_app/custom_button.dart';
+import 'package:psych_gen_app/filter_dialog.dart';
 
 class FiltersSection extends StatefulWidget {
+  const FiltersSection({super.key});
+
   @override
   _FiltersSectionState createState() => _FiltersSectionState();
 }
@@ -11,18 +13,31 @@ class _FiltersSectionState extends State<FiltersSection> {
   List<String> mustHaveFilters = ['Skin color: white', 'Hair: bald'];
   List<String> cantHaveFilters = ['Hair: beard'];
 
+  void showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return FilterDialog();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
+        const SizedBox(
           width: 350,
         ),
-        Text('Must have:', style: Theme.of(context).textTheme.subtitle1),
+        const Text('Must have:',
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'WorkSans',
+            )),
         Wrap(
-          spacing: 8.0, // Gap between adjacent chips
-          runSpacing: 4.0, // Gap between lines
+          spacing: 8.0,
+          runSpacing: 4.0,
           children: mustHaveFilters
               .map((filter) => Chip(
                     backgroundColor: Colors.grey.shade300,
@@ -35,20 +50,29 @@ class _FiltersSectionState extends State<FiltersSection> {
                   ))
               .toList(),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         CustomElevatedButton(
-          onPressed: () {},
+          onPressed: () {
+            showFilterDialog(context);
+          },
           buttonText: 'Add filter',
         ),
-        SizedBox(height: 20),
-        Text('Can’t have:', style: Theme.of(context).textTheme.subtitle1),
+        const SizedBox(height: 20),
+        const Text('Can’t have:',
+            style: TextStyle(
+              fontSize: 14,
+              fontFamily: 'WorkSans',
+            )),
         Wrap(
           spacing: 8.0,
           runSpacing: 4.0,
           children: cantHaveFilters
               .map((filter) => Chip(
                     backgroundColor: Colors.grey.shade300,
-                    label: Text(filter),
+                    label: Text(
+                      filter,
+                      style: const TextStyle(fontFamily: 'WorkSans',),
+                    ),
                     onDeleted: () {
                       setState(() {
                         cantHaveFilters.remove(filter);
@@ -57,9 +81,11 @@ class _FiltersSectionState extends State<FiltersSection> {
                   ))
               .toList(),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         CustomElevatedButton(
-          onPressed: () {},
+          onPressed: () {
+            showFilterDialog(context);
+          },
           buttonText: 'Add filter',
         ),
       ],

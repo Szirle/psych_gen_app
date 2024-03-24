@@ -7,7 +7,7 @@ class CharacteristicSelector extends StatefulWidget {
   final void Function(CharacteristicName) onCharacteristicSelected;
   final void Function(double) onStrengthChanged;
 
-  CharacteristicSelector({
+  const CharacteristicSelector({
     Key? key,
     required this.borderColor,
     required this.onClose,
@@ -48,36 +48,44 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text("Variable name"),
-                DropdownButtonFormField<CharacteristicName>(
-                  decoration: InputDecoration(
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5.0),
-                      borderSide: const BorderSide(color: Colors.black26, width: 1.0),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5.0),
-                      borderSide: const BorderSide(color: Colors.black26, width: 1.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 10.0),
-                  ),
-                  value: selectedCharacteristic,
-                  onChanged: (CharacteristicName? newValue) {
-                    setState(() {
-                      selectedCharacteristic = newValue!;
-                    });
-                    widget.onCharacteristicSelected(newValue!);
-                  },
-                  items: CharacteristicName.values
-                      .map<DropdownMenuItem<CharacteristicName>>((CharacteristicName value) {
-                    return DropdownMenuItem<CharacteristicName>(
-                      value: value,
-                      child: Text(
-                        value.toString().split('.').last,
-                        // Make sure the text style fits within the new padding if necessary
-                        style: const TextStyle(fontSize: 14), // Adjust font size as necessary
+                SizedBox(
+                  height: 36,
+                  child: DropdownButtonFormField<CharacteristicName>(
+                    decoration: InputDecoration(
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5.0),
+                        borderSide: const BorderSide(color: Colors.black26, width: 1.0),
                       ),
-                    );
-                  }).toList(),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5.0),
+                        borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+                      ),
+                      contentPadding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+                    ),
+                    style: TextStyle(
+                      fontFamily: 'WorkSans',
+                    ),
+                    value: selectedCharacteristic,
+                    onChanged: (CharacteristicName? newValue) {
+                      setState(() {
+                        selectedCharacteristic = newValue!;
+                      });
+                      widget.onCharacteristicSelected(newValue!);
+                    },
+                    items: CharacteristicName.values
+                        .map<DropdownMenuItem<CharacteristicName>>((CharacteristicName value) {
+                      return DropdownMenuItem<CharacteristicName>(
+                        value: value,
+                        child: Text(
+                          value.toString().split('.').last,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontFamily: 'WorkSans',
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
                 const SizedBox(
                   height: 5,
@@ -85,11 +93,11 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                 const Text("Variable strength"),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    overlayShape: RoundSliderOverlayShape(overlayRadius: 0.0),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
                   ),
                   child: Slider(
                     activeColor: widget.borderColor,
-                    inactiveColor: Colors.black26,
+                    inactiveColor: Colors.black12,
                     value: strength,
                     onChanged: (newRating) {
                       setState(() => strength = newRating);
@@ -112,13 +120,17 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
               widget.onClose(); // Invoke the close callback
             },
             child: Container(
+              width: 25, // Specify the width
+              height: 25, // Specify the height to ensure the container is a circle
               decoration: BoxDecoration(
                 color: widget.borderColor,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(5),
-                ),
+                shape: BoxShape.circle, // This makes the container a circle
               ),
-              child: const Icon(Icons.close, color: Colors.white),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ),
