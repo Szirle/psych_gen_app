@@ -152,7 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 const SizedBox(height: 20),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    onPrimary: Colors.white,
+                                    // onPrimary: Colors.white,
                                     elevation: 0,
                                     backgroundColor: const Color(0xFF2B3A55),
                                     padding:
