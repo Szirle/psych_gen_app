@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:psych_gen_app/api/api_service.dart';
 import 'package:psych_gen_app/home_page.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -21,43 +24,57 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
-      home: TestApiWidget(),
-      // home: const MyHomePage(title: 'Flutt`er Demo Home Page'),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
 class TestApiWidget extends StatefulWidget {
+  const TestApiWidget({Key? key}) : super(key: key);
+
   @override
   _TestApiWidgetState createState() => _TestApiWidgetState();
 }
 
 class _TestApiWidgetState extends State<TestApiWidget> {
-  String _message = 'Fetching data...';
+  Uint8List? _imageBytes;
+  bool _isLoading = true; // Track loading status
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _fetchImage();
   }
 
-  Future<void> _fetchData() async {
-    final response = await http.get(Uri.parse('/test'));  // Using a relative URL
-
-    if (response.statusCode == 200) {
+  Future<void> _fetchImage() async {
+    ApiService apiService = ApiService();
+    try {
+      Uint8List imageBytes = await apiService.fetchImage();
       setState(() {
-        _message = json.decode(response.body)['message'];
+        _imageBytes = imageBytes;
+        _isLoading = false;
       });
-    } else {
+    } catch (e) {
       setState(() {
-        _message = 'Failed to load data!';
+        _isLoading = false;
       });
+      print('Error fetching image: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Text(_message);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('API Image Fetch Example'),
+      ),
+      body: Center(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : _imageBytes != null
+                ? Image.memory(_imageBytes!)
+                : const Text('Failed to load image'),
+      ),
+    );
   }
 }
-
