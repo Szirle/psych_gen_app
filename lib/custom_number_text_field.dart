@@ -18,7 +18,7 @@ class CustomNumberTextField extends StatefulWidget {
     this.controller,
     this.focusNode,
     this.min = 0,
-    this.max = 999,
+    this.max = 99999,
     this.step = 1,
     this.arrowsWidth = 24,
     this.arrowsHeight = kMinInteractiveDimension,

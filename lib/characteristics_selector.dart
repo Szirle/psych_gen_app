@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:psych_gen_app/characteristic.dart';
+import 'package:psych_gen_app/model/face_manipulation_request.dart';
+import 'package:psych_gen_app/model/manipulated_dimension.dart';
+import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
 
 class CharacteristicSelector extends StatefulWidget {
   final Color borderColor;
   final void Function() onClose;
-  final void Function(CharacteristicName) onCharacteristicSelected;
+  final void Function(ManipulatedDimensionName) onCharacteristicSelected;
   final void Function(double) onStrengthChanged;
+  final void Function(int) onNLevelChanged; // Callback for the odd integer slider
+  ManipulatedDimension manipulatedDimension;
 
-  const CharacteristicSelector({
+  CharacteristicSelector({
     Key? key,
     required this.borderColor,
     required this.onClose,
     required this.onCharacteristicSelected,
     required this.onStrengthChanged,
+    required this.onNLevelChanged, // New callback for odd levels slider
+    required this.manipulatedDimension
   }) : super(key: key);
 
   @override
@@ -20,8 +26,6 @@ class CharacteristicSelector extends StatefulWidget {
 }
 
 class _CharacteristicSelectorState extends State<CharacteristicSelector> {
-  CharacteristicName selectedCharacteristic = CharacteristicName.Dominance;
-  double strength = 0.5;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +42,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                 color: Colors.grey.withOpacity(0.5),
                 spreadRadius: 1,
                 blurRadius: 5,
-                offset: const Offset(0, 3), // changes position of shadow
+                offset: const Offset(0, 3), // Changes position of shadow
               ),
             ],
           ),
@@ -50,7 +54,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                 const Text("Variable name"),
                 SizedBox(
                   height: 36,
-                  child: DropdownButtonFormField<CharacteristicName>(
+                  child: DropdownButtonFormField<ManipulatedDimensionName>(
                     decoration: InputDecoration(
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
@@ -62,50 +66,101 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                       ),
                       contentPadding: const EdgeInsets.only(top: 12, left: 12, right: 12),
                     ),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontFamily: 'WorkSans',
                     ),
-                    value: selectedCharacteristic,
-                    onChanged: (CharacteristicName? newValue) {
+                    value: widget.manipulatedDimension.name,
+                    onChanged: (ManipulatedDimensionName? newValue) {
                       setState(() {
-                        selectedCharacteristic = newValue!;
+                        widget.manipulatedDimension.name = newValue!;
                       });
                       widget.onCharacteristicSelected(newValue!);
                     },
-                    items: CharacteristicName.values
-                        .map<DropdownMenuItem<CharacteristicName>>((CharacteristicName value) {
-                      return DropdownMenuItem<CharacteristicName>(
-                        value: value,
-                        child: Text(
-                          value.toString().split('.').last,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontFamily: 'WorkSans',
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    items: ManipulatedDimensionName.values
+                        .map<DropdownMenuItem<ManipulatedDimensionName>>(
+                            (ManipulatedDimensionName value) {
+                          return DropdownMenuItem<ManipulatedDimensionName>(
+                            value: value,
+                            child: Text(
+                              value.toString().split('.').last,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontFamily: 'WorkSans',
+                              ),
+                            ),
+                          );
+                        }).toList(),
                   ),
                 ),
                 const SizedBox(
                   height: 5,
                 ),
                 const Text("Variable strength"),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
-                  ),
-                  child: Slider(
-                    activeColor: widget.borderColor,
-                    inactiveColor: Colors.black12,
-                    value: strength,
-                    onChanged: (newRating) {
-                      setState(() => strength = newRating);
-                      widget.onStrengthChanged(newRating);
-                    },
-                    min: 0.0,
-                    max: 1.0,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
+                        ),
+                        child: Slider(
+                          activeColor: widget.borderColor,
+                          inactiveColor: Colors.black12,
+                          value: widget.manipulatedDimension.strength,
+                          label: widget.manipulatedDimension.strength.toStringAsFixed(1),
+                          onChanged: (newRating) {
+                            setState(() => widget.manipulatedDimension.strength = newRating);
+                            widget.onStrengthChanged(newRating);
+                          },
+                          min: 1.0,
+                          max: 50.0,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 50,
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.manipulatedDimension.strength.toStringAsFixed(1), // Display strength
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                const Text("Number of levels"),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
+                        ),
+                        child: Slider(
+                          activeColor: widget.borderColor,
+                          inactiveColor: Colors.black12,
+                          value: widget.manipulatedDimension.nLevels.toDouble(),
+                          min: 1.0,
+                          max: 11.0,
+                          divisions: 5,
+                          onChanged: (newValue) {
+                            setState(() => widget.manipulatedDimension.nLevels = newValue.round());
+                            widget.onNLevelChanged(widget.manipulatedDimension.nLevels); // Callback for odd levels
+                          },
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 50,
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.manipulatedDimension.nLevels.toString(), // Display the current odd level
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(),
               ],

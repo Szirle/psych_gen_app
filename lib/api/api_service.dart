@@ -29,24 +29,38 @@ class ApiService {
   }
 
   // Method to send POST request with FaceManipulationRequest
-  Future<List<Uint8List>> postFaceManipulation(
-      FaceManipulationRequest requestBody) async {
-    final response = await http.post(
-      Uri.parse(postRoute),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(requestBody.toJson()),
-    );
+  Future<List<Uint8List>> postFaceManipulation(FaceManipulationRequest requestBody) async {
+    try {
+      // Print the request body
+      String requestBodyJson = json.encode(requestBody.toJson());
+      print("Request Body: $requestBodyJson");
 
-    if (response.statusCode == 200) {
-      List<dynamic> responseList = json.decode(response.body);
+      final response = await http.post(
+        Uri.parse(postRoute),
+        headers: {'Content-Type': 'application/json'},
+        body: requestBodyJson, // Use the printed requestBodyJson
+      );
 
-      List<Uint8List> images = responseList.map((imageData) {
-        return base64Decode(imageData);
-      }).toList();
+      if (response.statusCode == 200) {
+        // Parse the response as a list of base64-encoded image strings
+        List<dynamic> responseList = json.decode(response.body);
 
-      return images;
-    } else {
-      throw Exception('Failed to post face manipulation request');
+        // Convert each image from base64 to Uint8List
+        List<Uint8List> images = responseList.map((imageData) {
+          return base64Decode(imageData);
+        }).toList();
+
+        return images;
+      } else {
+        // Print error details when the status code is not 200
+        print("Error: Failed with status code ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        throw Exception('Failed to post face manipulation request');
+      }
+    } catch (e) {
+      // Print any caught errors
+      print("Exception occurred: $e");
+      throw Exception('An error occurred during the request: $e');
     }
   }
 }
