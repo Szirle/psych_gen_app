@@ -878,6 +878,7 @@ class _MyHomePageState extends State<MyHomePage> {
             return Material(
               elevation: 4.0,
               color: Colors.transparent,
+              shadowColor: Colors.transparent,
               child: child,
             );
           },
