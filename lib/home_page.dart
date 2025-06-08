@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:psych_gen_app/bloc/face_manipulation_bloc.dart';
 import 'package:psych_gen_app/bloc/face_manipulation_event.dart';
@@ -11,6 +12,8 @@ import 'package:psych_gen_app/model/face_manipulation_request.dart';
 import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/shimmer_image_placeholder.dart';
+import 'dart:ui' as ui;
+import 'dart:math';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -33,6 +36,8 @@ class _MyHomePageState extends State<MyHomePage> {
     const Color(0xFF4A90E2)
   ];
 
+  final Map<ManipulatedDimension, Color> _dimensionColors = {};
+
   FaceManipulationRequest faceManipulationRequest = FaceManipulationRequest(
       manipulatedDimensions: [
         ManipulatedDimension(
@@ -47,6 +52,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _updateDimensionColors();
     _initOrUpdate3dState();
     _loadImages();
   }
@@ -58,46 +64,51 @@ class _MyHomePageState extends State<MyHomePage> {
     _initOrUpdate3dState();
   }
 
-  void _initOrUpdate3dState() {
-    final dims = faceManipulationRequest.manipulatedDimensions;
+  void _updateDimensionColors() {
+    _dimensionColors.removeWhere((dim, color) =>
+        !faceManipulationRequest.manipulatedDimensions.contains(dim));
 
-    if (dims.length == 3) {
-      if (_xAxisDim == null ||
-          _yAxisDim == null ||
-          _sliderDim == null ||
-          !dims.contains(_xAxisDim) ||
-          !dims.contains(_yAxisDim) ||
-          !dims.contains(_sliderDim) ||
-          _xAxisDim == _yAxisDim ||
-          _xAxisDim == _sliderDim ||
-          _yAxisDim == _sliderDim) {
-        setState(() {
-          _xAxisDim = dims[0];
-          _yAxisDim = dims[1];
-          _sliderDim = dims[2];
-          _sliderValue = 1;
-        });
+    final assignedColors = _dimensionColors.values.toSet();
+    final availableColors =
+        colors.where((c) => !assignedColors.contains(c)).toList();
+
+    for (var dim in faceManipulationRequest.manipulatedDimensions) {
+      if (!_dimensionColors.containsKey(dim)) {
+        if (availableColors.isNotEmpty) {
+          _dimensionColors[dim] = availableColors.removeAt(0);
+        } else {
+          _dimensionColors[dim] = Colors.grey;
+        }
       }
-    } else {
-      setState(() {
-        _xAxisDim = null;
-        _yAxisDim = null;
-        _sliderDim = null;
-      });
     }
   }
 
-  void _setAxis(String axis, ManipulatedDimension newDim) {
+  void _initOrUpdate3dState() {
+    final dims = faceManipulationRequest.manipulatedDimensions;
+
     setState(() {
-      if (axis == 'x') {
-        _xAxisDim = newDim;
-      } else if (axis == 'y') {
-        _yAxisDim = newDim;
-      } else if (axis == 'slider') {
-        _sliderDim = newDim;
-        _sliderValue = 1; // Reset slider when the dimension changes
+      final newSliderDim = dims.length > 2 ? dims[2] : null;
+      if (newSliderDim != _sliderDim) {
+        _sliderValue = 1;
       }
+
+      _xAxisDim = dims.isNotEmpty ? dims[0] : null;
+      _yAxisDim = dims.length > 1 ? dims[1] : null;
+      _sliderDim = newSliderDim;
     });
+  }
+
+  void _setAxisValue(String axis, ManipulatedDimension? newDim) {
+    if (axis == 'x') {
+      _xAxisDim = newDim;
+    } else if (axis == 'y') {
+      _yAxisDim = newDim;
+    } else if (axis == 'slider') {
+      _sliderDim = newDim;
+      if (newDim != null) {
+        _sliderValue = 1;
+      }
+    }
   }
 
   int _calculateImageCount() {
@@ -157,66 +168,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           children: <Widget>[
                             Column(children: [
-                              ...faceManipulationRequest.manipulatedDimensions
-                                  .map(
-                                    (e) => CharacteristicSelector(
-                                      manipulatedDimension: e,
-                                      allManipulatedDimensions:
-                                          faceManipulationRequest
-                                              .manipulatedDimensions,
-                                      borderColor: colors[
-                                          faceManipulationRequest
-                                              .manipulatedDimensions
-                                              .indexOf(e)],
-                                      onCharacteristicSelected:
-                                          (characteristicName) {
-                                        final isAlreadySelected =
-                                            faceManipulationRequest
-                                                .manipulatedDimensions
-                                                .any((dim) =>
-                                                    dim != e &&
-                                                    dim.name ==
-                                                        characteristicName);
-
-                                        if (isAlreadySelected) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                  '${characteristicName.name} is already selected.'),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        } else {
-                                          setState(() {
-                                            e.name = characteristicName;
-                                          });
-                                          _loadImages();
-                                        }
-                                      },
-                                      onStrengthChanged: (strength) {
-                                        setState(() {
-                                          e.strength = strength;
-                                        });
-                                        _loadImages();
-                                      },
-                                      onClose: () {
-                                        setState(() {
-                                          faceManipulationRequest
-                                              .manipulatedDimensions
-                                              .remove(e);
-                                        });
-                                        _loadImages();
-                                      },
-                                      onNLevelChanged: (nLevel) {
-                                        setState(() {
-                                          e.nLevels = nLevel;
-                                        });
-                                        _loadImages();
-                                      },
-                                    ),
-                                  )
-                                  .toList(),
+                              _buildReorderableSelectors(),
                               CustomElevatedButton(
                                 onPressed: () {
                                   if (faceManipulationRequest
@@ -244,7 +196,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                               name: availableName,
                                               strength: 25.0,
                                               nLevels: 5));
-                                      setState(() {});
+                                      setState(() {
+                                        _updateDimensionColors();
+                                      });
                                       _loadImages();
                                     }
                                   }
@@ -254,6 +208,28 @@ class _MyHomePageState extends State<MyHomePage> {
                             ]),
                           ],
                           onExpansionChanged: (bool expanded) {},
+                        ),
+                      ),
+                      Theme(
+                        data: ThemeData()
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          initiallyExpanded: true,
+                          maintainState: true,
+                          title: const Text(
+                            'Axis assignment',
+                            style: TextStyle(
+                              fontFamily: 'WorkSans',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 8.0),
+                              child: _buildAxisDropZones(),
+                            ),
+                          ],
                         ),
                       ),
                       Theme(
@@ -513,7 +489,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 if (is3dMode) {
                                   return Column(
                                     children: [
-                                      _build3dControls(),
+                                      _build3dSlider(),
                                       Expanded(
                                         child: LayoutBuilder(
                                           builder: (context, constraints) {
@@ -641,250 +617,386 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _build3dControls() {
+  Widget _build3dSlider() {
     if (_sliderDim == null || _xAxisDim == null || _yAxisDim == null) {
       return const SizedBox.shrink();
     }
 
     return Container(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(16.0),
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.view_in_ar_outlined,
-                color: Colors.grey[600],
-                size: 20,
-              ),
-              const SizedBox(width: 8),
               Text(
-                "Axis configuration",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                "${_sliderDim!.name.name} Level",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                   fontFamily: 'WorkSans',
                 ),
               ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2B3A55),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "Level $_sliderValue",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFF2B3A55),
+              inactiveTrackColor: Colors.grey[300],
+              thumbColor: const Color(0xFF2B3A55),
+              overlayColor: const Color(0xFF2B3A55).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              trackHeight: 4.0,
+              valueIndicatorColor: const Color(0xFF2B3A55),
+              valueIndicatorTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Slider(
+              value: _sliderValue.toDouble(),
+              min: 1,
+              max: _sliderDim!.nLevels.toDouble(),
+              divisions: _sliderDim!.nLevels > 1 ? _sliderDim!.nLevels - 1 : 1,
+              label: "Level $_sliderValue",
+              onChanged: (newValue) {
+                setState(() {
+                  _sliderValue = newValue.round();
+                });
+              },
+            ),
+          ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildAxisSelector(
-                  "X-Axis", _xAxisDim, (newDim) => _setAxis('x', newDim)),
-              _buildAxisSelector(
-                  "Y-Axis", _yAxisDim, (newDim) => _setAxis('y', newDim)),
-              _buildAxisSelector(
-                  "Depth", _sliderDim, (newDim) => _setAxis('slider', newDim)),
+              Text(
+                "Level 1",
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Text(
+                "Level ${_sliderDim!.nLevels}",
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "${_sliderDim!.name.name} Level",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'WorkSans',
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2B3A55),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        "Level $_sliderValue",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: const Color(0xFF2B3A55),
-                    inactiveTrackColor: Colors.grey[300],
-                    thumbColor: const Color(0xFF2B3A55),
-                    overlayColor: const Color(0xFF2B3A55).withOpacity(0.2),
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 8),
-                    trackHeight: 4.0,
-                    valueIndicatorColor: const Color(0xFF2B3A55),
-                    valueIndicatorTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  child: Slider(
-                    value: _sliderValue.toDouble(),
-                    min: 1,
-                    max: _sliderDim!.nLevels.toDouble(),
-                    divisions: _sliderDim!.nLevels - 1,
-                    label: "Level $_sliderValue",
-                    onChanged: (newValue) {
-                      setState(() {
-                        _sliderValue = newValue.round();
-                      });
-                    },
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Level 1",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      "Level ${_sliderDim!.nLevels}",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAxisSelector(String label, ManipulatedDimension? currentDim,
-      ValueChanged<ManipulatedDimension> onChanged) {
-    final allDims = faceManipulationRequest.manipulatedDimensions;
-    return Flexible(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
+  Widget _buildAxisDropZones() {
+    final dims = faceManipulationRequest.manipulatedDimensions;
+    if (dims.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(8.0),
+        child:
+            Text("Add a variable to assign axes.", textAlign: TextAlign.center),
+      );
+    }
+
+    return Column(
+      children: [
+        if (dims.length == 1)
+          _buildStaticAxisDisplay(dims.first, 'X-Axis', colors[0])
+        else
+          _buildAxisDropZone(
+            axis: 'x',
+            label: 'X-Axis',
+            assignedDim: _xAxisDim,
+            color: colors[0],
+          ),
+        if (dims.length > 1) const SizedBox(height: 8),
+        if (dims.length > 1)
+          _buildAxisDropZone(
+            axis: 'y',
+            label: 'Y-Axis',
+            assignedDim: _yAxisDim,
+            color: colors[1],
+          ),
+        if (dims.length > 2) const SizedBox(height: 8),
+        if (dims.length > 2)
+          _buildAxisDropZone(
+            axis: 'slider',
+            label: 'Depth',
+            assignedDim: _sliderDim,
+            color: colors[2],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStaticAxisDisplay(
+      ManipulatedDimension dim, String label, Color color) {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color, width: 2),
+      ),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("$label: ",
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            _buildAssignedDimChip(dim, color),
           ],
         ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  label == "X-Axis"
-                      ? Icons.horizontal_rule
-                      : label == "Y-Axis"
-                          ? Icons.vertical_align_center
-                          : Icons.layers,
-                  size: 14,
-                  color: const Color(0xFF2B3A55),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                    color: Color(0xFF2B3A55),
-                    fontFamily: 'WorkSans',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey[200]!, width: 1),
-              ),
-              child: DropdownButton<ManipulatedDimension>(
-                value: currentDim,
-                isExpanded: true,
-                underline: const SizedBox(),
-                isDense: true,
-                items: allDims.map((dim) {
-                  bool isUsedByOtherAxis = false;
-                  if (label != "X-Axis" && dim == _xAxisDim)
-                    isUsedByOtherAxis = true;
-                  if (label != "Y-Axis" && dim == _yAxisDim)
-                    isUsedByOtherAxis = true;
-                  if (label != "Depth" && dim == _sliderDim)
-                    isUsedByOtherAxis = true;
+      ),
+    );
+  }
 
-                  return DropdownMenuItem<ManipulatedDimension>(
-                    value: dim,
-                    enabled: !isUsedByOtherAxis,
-                    child: Text(
-                      dim.name.name,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontFamily: 'WorkSans',
-                        color: isUsedByOtherAxis
-                            ? Colors.grey[400]
-                            : Colors.grey[800],
-                        fontWeight: isUsedByOtherAxis
-                            ? FontWeight.normal
-                            : FontWeight.w500,
+  Widget _buildAxisDropZone({
+    required String axis,
+    required String label,
+    required ManipulatedDimension? assignedDim,
+    required Color color,
+  }) {
+    return DragTarget<ManipulatedDimension>(
+      builder: (context, candidateData, rejectedData) {
+        bool isTargeted = candidateData.isNotEmpty;
+        Widget child;
+        if (assignedDim != null) {
+          final dimIndex = faceManipulationRequest.manipulatedDimensions
+              .indexOf(assignedDim);
+          child = _buildAssignedDimChip(
+              assignedDim, dimIndex != -1 ? colors[dimIndex] : Colors.grey);
+        } else {
+          child = Center(
+            child: Text(
+              "Drop here for $label",
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          );
+        }
+
+        return Container(
+          height: 60,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: isTargeted ? color.withOpacity(0.1) : Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: CustomPaint(
+            painter: DottedBorderPainter(
+              color: color,
+              radius: const Radius.circular(8),
+              strokeWidth: 2,
+              gap: 4,
+              dashWidth: 6,
+            ),
+            child: child,
+          ),
+        );
+      },
+      onWillAccept: (data) {
+        if (data == null) return false;
+        if (data == assignedDim) return false;
+        return true;
+      },
+      onAccept: (data) {
+        final newDim = data;
+        final oldDimInTarget = assignedDim;
+
+        String? sourceAxis;
+        if (newDim == _xAxisDim) {
+          sourceAxis = 'x';
+        } else if (newDim == _yAxisDim) {
+          sourceAxis = 'y';
+        } else if (newDim == _sliderDim) {
+          sourceAxis = 'slider';
+        }
+
+        setState(() {
+          _setAxisValue(axis, newDim);
+          if (sourceAxis != null) {
+            _setAxisValue(sourceAxis, oldDimInTarget);
+          }
+        });
+      },
+    );
+  }
+
+  Widget _buildAssignedDimChip(ManipulatedDimension dim, Color color) {
+    return Center(
+      child: Chip(
+        label: Text(dim.name.name,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildReorderableSelectors() {
+    return Stack(
+      children: [
+        // Background hints
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0),
+          child: Column(
+            children: List.generate(
+                faceManipulationRequest.manipulatedDimensions.length, (index) {
+              String label;
+              if (index == 0) {
+                label = "X-Axis";
+              } else if (index == 1) {
+                label = "Y-Axis";
+              } else if (index == 2) {
+                label = "Depth";
+              } else {
+                return const SizedBox.shrink();
+              }
+
+              return Container(
+                height: 220, // Approximate height of CharacteristicSelector
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: _buildAxisOutline(
+                  label: label,
+                  color: colors[index],
+                ),
+              );
+            }),
+          ),
+        ),
+        ReorderableListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              elevation: 4.0,
+              color: Colors.transparent,
+              child: child,
+            );
+          },
+          children: faceManipulationRequest.manipulatedDimensions.map((dim) {
+            return Padding(
+              key: ValueKey(dim),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: CharacteristicSelector(
+                manipulatedDimension: dim,
+                allManipulatedDimensions:
+                    faceManipulationRequest.manipulatedDimensions,
+                borderColor: _dimensionColors[dim] ?? Colors.grey,
+                onCharacteristicSelected: (characteristicName) {
+                  final isAlreadySelected = faceManipulationRequest
+                      .manipulatedDimensions
+                      .any((d) => d != dim && d.name == characteristicName);
+
+                  if (isAlreadySelected) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            '${characteristicName.name} is already selected.'),
+                        backgroundColor: Colors.red,
                       ),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newDim) {
-                  if (newDim != null) {
-                    onChanged(newDim);
+                    );
+                  } else {
+                    setState(() {
+                      dim.name = characteristicName;
+                    });
+                    _loadImages();
                   }
                 },
+                onStrengthChanged: (strength) {
+                  setState(() {
+                    dim.strength = strength;
+                  });
+                  _loadImages();
+                },
+                onClose: () {
+                  setState(() {
+                    faceManipulationRequest.manipulatedDimensions.remove(dim);
+                    _updateDimensionColors();
+                  });
+                  _loadImages();
+                },
+                onNLevelChanged: (nLevel) {
+                  setState(() {
+                    dim.nLevels = nLevel;
+                  });
+                  _loadImages();
+                },
               ),
+            );
+          }).toList(),
+          onReorder: (oldIndex, newIndex) {
+            setState(() {
+              if (oldIndex < newIndex) {
+                newIndex -= 1;
+              }
+              final item = faceManipulationRequest.manipulatedDimensions
+                  .removeAt(oldIndex);
+              faceManipulationRequest.manipulatedDimensions
+                  .insert(newIndex, item);
+              _initOrUpdate3dState();
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAxisOutline({
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: CustomPaint(
+        painter: DottedBorderPainter(
+          color: color,
+          radius: const Radius.circular(8),
+          strokeWidth: 2,
+          gap: 4,
+          dashWidth: 6,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1084,4 +1196,47 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+}
+
+class DottedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+  final double dashWidth;
+  final Radius radius;
+
+  DottedBorderPainter({
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+    this.gap = 5.0,
+    this.dashWidth = 5.0,
+    this.radius = const Radius.circular(0),
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    Path path = Path();
+    path.addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height), radius));
+
+    ui.PathMetrics pathMetrics = path.computeMetrics();
+    for (ui.PathMetric pathMetric in pathMetrics) {
+      double distance = 0.0;
+      while (distance < pathMetric.length) {
+        canvas.drawPath(
+          pathMetric.extractPath(distance, distance + dashWidth),
+          paint,
+        );
+        distance += dashWidth + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
