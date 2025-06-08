@@ -479,7 +479,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         ]),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(100.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 50.0, vertical: 25),
                         child: Center(
                           child: BlocBuilder<FaceManipulationBloc,
                               FaceManipulationState>(
@@ -645,10 +646,44 @@ class _MyHomePageState extends State<MyHomePage> {
       return const SizedBox.shrink();
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
+    return Container(
+      padding: const EdgeInsets.all(20.0),
+      margin: const EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Icon(
+                Icons.view_in_ar_outlined,
+                color: Colors.grey[600],
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "Axis configuration",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                  fontFamily: 'WorkSans',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -657,30 +692,100 @@ class _MyHomePageState extends State<MyHomePage> {
               _buildAxisSelector(
                   "Y-Axis", _yAxisDim, (newDim) => _setAxis('y', newDim)),
               _buildAxisSelector(
-                  "Slider", _sliderDim, (newDim) => _setAxis('slider', newDim)),
+                  "Depth", _sliderDim, (newDim) => _setAxis('slider', newDim)),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text("${_sliderDim!.name.name}: ",
-                  style: const TextStyle(fontSize: 12)),
-              Expanded(
-                child: Slider(
-                  value: _sliderValue.toDouble(),
-                  min: 1,
-                  max: _sliderDim!.nLevels.toDouble(),
-                  divisions: _sliderDim!.nLevels - 1,
-                  label: "Level $_sliderValue",
-                  onChanged: (newValue) {
-                    setState(() {
-                      _sliderValue = newValue.round();
-                    });
-                  },
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!, width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "${_sliderDim!.name.name} Level",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'WorkSans',
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2B3A55),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "Level $_sliderValue",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Text("Level $_sliderValue", style: const TextStyle(fontSize: 12)),
-            ],
+                const SizedBox(height: 12),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: const Color(0xFF2B3A55),
+                    inactiveTrackColor: Colors.grey[300],
+                    thumbColor: const Color(0xFF2B3A55),
+                    overlayColor: const Color(0xFF2B3A55).withOpacity(0.2),
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 8),
+                    trackHeight: 4.0,
+                    valueIndicatorColor: const Color(0xFF2B3A55),
+                    valueIndicatorTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: Slider(
+                    value: _sliderValue.toDouble(),
+                    min: 1,
+                    max: _sliderDim!.nLevels.toDouble(),
+                    divisions: _sliderDim!.nLevels - 1,
+                    label: "Level $_sliderValue",
+                    onChanged: (newValue) {
+                      setState(() {
+                        _sliderValue = newValue.round();
+                      });
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Level 1",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      "Level ${_sliderDim!.nLevels}",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -690,32 +795,98 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildAxisSelector(String label, ManipulatedDimension? currentDim,
       ValueChanged<ManipulatedDimension> onChanged) {
     final allDims = faceManipulationRequest.manipulatedDimensions;
-    return Column(
-      children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-        DropdownButton<ManipulatedDimension>(
-          value: currentDim,
-          items: allDims.map((dim) {
-            bool isUsedByOtherAxis = false;
-            if (label != "X-Axis" && dim == _xAxisDim) isUsedByOtherAxis = true;
-            if (label != "Y-Axis" && dim == _yAxisDim) isUsedByOtherAxis = true;
-            if (label != "Slider" && dim == _sliderDim)
-              isUsedByOtherAxis = true;
-
-            return DropdownMenuItem<ManipulatedDimension>(
-              value: dim,
-              enabled: !isUsedByOtherAxis,
-              child: Text(dim.name.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (newDim) {
-            if (newDim != null) {
-              onChanged(newDim);
-            }
-          },
+    return Flexible(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
-      ],
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  label == "X-Axis"
+                      ? Icons.horizontal_rule
+                      : label == "Y-Axis"
+                          ? Icons.vertical_align_center
+                          : Icons.layers,
+                  size: 14,
+                  color: const Color(0xFF2B3A55),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: Color(0xFF2B3A55),
+                    fontFamily: 'WorkSans',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey[200]!, width: 1),
+              ),
+              child: DropdownButton<ManipulatedDimension>(
+                value: currentDim,
+                isExpanded: true,
+                underline: const SizedBox(),
+                isDense: true,
+                items: allDims.map((dim) {
+                  bool isUsedByOtherAxis = false;
+                  if (label != "X-Axis" && dim == _xAxisDim)
+                    isUsedByOtherAxis = true;
+                  if (label != "Y-Axis" && dim == _yAxisDim)
+                    isUsedByOtherAxis = true;
+                  if (label != "Depth" && dim == _sliderDim)
+                    isUsedByOtherAxis = true;
+
+                  return DropdownMenuItem<ManipulatedDimension>(
+                    value: dim,
+                    enabled: !isUsedByOtherAxis,
+                    child: Text(
+                      dim.name.name,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'WorkSans',
+                        color: isUsedByOtherAxis
+                            ? Colors.grey[400]
+                            : Colors.grey[800],
+                        fontWeight: isUsedByOtherAxis
+                            ? FontWeight.normal
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (newDim) {
+                  if (newDim != null) {
+                    onChanged(newDim);
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -723,7 +894,7 @@ class _MyHomePageState extends State<MyHomePage> {
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
     final rows = _yAxisDim!.nLevels;
     final cols = _xAxisDim!.nLevels;
-    final padding = 16.0;
+    final padding = 40.0; // Increased for axis labels
     final itemPadding = 4.0;
 
     final availableImageWidth =
