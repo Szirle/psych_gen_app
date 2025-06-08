@@ -8,8 +8,10 @@ class CharacteristicSelector extends StatefulWidget {
   final void Function() onClose;
   final void Function(ManipulatedDimensionName) onCharacteristicSelected;
   final void Function(double) onStrengthChanged;
-  final void Function(int) onNLevelChanged; // Callback for the odd integer slider
+  final void Function(int)
+      onNLevelChanged; // Callback for the odd integer slider
   ManipulatedDimension manipulatedDimension;
+  final List<ManipulatedDimension> allManipulatedDimensions;
 
   CharacteristicSelector({
     Key? key,
@@ -18,7 +20,8 @@ class CharacteristicSelector extends StatefulWidget {
     required this.onCharacteristicSelected,
     required this.onStrengthChanged,
     required this.onNLevelChanged, // New callback for odd levels slider
-    required this.manipulatedDimension
+    required this.manipulatedDimension,
+    required this.allManipulatedDimensions,
   }) : super(key: key);
 
   @override
@@ -26,7 +29,6 @@ class CharacteristicSelector extends StatefulWidget {
 }
 
 class _CharacteristicSelectorState extends State<CharacteristicSelector> {
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -47,7 +49,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 8),
+            padding:
+                const EdgeInsets.only(top: 8, left: 16, right: 16, bottom: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -58,13 +61,16 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     decoration: InputDecoration(
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
-                        borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+                        borderSide:
+                            const BorderSide(color: Colors.black26, width: 1.0),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(5.0),
-                        borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+                        borderSide:
+                            const BorderSide(color: Colors.black26, width: 1.0),
                       ),
-                      contentPadding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+                      contentPadding:
+                          const EdgeInsets.only(top: 12, left: 12, right: 12),
                     ),
                     style: const TextStyle(
                       fontFamily: 'WorkSans',
@@ -79,17 +85,23 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     items: ManipulatedDimensionName.values
                         .map<DropdownMenuItem<ManipulatedDimensionName>>(
                             (ManipulatedDimensionName value) {
-                          return DropdownMenuItem<ManipulatedDimensionName>(
-                            value: value,
-                            child: Text(
-                              value.toString().split('.').last,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontFamily: 'WorkSans',
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                      final bool isSelected = widget.allManipulatedDimensions
+                          .any((dim) =>
+                              dim.name == value &&
+                              dim != widget.manipulatedDimension);
+                      return DropdownMenuItem<ManipulatedDimensionName>(
+                        value: value,
+                        enabled: !isSelected,
+                        child: Text(
+                          value.toString().split('.').last,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontFamily: 'WorkSans',
+                            color: isSelected ? Colors.grey : Colors.black,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
                 const SizedBox(
@@ -101,15 +113,18 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     Expanded(
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
+                          overlayShape:
+                              const RoundSliderOverlayShape(overlayRadius: 0.0),
                         ),
                         child: Slider(
                           activeColor: widget.borderColor,
                           inactiveColor: Colors.black12,
                           value: widget.manipulatedDimension.strength,
-                          label: widget.manipulatedDimension.strength.toStringAsFixed(1),
+                          label: widget.manipulatedDimension.strength
+                              .toStringAsFixed(1),
                           onChanged: (newRating) {
-                            setState(() => widget.manipulatedDimension.strength = newRating);
+                            setState(() => widget
+                                .manipulatedDimension.strength = newRating);
                             widget.onStrengthChanged(newRating);
                           },
                           min: 1.0,
@@ -121,7 +136,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                       width: 50,
                       alignment: Alignment.center,
                       child: Text(
-                        widget.manipulatedDimension.strength.toStringAsFixed(1), // Display strength
+                        widget.manipulatedDimension.strength
+                            .toStringAsFixed(1), // Display strength
                         style: const TextStyle(fontSize: 16),
                       ),
                     ),
@@ -136,7 +152,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     Expanded(
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 0.0),
+                          overlayShape:
+                              const RoundSliderOverlayShape(overlayRadius: 0.0),
                         ),
                         child: Slider(
                           activeColor: widget.borderColor,
@@ -146,8 +163,10 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                           max: 11.0,
                           divisions: 5,
                           onChanged: (newValue) {
-                            setState(() => widget.manipulatedDimension.nLevels = newValue.round());
-                            widget.onNLevelChanged(widget.manipulatedDimension.nLevels); // Callback for odd levels
+                            setState(() => widget.manipulatedDimension.nLevels =
+                                newValue.round());
+                            widget.onNLevelChanged(widget.manipulatedDimension
+                                .nLevels); // Callback for odd levels
                           },
                         ),
                       ),
@@ -156,7 +175,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                       width: 50,
                       alignment: Alignment.center,
                       child: Text(
-                        widget.manipulatedDimension.nLevels.toString(), // Display the current odd level
+                        widget.manipulatedDimension.nLevels
+                            .toString(), // Display the current odd level
                         style: const TextStyle(fontSize: 16),
                       ),
                     ),
@@ -176,7 +196,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
             },
             child: Container(
               width: 25, // Specify the width
-              height: 25, // Specify the height to ensure the container is a circle
+              height:
+                  25, // Specify the height to ensure the container is a circle
               decoration: BoxDecoration(
                 color: widget.borderColor,
                 shape: BoxShape.circle, // This makes the container a circle

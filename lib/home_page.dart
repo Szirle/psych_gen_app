@@ -89,27 +89,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _setAxis(String axis, ManipulatedDimension newDim) {
     setState(() {
-      ManipulatedDimension? oldDim;
-      if (axis == 'x') oldDim = _xAxisDim;
-      if (axis == 'y') oldDim = _yAxisDim;
-      if (axis == 'slider') oldDim = _sliderDim;
-
-      String? oldAxis;
-      if (newDim == _xAxisDim) oldAxis = 'x';
-      if (newDim == _yAxisDim) oldAxis = 'y';
-      if (newDim == _sliderDim) oldAxis = 'slider';
-
-      if (oldAxis != null && oldDim != null) {
-        if (oldAxis == 'x') _xAxisDim = oldDim;
-        if (oldAxis == 'y') _yAxisDim = oldDim;
-        if (oldAxis == 'slider') _sliderDim = oldDim;
-      }
-
-      if (axis == 'x') _xAxisDim = newDim;
-      if (axis == 'y') _yAxisDim = newDim;
-      if (axis == 'slider') {
+      if (axis == 'x') {
+        _xAxisDim = newDim;
+      } else if (axis == 'y') {
+        _yAxisDim = newDim;
+      } else if (axis == 'slider') {
         _sliderDim = newDim;
-        _sliderValue = 1;
+        _sliderValue = 1; // Reset slider when the dimension changes
       }
     });
   }
@@ -175,16 +161,38 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .map(
                                     (e) => CharacteristicSelector(
                                       manipulatedDimension: e,
+                                      allManipulatedDimensions:
+                                          faceManipulationRequest
+                                              .manipulatedDimensions,
                                       borderColor: colors[
                                           faceManipulationRequest
                                               .manipulatedDimensions
                                               .indexOf(e)],
                                       onCharacteristicSelected:
                                           (characteristicName) {
-                                        setState(() {
-                                          e.name = characteristicName;
-                                        });
-                                        _loadImages();
+                                        final isAlreadySelected =
+                                            faceManipulationRequest
+                                                .manipulatedDimensions
+                                                .any((dim) =>
+                                                    dim != e &&
+                                                    dim.name ==
+                                                        characteristicName);
+
+                                        if (isAlreadySelected) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  '${characteristicName.name} is already selected.'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        } else {
+                                          setState(() {
+                                            e.name = characteristicName;
+                                          });
+                                          _loadImages();
+                                        }
                                       },
                                       onStrengthChanged: (strength) {
                                         setState(() {
@@ -214,15 +222,31 @@ class _MyHomePageState extends State<MyHomePage> {
                                   if (faceManipulationRequest
                                           .manipulatedDimensions.length <
                                       3) {
-                                    faceManipulationRequest
-                                        .manipulatedDimensions
-                                        .add(ManipulatedDimension(
-                                            name: ManipulatedDimensionName
-                                                .outgoing,
-                                            strength: 25.0,
-                                            nLevels: 5));
-                                    setState(() {});
-                                    _loadImages();
+                                    final selectedNames =
+                                        faceManipulationRequest
+                                            .manipulatedDimensions
+                                            .map((d) => d.name)
+                                            .toSet();
+
+                                    ManipulatedDimensionName? availableName;
+                                    for (var name
+                                        in ManipulatedDimensionName.values) {
+                                      if (!selectedNames.contains(name)) {
+                                        availableName = name;
+                                        break;
+                                      }
+                                    }
+
+                                    if (availableName != null) {
+                                      faceManipulationRequest
+                                          .manipulatedDimensions
+                                          .add(ManipulatedDimension(
+                                              name: availableName,
+                                              strength: 25.0,
+                                              nLevels: 5));
+                                      setState(() {});
+                                      _loadImages();
+                                    }
                                   }
                                 },
                                 buttonText: 'Add variable',
@@ -673,10 +697,15 @@ class _MyHomePageState extends State<MyHomePage> {
         DropdownButton<ManipulatedDimension>(
           value: currentDim,
           items: allDims.map((dim) {
+            bool isUsedByOtherAxis = false;
+            if (label != "X-Axis" && dim == _xAxisDim) isUsedByOtherAxis = true;
+            if (label != "Y-Axis" && dim == _yAxisDim) isUsedByOtherAxis = true;
+            if (label != "Slider" && dim == _sliderDim)
+              isUsedByOtherAxis = true;
+
             return DropdownMenuItem<ManipulatedDimension>(
               value: dim,
-              enabled: dim == currentDim ||
-                  (dim != _xAxisDim && dim != _yAxisDim && dim != _sliderDim),
+              enabled: !isUsedByOtherAxis,
               child: Text(dim.name.name, style: const TextStyle(fontSize: 12)),
             );
           }).toList(),
