@@ -217,28 +217,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           initiallyExpanded: true,
                           maintainState: true,
                           title: const Text(
-                            'Axis assignment',
-                            style: TextStyle(
-                              fontFamily: 'WorkSans',
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          children: <Widget>[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 8.0),
-                              child: _buildAxisDropZones(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Theme(
-                        data: ThemeData()
-                            .copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          initiallyExpanded: true,
-                          maintainState: true,
-                          title: const Text(
                             'Settings',
                             style: TextStyle(
                               fontFamily: 'WorkSans',
@@ -974,31 +952,48 @@ class _MyHomePageState extends State<MyHomePage> {
     required String label,
     required Color color,
   }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: CustomPaint(
-        painter: DottedBorderPainter(
-          color: color,
-          radius: const Radius.circular(8),
-          strokeWidth: 2,
-          gap: 4,
-          dashWidth: 6,
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color.withOpacity(0.8),
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    final labelStyle = TextStyle(
+      color: color,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+      fontFamily: 'WorkSans',
+    );
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        // The dotted border container
+        Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: CustomPaint(
+            painter: DottedBorderPainter(
+              color: color,
+              radius: const Radius.circular(8),
+              strokeWidth: 2,
+              gap: 4,
+              dashWidth: 6,
             ),
           ),
         ),
-      ),
+        // The label that creates the "break"
+        Transform.translate(
+          offset: const Offset(0, -9), // Adjust to sit on the line
+          child: Container(
+            color: Colors.white, // The background color of the side panel
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              label,
+              style: labelStyle,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
