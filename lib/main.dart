@@ -1,10 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:psych_gen_app/api/api_service.dart';
 import 'package:psych_gen_app/home_page.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+
 
 void main() {
   runApp(const MyApp());
