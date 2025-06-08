@@ -10,6 +10,7 @@ import 'package:psych_gen_app/dotted_background_painter.dart';
 import 'package:psych_gen_app/model/face_manipulation_request.dart';
 import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
+import 'package:psych_gen_app/shimmer_image_placeholder.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -21,6 +22,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  int _sliderValue = 1;
+  ManipulatedDimension? _xAxisDim;
+  ManipulatedDimension? _yAxisDim;
+  ManipulatedDimension? _sliderDim;
+
   List<Color> colors = [
     const Color(0xFF3DBDBA),
     const Color(0xFFD53F8C),
@@ -41,6 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _initOrUpdate3dState();
     _loadImages();
   }
 
@@ -48,6 +55,72 @@ class _MyHomePageState extends State<MyHomePage> {
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
+    _initOrUpdate3dState();
+  }
+
+  void _initOrUpdate3dState() {
+    final dims = faceManipulationRequest.manipulatedDimensions;
+
+    if (dims.length == 3) {
+      if (_xAxisDim == null ||
+          _yAxisDim == null ||
+          _sliderDim == null ||
+          !dims.contains(_xAxisDim) ||
+          !dims.contains(_yAxisDim) ||
+          !dims.contains(_sliderDim) ||
+          _xAxisDim == _yAxisDim ||
+          _xAxisDim == _sliderDim ||
+          _yAxisDim == _sliderDim) {
+        setState(() {
+          _xAxisDim = dims[0];
+          _yAxisDim = dims[1];
+          _sliderDim = dims[2];
+          _sliderValue = 1;
+        });
+      }
+    } else {
+      setState(() {
+        _xAxisDim = null;
+        _yAxisDim = null;
+        _sliderDim = null;
+      });
+    }
+  }
+
+  void _setAxis(String axis, ManipulatedDimension newDim) {
+    setState(() {
+      ManipulatedDimension? oldDim;
+      if (axis == 'x') oldDim = _xAxisDim;
+      if (axis == 'y') oldDim = _yAxisDim;
+      if (axis == 'slider') oldDim = _sliderDim;
+
+      String? oldAxis;
+      if (newDim == _xAxisDim) oldAxis = 'x';
+      if (newDim == _yAxisDim) oldAxis = 'y';
+      if (newDim == _sliderDim) oldAxis = 'slider';
+
+      if (oldAxis != null && oldDim != null) {
+        if (oldAxis == 'x') _xAxisDim = oldDim;
+        if (oldAxis == 'y') _yAxisDim = oldDim;
+        if (oldAxis == 'slider') _sliderDim = oldDim;
+      }
+
+      if (axis == 'x') _xAxisDim = newDim;
+      if (axis == 'y') _yAxisDim = newDim;
+      if (axis == 'slider') {
+        _sliderDim = newDim;
+        _sliderValue = 1;
+      }
+    });
+  }
+
+  int _calculateImageCount() {
+    // Calculate total number of images based on manipulated dimensions
+    int totalImages = 1;
+    for (var dimension in faceManipulationRequest.manipulatedDimensions) {
+      totalImages *= dimension.nLevels;
+    }
+    return totalImages;
   }
 
   @override
@@ -140,7 +213,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 onPressed: () {
                                   if (faceManipulationRequest
                                           .manipulatedDimensions.length <
-                                      2) {
+                                      3) {
                                     faceManipulationRequest
                                         .manipulatedDimensions
                                         .add(ManipulatedDimension(
@@ -381,42 +454,155 @@ class _MyHomePageState extends State<MyHomePage> {
                           )
                         ]),
                     Expanded(
-                      child: Center(
-                        child: BlocBuilder<FaceManipulationBloc,
-                            FaceManipulationState>(
-                          builder: (context, state) {
-                            if (state is FaceManipulationLoading) {
-                              return const CircularProgressIndicator();
-                            } else if (state is FaceManipulationLoaded) {
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: state.images
-                                    .map(
-                                      (image) => Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Image.memory(image,
-                                            width: 200, height: 200),
+                      child: Padding(
+                        padding: const EdgeInsets.all(100.0),
+                        child: Center(
+                          child: BlocBuilder<FaceManipulationBloc,
+                              FaceManipulationState>(
+                            builder: (context, state) {
+                              final dimensions =
+                                  faceManipulationRequest.manipulatedDimensions;
+                              final is3dMode = dimensions.length == 3 &&
+                                  _xAxisDim != null &&
+                                  _yAxisDim != null &&
+                                  _sliderDim != null;
+                              final is2dMode = dimensions.length == 2;
+
+                              if (state is FaceManipulationLoading) {
+                                if (is3dMode) {
+                                  return ShimmerImagePlaceholder(
+                                    rows: _yAxisDim!.nLevels,
+                                    cols: _xAxisDim!.nLevels,
+                                  );
+                                } else if (is2dMode) {
+                                  return ShimmerImagePlaceholder(
+                                    rows: dimensions[1].nLevels,
+                                    cols: dimensions[0].nLevels,
+                                  );
+                                } else {
+                                  return ShimmerImagePlaceholder(
+                                    count: _calculateImageCount(),
+                                  );
+                                }
+                              } else if (state is FaceManipulationLoaded) {
+                                if (is3dMode) {
+                                  return Column(
+                                    children: [
+                                      _build3dControls(),
+                                      Expanded(
+                                        child: LayoutBuilder(
+                                          builder: (context, constraints) {
+                                            return _build3dGridView(
+                                                state, constraints, dimensions);
+                                          },
+                                        ),
                                       ),
-                                    )
-                                    .toList(),
-                              );
-                            } else if (state is FaceManipulationError) {
-                              return Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.error,
-                                      color: Colors.red, size: 48),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    state.message,
-                                    style: const TextStyle(color: Colors.red),
-                                    textAlign: TextAlign.center,
+                                    ],
+                                  );
+                                } else if (is2dMode) {
+                                  return LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return _build2dGridView(
+                                          state, constraints, dimensions);
+                                    },
+                                  );
+                                } else {
+                                  return LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return _build1dRowView(
+                                          state, constraints, dimensions);
+                                    },
+                                  );
+                                }
+                              } else if (state is FaceManipulationError) {
+                                return AnimatedImageWidget(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red[50],
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Colors.red[200]!,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.error_outline,
+                                              color: Colors.red[400],
+                                              size: 48,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Error Loading Images',
+                                              style: TextStyle(
+                                                color: Colors.red[700],
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              state.message,
+                                              style: TextStyle(
+                                                color: Colors.red[600],
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                );
+                              }
+                              return AnimatedImageWidget(
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey[300]!,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.image_not_supported_outlined,
+                                        color: Colors.grey[400],
+                                        size: 48,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No images to display',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Adjust your settings and try again',
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               );
-                            }
-                            return const Text('No images to display');
-                          },
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -426,6 +612,275 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _build3dControls() {
+    if (_sliderDim == null || _xAxisDim == null || _yAxisDim == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildAxisSelector(
+                  "X-Axis", _xAxisDim, (newDim) => _setAxis('x', newDim)),
+              _buildAxisSelector(
+                  "Y-Axis", _yAxisDim, (newDim) => _setAxis('y', newDim)),
+              _buildAxisSelector(
+                  "Slider", _sliderDim, (newDim) => _setAxis('slider', newDim)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text("${_sliderDim!.name.name}: ",
+                  style: const TextStyle(fontSize: 12)),
+              Expanded(
+                child: Slider(
+                  value: _sliderValue.toDouble(),
+                  min: 1,
+                  max: _sliderDim!.nLevels.toDouble(),
+                  divisions: _sliderDim!.nLevels - 1,
+                  label: "Level $_sliderValue",
+                  onChanged: (newValue) {
+                    setState(() {
+                      _sliderValue = newValue.round();
+                    });
+                  },
+                ),
+              ),
+              Text("Level $_sliderValue", style: const TextStyle(fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAxisSelector(String label, ManipulatedDimension? currentDim,
+      ValueChanged<ManipulatedDimension> onChanged) {
+    final allDims = faceManipulationRequest.manipulatedDimensions;
+    return Column(
+      children: [
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        DropdownButton<ManipulatedDimension>(
+          value: currentDim,
+          items: allDims.map((dim) {
+            return DropdownMenuItem<ManipulatedDimension>(
+              value: dim,
+              enabled: dim == currentDim ||
+                  (dim != _xAxisDim && dim != _yAxisDim && dim != _sliderDim),
+              child: Text(dim.name.name, style: const TextStyle(fontSize: 12)),
+            );
+          }).toList(),
+          onChanged: (newDim) {
+            if (newDim != null) {
+              onChanged(newDim);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _build3dGridView(FaceManipulationLoaded state,
+      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+    final rows = _yAxisDim!.nLevels;
+    final cols = _xAxisDim!.nLevels;
+    final padding = 16.0;
+    final itemPadding = 4.0;
+
+    final availableImageWidth =
+        (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
+    final availableImageHeight =
+        (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
+    final imageSize = (availableImageWidth < availableImageHeight
+            ? availableImageWidth
+            : availableImageHeight)
+        .clamp(30.0, 150.0);
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(rows, (y) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(cols, (x) {
+              final s = _sliderValue - 1;
+
+              final Map<ManipulatedDimension, int> levelMap = {
+                _xAxisDim!: x,
+                _yAxisDim!: y,
+                _sliderDim!: s,
+              };
+
+              final level0 = levelMap[dimensions[0]]!;
+              final level1 = levelMap[dimensions[1]]!;
+              final level2 = levelMap[dimensions[2]]!;
+
+              final nLevels0 = dimensions[0].nLevels;
+              final nLevels1 = dimensions[1].nLevels;
+
+              final imageIndex =
+                  level2 * (nLevels1 * nLevels0) + level1 * nLevels0 + level0;
+
+              if (imageIndex < state.images.length) {
+                return Padding(
+                  padding: EdgeInsets.all(itemPadding),
+                  child: AnimatedImageWidget(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(
+                          state.images[imageIndex],
+                          width: imageSize,
+                          height: imageSize,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return SizedBox(
+                    width: imageSize + (itemPadding * 2),
+                    height: imageSize + (itemPadding * 2));
+              }
+            }),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _build2dGridView(FaceManipulationLoaded state,
+      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+    final rows = dimensions[1].nLevels;
+    final cols = dimensions[0].nLevels;
+    final padding = 16.0;
+    final itemPadding = 4.0;
+
+    final availableImageWidth =
+        (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
+    final availableImageHeight =
+        (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
+    final imageSize = (availableImageWidth < availableImageHeight
+            ? availableImageWidth
+            : availableImageHeight)
+        .clamp(30.0, 150.0);
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(rows, (row) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(cols, (col) {
+              final imageIndex = row * cols + col;
+              if (imageIndex < state.images.length) {
+                return Padding(
+                  padding: EdgeInsets.all(itemPadding),
+                  child: AnimatedImageWidget(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(
+                          state.images[imageIndex],
+                          width: imageSize,
+                          height: imageSize,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return SizedBox(
+                    width: imageSize + (itemPadding * 2),
+                    height: imageSize + (itemPadding * 2));
+              }
+            }),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _build1dRowView(FaceManipulationLoaded state,
+      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+    final imageCount = state.images.length;
+    final padding = 16.0;
+    final itemPadding = 8.0 * 2;
+    final totalPadding = padding + (itemPadding * imageCount);
+    final availableImageWidth = constraints.maxWidth - totalPadding;
+    final calculatedImageSize = availableImageWidth / imageCount;
+    final imageSize = calculatedImageSize.clamp(20.0, 200.0);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: state.images
+            .map(
+              (image) => Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: AnimatedImageWidget(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          image,
+                          width: imageSize,
+                          height: imageSize,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
