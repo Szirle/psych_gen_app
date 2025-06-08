@@ -864,7 +864,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: _buildAxisOutline(
                   label: label,
-                  color: colors[index],
+                  color: Colors.grey,
                 ),
               );
             }),
@@ -873,6 +873,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ReorderableListView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
           proxyDecorator: (child, index, animation) {
             return Material(
               elevation: 4.0,
@@ -880,54 +881,93 @@ class _MyHomePageState extends State<MyHomePage> {
               child: child,
             );
           },
-          children: faceManipulationRequest.manipulatedDimensions.map((dim) {
+          children: faceManipulationRequest.manipulatedDimensions
+              .asMap()
+              .entries
+              .map((entry) {
+            final index = entry.key;
+            final dim = entry.value;
             return Padding(
               key: ValueKey(dim),
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              child: CharacteristicSelector(
-                manipulatedDimension: dim,
-                allManipulatedDimensions:
-                    faceManipulationRequest.manipulatedDimensions,
-                borderColor: _dimensionColors[dim] ?? Colors.grey,
-                onCharacteristicSelected: (characteristicName) {
-                  final isAlreadySelected = faceManipulationRequest
-                      .manipulatedDimensions
-                      .any((d) => d != dim && d.name == characteristicName);
+              child: Stack(
+                children: [
+                  CharacteristicSelector(
+                    manipulatedDimension: dim,
+                    allManipulatedDimensions:
+                        faceManipulationRequest.manipulatedDimensions,
+                    borderColor: _dimensionColors[dim] ?? Colors.grey,
+                    onCharacteristicSelected: (characteristicName) {
+                      final isAlreadySelected = faceManipulationRequest
+                          .manipulatedDimensions
+                          .any((d) => d != dim && d.name == characteristicName);
 
-                  if (isAlreadySelected) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            '${characteristicName.name} is already selected.'),
-                        backgroundColor: Colors.red,
+                      if (isAlreadySelected) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                '${characteristicName.name} is already selected.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      } else {
+                        setState(() {
+                          dim.name = characteristicName;
+                        });
+                        _loadImages();
+                      }
+                    },
+                    onStrengthChanged: (strength) {
+                      setState(() {
+                        dim.strength = strength;
+                      });
+                      _loadImages();
+                    },
+                    onClose: () {
+                      setState(() {
+                        faceManipulationRequest.manipulatedDimensions
+                            .remove(dim);
+                        _updateDimensionColors();
+                      });
+                      _loadImages();
+                    },
+                    onNLevelChanged: (nLevel) {
+                      setState(() {
+                        dim.nLevels = nLevel;
+                      });
+                      _loadImages();
+                    },
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ReorderableDragStartListener(
+                        index: index,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.drag_handle,
+                            color: Colors.grey,
+                            size: 16,
+                          ),
+                        ),
                       ),
-                    );
-                  } else {
-                    setState(() {
-                      dim.name = characteristicName;
-                    });
-                    _loadImages();
-                  }
-                },
-                onStrengthChanged: (strength) {
-                  setState(() {
-                    dim.strength = strength;
-                  });
-                  _loadImages();
-                },
-                onClose: () {
-                  setState(() {
-                    faceManipulationRequest.manipulatedDimensions.remove(dim);
-                    _updateDimensionColors();
-                  });
-                  _loadImages();
-                },
-                onNLevelChanged: (nLevel) {
-                  setState(() {
-                    dim.nLevels = nLevel;
-                  });
-                  _loadImages();
-                },
+                    ),
+                  ),
+                ],
               ),
             );
           }).toList(),
