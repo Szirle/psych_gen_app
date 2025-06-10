@@ -1121,6 +1121,81 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _build2dGridView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+    if (dimensions.length == 2 &&
+        dimensions[0].nLevels == 5 &&
+        dimensions[1].nLevels == 5 &&
+        state.images.length >= 9) {
+      final rows = 5;
+      final cols = 5;
+      final middleRow = 2;
+      final middleCol = 2;
+      final padding = 16.0;
+      final itemPadding = 4.0;
+
+      final availableImageWidth =
+          (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
+      final availableImageHeight =
+          (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
+      final imageSize = (availableImageWidth < availableImageHeight
+              ? availableImageWidth
+              : availableImageHeight)
+          .clamp(30.0, 150.0);
+
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(rows, (row) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(cols, (col) {
+                int imageIndex = -1;
+
+                if (row == middleRow) {
+                  imageIndex = col;
+                } else if (col == middleCol) {
+                  imageIndex = 5 + row;
+                }
+
+                if (imageIndex != -1 && imageIndex < state.images.length) {
+                  return Padding(
+                    padding: EdgeInsets.all(itemPadding),
+                    child: AnimatedImageWidget(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(
+                            state.images[imageIndex],
+                            width: imageSize,
+                            height: imageSize,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  return SizedBox(
+                      width: imageSize + (itemPadding * 2),
+                      height: imageSize + (itemPadding * 2));
+                }
+              }),
+            );
+          }),
+        ),
+      );
+    }
+
     final rows = dimensions[1].nLevels;
     final cols = dimensions[0].nLevels;
     final padding = 16.0;
