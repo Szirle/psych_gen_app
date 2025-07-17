@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'PsychGenApp',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'WorkSans',
@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
         create: (context) => FaceManipulationBloc(
           repository: FaceManipulationRepositoryImpl(),
         ),
-        child: const MyHomePage(title: 'Flutter Demo Home Page'),
+        child: const MyHomePage(title: 'PsychGenApp'),
       ),
     );
   }
