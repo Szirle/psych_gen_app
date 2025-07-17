@@ -195,7 +195,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           .add(ManipulatedDimension(
                                               name: availableName,
                                               strength: 25.0,
-                                              nLevels: 5));
+                                              nLevels: 3));
                                       setState(() {
                                         _updateDimensionColors();
                                       });
