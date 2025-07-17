@@ -9,7 +9,7 @@ class ManipulatedDimension {
 
   Map<String, dynamic> toJson() => {
         'name': name.toString().split('.').last,
-        'strength': strength,
+        'strength': (strength / 25.0),
         'n_levels': nLevels,
       };
 }

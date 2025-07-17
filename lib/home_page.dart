@@ -41,10 +41,10 @@ class _MyHomePageState extends State<MyHomePage> {
   FaceManipulationRequest faceManipulationRequest = FaceManipulationRequest(
       manipulatedDimensions: [
         ManipulatedDimension(
-            name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 5)
+            name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 3)
       ],
       truncationPsi: 0.6,
-      maxSteps: 50,
+      maxSteps: 10,
       numFaces: 100,
       mode: 'shape',
       preserveIdentity: false);
@@ -285,8 +285,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                         value: faceManipulationRequest.maxSteps
                                             .toDouble(),
                                         min: 1.0,
-                                        max: 100.0,
-                                        divisions: 99,
+                                        max: 20.0,
+                                        divisions: 19,
                                         onChanged: (value) {
                                           setState(() {
                                             faceManipulationRequest.maxSteps =
