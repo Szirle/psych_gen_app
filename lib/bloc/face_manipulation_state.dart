@@ -13,7 +13,7 @@ class FaceManipulationInitial extends FaceManipulationState {}
 class FaceManipulationLoading extends FaceManipulationState {}
 
 class FaceManipulationLoaded extends FaceManipulationState {
-  final List<Uint8List> images;
+  final List<List<Uint8List?>> images;
 
   const FaceManipulationLoaded(this.images);
 

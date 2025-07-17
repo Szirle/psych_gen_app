@@ -460,7 +460,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                   );
                                 } else {
                                   return ShimmerImagePlaceholder(
-                                    count: _calculateImageCount(),
+                                    rows: 1,
+                                    cols: dimensions[0].nLevels,
                                   );
                                 }
                               } else if (state is FaceManipulationLoaded) {
@@ -1040,8 +1041,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _build3dGridView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    final rows = _yAxisDim!.nLevels;
-    final cols = _xAxisDim!.nLevels;
+    // For 3D mode, we still need to handle the slider logic
+    // The backend might return multiple grids for different slider values
+    // For now, let's assume the backend returns a single grid for the current slider value
+
+    if (state.images.isEmpty) {
+      return const Center(child: Text('No images available'));
+    }
+
+    final rows = state.images.length;
+    final cols = rows > 0 ? state.images[0].length : 0;
     final padding = 40.0; // Increased for axis labels
     final itemPadding = 4.0;
 
@@ -1058,29 +1067,16 @@ class _MyHomePageState extends State<MyHomePage> {
       padding: const EdgeInsets.all(8.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(rows, (y) {
+        children: List.generate(rows, (row) {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(cols, (x) {
-              final s = _sliderValue - 1;
+            children: List.generate(cols, (col) {
+              final image =
+                  row < state.images.length && col < state.images[row].length
+                      ? state.images[row][col]
+                      : null;
 
-              final Map<ManipulatedDimension, int> levelMap = {
-                _xAxisDim!: x,
-                _yAxisDim!: y,
-                _sliderDim!: s,
-              };
-
-              final level0 = levelMap[dimensions[0]]!;
-              final level1 = levelMap[dimensions[1]]!;
-              final level2 = levelMap[dimensions[2]]!;
-
-              final nLevels0 = dimensions[0].nLevels;
-              final nLevels1 = dimensions[1].nLevels;
-
-              final imageIndex =
-                  level2 * (nLevels1 * nLevels0) + level1 * nLevels0 + level0;
-
-              if (imageIndex < state.images.length) {
+              if (image != null) {
                 return Padding(
                   padding: EdgeInsets.all(itemPadding),
                   child: AnimatedImageWidget(
@@ -1098,7 +1094,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.memory(
-                          state.images[imageIndex],
+                          image,
                           width: imageSize,
                           height: imageSize,
                           fit: BoxFit.cover,
@@ -1121,83 +1117,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _build2dGridView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    if (dimensions.length == 2 &&
-        dimensions[0].nLevels == 5 &&
-        dimensions[1].nLevels == 5 &&
-        state.images.length >= 9) {
-      final rows = 5;
-      final cols = 5;
-      final middleRow = 2;
-      final middleCol = 2;
-      final padding = 16.0;
-      final itemPadding = 4.0;
-
-      final availableImageWidth =
-          (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
-      final availableImageHeight =
-          (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
-      final imageSize = (availableImageWidth < availableImageHeight
-              ? availableImageWidth
-              : availableImageHeight)
-          .clamp(30.0, 150.0);
-
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(rows, (row) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(cols, (col) {
-                int imageIndex = -1;
-
-                if (row == middleRow) {
-                  imageIndex = col;
-                } else if (col == middleCol) {
-                  imageIndex = 5 + row;
-                }
-
-                if (imageIndex != -1 && imageIndex < state.images.length) {
-                  return Padding(
-                    padding: EdgeInsets.all(itemPadding),
-                    child: AnimatedImageWidget(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.memory(
-                            state.images[imageIndex],
-                            width: imageSize,
-                            height: imageSize,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                } else {
-                  return SizedBox(
-                      width: imageSize + (itemPadding * 2),
-                      height: imageSize + (itemPadding * 2));
-                }
-              }),
-            );
-          }),
-        ),
-      );
+    if (state.images.isEmpty) {
+      return const Center(child: Text('No images available'));
     }
 
-    final rows = dimensions[1].nLevels;
-    final cols = dimensions[0].nLevels;
+    final rows = state.images.length;
+    final cols = rows > 0 ? state.images[0].length : 0;
     final padding = 16.0;
     final itemPadding = 4.0;
 
@@ -1218,8 +1143,12 @@ class _MyHomePageState extends State<MyHomePage> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(cols, (col) {
-              final imageIndex = row * cols + col;
-              if (imageIndex < state.images.length) {
+              final image =
+                  row < state.images.length && col < state.images[row].length
+                      ? state.images[row][col]
+                      : null;
+
+              if (image != null) {
                 return Padding(
                   padding: EdgeInsets.all(itemPadding),
                   child: AnimatedImageWidget(
@@ -1237,7 +1166,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.memory(
-                          state.images[imageIndex],
+                          image,
                           width: imageSize,
                           height: imageSize,
                           fit: BoxFit.cover,
@@ -1260,7 +1189,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _build1dRowView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    final imageCount = state.images.length;
+    if (state.images.isEmpty || state.images[0].isEmpty) {
+      return const Center(child: Text('No images available'));
+    }
+
+    final imageCount = state.images[0].length;
     final padding = 16.0;
     final itemPadding = 8.0 * 2;
     final totalPadding = padding + (itemPadding * imageCount);
@@ -1272,38 +1205,44 @@ class _MyHomePageState extends State<MyHomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: state.images
-            .map(
-              (image) => Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: AnimatedImageWidget(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          image,
-                          width: imageSize,
-                          height: imageSize,
-                          fit: BoxFit.cover,
+        children: List.generate(imageCount, (index) {
+          final image = state.images[0][index];
+          if (image != null) {
+            return Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: AnimatedImageWidget(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        image,
+                        width: imageSize,
+                        height: imageSize,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
                 ),
               ),
-            )
-            .toList(),
+            );
+          } else {
+            return SizedBox(
+              width: imageSize + 16,
+              height: imageSize + 16,
+            );
+          }
+        }),
       ),
     );
   }
