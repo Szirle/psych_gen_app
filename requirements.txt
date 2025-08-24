@@ -1,0 +1,9 @@
+torch
+torchvision
+numpy
+scikit-learn
+requests
+flask
+yaml
+pillow
+pandas
