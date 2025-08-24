@@ -29,6 +29,7 @@ class CustomElevatedButton extends StatelessWidget {
         buttonText,
         style: const TextStyle(
           fontFamily: 'WorkSans',
+          color: Colors.black,
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -117,6 +119,25 @@ class _MyHomePageState extends State<MyHomePage> {
       totalImages *= dimension.nLevels;
     }
     return totalImages;
+  }
+
+  void _logExpectedVsActual(String contextLabel, List<Uint8List> images) {
+    try {
+      final expected = _calculateImageCount();
+      final actual = images.length;
+      print('[HomePage] ' +
+          contextLabel +
+          ' expected=' +
+          expected.toString() +
+          ' actual=' +
+          actual.toString() +
+          ' dims=' +
+          faceManipulationRequest.manipulatedDimensions
+              .map((d) => d.name.toString() + ':' + d.nLevels.toString())
+              .join(','));
+    } catch (e) {
+      print('[HomePage] logging error: ' + e.toString());
+    }
   }
 
   @override

@@ -279,6 +279,7 @@ def generate_images():
             return [to_b64(img) for img in image_array]
         
     converted_images = to_b64(image_array)
+    print(f"Is good: {isinstance(converted_images[0][0], list)}")
     return jsonify(converted_images)
 
 if __name__ == "__main__":
