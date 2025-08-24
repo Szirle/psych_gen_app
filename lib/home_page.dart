@@ -59,6 +59,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _loadImages() {
+    // All regular requests should have changeFace = false
+    faceManipulationRequest.changeFace = false;
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
@@ -421,7 +423,7 @@ class _MyHomePageState extends State<MyHomePage> {
               Expanded(
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Padding(
@@ -445,9 +447,43 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                           Padding(
-                            padding: EdgeInsets.fromLTRB(16, 12, 0, 0),
+                            padding: EdgeInsets.fromLTRB(0, 12, 16, 0),
                             child: SizedBox(
-                              width: 200,
+                              width: 150,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  backgroundColor: const Color(0xFF2B3A55),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 18),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  final immediateRequest =
+                                      FaceManipulationRequest(
+                                    manipulatedDimensions:
+                                        faceManipulationRequest
+                                            .manipulatedDimensions,
+                                    truncationPsi:
+                                        faceManipulationRequest.truncationPsi,
+                                    numFaces: faceManipulationRequest.numFaces,
+                                    maxSteps: faceManipulationRequest.maxSteps,
+                                    preserveIdentity: faceManipulationRequest
+                                        .preserveIdentity,
+                                    mode: faceManipulationRequest.mode,
+                                    changeFace: true,
+                                  );
+                                  context
+                                      .read<FaceManipulationBloc>()
+                                      .add(LoadFaceImages(immediateRequest));
+                                },
+                                child: const Text(
+                                  'Change face',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
                             ),
                           )
                         ]),
@@ -604,52 +640,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 12,
-                            left: 12,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                                border: Border.all(
-                                    color: Colors.grey[300]!, width: 1),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Change face',
-                                    style: TextStyle(
-                                      fontFamily: 'WorkSans',
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Switch(
-                                    value: faceManipulationRequest.changeFace,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        faceManipulationRequest.changeFace =
-                                            value;
-                                      });
-                                      _loadImages();
-                                    },
-                                    activeColor: const Color(0xFF2B3A55),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
