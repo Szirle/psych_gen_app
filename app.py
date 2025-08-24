@@ -279,7 +279,6 @@ def generate_images():
             return [to_b64(img) for img in image_array]
         
     converted_images = to_b64(image_array)
-    print(f"Is good: {isinstance(converted_images[0][0], list)}")
     is_good = True
     strengths = config["strengths"]
     for dim, s_list in enumerate(strengths):
@@ -291,6 +290,8 @@ def generate_images():
             is_good = False
     if not is_good:
         print("Shape of images did not match")
+    else:
+        print("Shape of images matched")
     return jsonify(converted_images)
 
 if __name__ == "__main__":
