@@ -125,6 +125,7 @@ class FastStyleGANBackend:
         For each combo of strengths across K dims, we add sum_j w_j * dir_j
         to W[:, latents_from:latents_to, :], then synthesize in one batch.
         """
+
         if not manipulated_dimensions:
             raise ValueError("manipulated_dimensions must contain at least one name.")
         dims = manipulated_dimensions
@@ -162,21 +163,20 @@ class FastStyleGANBackend:
         dir_slice = directions_full[:, latents_from:latents_to, :]  # [K, L, 512]
 
         # --- build W batch and apply summed deltas (ND) ---
-        with gpu_lock, torch.inference_mode():
-            # base W for a single face, repeated to N
-            w_base = (self.curr_w-self.w_avg)*truncation_psi + self.w_avg     # [1, NUM_WS, 512]
-            w_batch = w_base.repeat(N, 1, 1)                               # [N, NUM_WS, 512]
+        # base W for a single face, repeated to N
+        w_base = (self.curr_w-self.w_avg)*truncation_psi + self.w_avg     # [1, NUM_WS, 512]
+        w_batch = w_base.repeat(N, 1, 1)                               # [N, NUM_WS, 512]
 
-            # weights_b: [N, K, 1, 1], broadcast with dir_slice: [K, L, 512]
-            # delta_slice: [N, L, 512] = sum over K of weights * dir_slice
-            weights_b = weights[:, :, None, None]                           # [N, K, 1, 1]
-            delta_slice = (weights_b * dir_slice[None, :, :, :]).sum(dim=1) # [N, L, 512]
+        # weights_b: [N, K, 1, 1], broadcast with dir_slice: [K, L, 512]
+        # delta_slice: [N, L, 512] = sum over K of weights * dir_slice
+        weights_b = weights[:, :, None, None]                           # [N, K, 1, 1]
+        delta_slice = (weights_b * dir_slice[None, :, :, :]).sum(dim=1) # [N, L, 512]
 
-            # apply to the W slice
-            w_batch[:, latents_from:latents_to, :] += delta_slice           # [N, NUM_WS, 512]
-            w_batch = w_batch[:4,:,:]
-            # synthesize once for whole batch; returns NHWC uint8
-            img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
+        # apply to the W slice
+        w_batch[:, latents_from:latents_to, :] += delta_slice           # [N, NUM_WS, 512]
+        w_batch = w_batch[:4,:,:]
+        # synthesize once for whole batch; returns NHWC uint8
+        img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
         
 
         # img_nhwc has shape [4, H, W, 3]; repeat to reach N
@@ -262,7 +262,8 @@ def generate_images():
     if "change_face" not in config:
         config["change_face"] = True
     # Call the fast backend (batched + GPU lock)
-    images, labels = backend(**config)
+    with gpu_lock, torch.inference_mode(), torch.no_grad():
+        images, labels = backend(**config)
 
     # Your original code sliced images[1:], so keep that behavior:
     image_array = images
