@@ -31,6 +31,7 @@ import torch
 config = yaml.load(open("config.yaml"), Loader=yaml.FullLoader)
 NETWORK_PKL = config["stylegan_path"]
 if not os.path.exists(NETWORK_PKL):
+    os.makedirs(os.path.dirname(NETWORK_PKL), exist_ok=True)
     # Attempt to download if file missing (requires wget or requests)
     print(f"StyleGAN model not found at {NETWORK_PKL}. Attempting download...")
     try:
@@ -258,8 +259,8 @@ def generate_images():
     config = request.get_json(force=True, silent=False)
     config = parse_config(config)
     config["num_faces"] = 1
-    config["change_face"] = True if backend.change_face!=config["preserve_identity"] else False
-    backend.change_face = config["preserve_identity"]
+    if "change_face" not in config:
+        config["change_face"] = True
     # Call the fast backend (batched + GPU lock)
     images, labels = backend(**config)
 
