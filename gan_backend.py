@@ -26,6 +26,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 STYLEGAN3_DIR = os.path.join(PROJECT_ROOT, "content", "psychGAN", "stylegan3")
 if STYLEGAN3_DIR not in sys.path:
     sys.path.append(STYLEGAN3_DIR)
+sys.path.append(os.path.join(PROJECT_ROOT, "stylegan3"))
 import PIL.Image
 from PIL import Image
 
@@ -287,11 +288,7 @@ class Build_model:
         If `/usr/app/stylegan/stylegan2-ffhq-config-f.pkl` exists, it will be used by default.
         """
         self.opt = opt or SimpleNamespace(network_pkl=None)
-        if os.path.exists("/Users/adamsobieszek/PycharmProjects/psychGAN/stylegan2-ffhq-1024x1024.pkl"):
-            print("Found local StyleGAN2 !")
-            network_pkl = "/Users/adamsobieszek/PycharmProjects/psychGAN/stylegan2-ffhq-1024x1024.pkl"
-        else:
-            network_pkl = self.opt.network_pkl
+        network_pkl = self.opt.network_pkl
         if not network_pkl:
             raise FileNotFoundError("Please provide a local StyleGAN2-ADA PyTorch pickle via opt.network_pkl")
 

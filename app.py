@@ -25,15 +25,6 @@ from utils import load_psychGAN_data, ridge_coefs
 # Performance knobs
 # -----------------------------
 import torch
-torch.backends.cudnn.benchmark = True
-if hasattr(torch.backends.cuda.matmul, "allow_tf32"):
-    torch.backends.cuda.matmul.allow_tf32 = True
-try:
-    torch.set_float32_matmul_precision("high")  # PyTorch 2.x
-except Exception:
-    pass
-
-# -----------------------------
 # Load GAN once into GPU/MPS/CPU
 # -----------------------------
 
@@ -285,7 +276,7 @@ def generate_images():
         else:
             return [to_b64(img) for img in image_array]
         
-    converted_images = [to_b64(img) for img in image_array]
+    converted_images = to_b64(image_array)
     return jsonify(converted_images)
 
 if __name__ == "__main__":
