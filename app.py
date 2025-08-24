@@ -48,6 +48,7 @@ if not os.path.exists(NETWORK_PKL):
         url = "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl"
         response = requests.get(url, stream=True)
         response.raise_for_status()
+        
         with open(NETWORK_PKL, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
@@ -181,10 +182,15 @@ class FastStyleGANBackend:
 
             # apply to the W slice
             w_batch[:, latents_from:latents_to, :] += delta_slice           # [N, NUM_WS, 512]
-
+            w_batch = w_batch[:4,:,:]
             # synthesize once for whole batch; returns NHWC uint8
             img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
+        
 
+        # img_nhwc has shape [4, H, W, 3]; repeat to reach N
+        if img_nhwc.shape[0] < N:
+            reps = (N + img_nhwc.shape[0] - 1) // img_nhwc.shape[0]  # ceil(N / 4)
+            img_nhwc = np.concatenate([img_nhwc] * reps, axis=0)[:N]
         # --- reshape back to ND grid: (n1,...,nK,H,W,3) ---
         H, W = img_nhwc.shape[1], img_nhwc.shape[2]
         images = img_nhwc.reshape(*grid_shape, H, W, 3)
