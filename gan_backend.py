@@ -21,7 +21,11 @@ import numpy as np
 from types import SimpleNamespace
 from typing import Iterable, List, Optional, Tuple, Union
 import sys
-sys.path.append('/Users/adamsobieszek/PycharmProjects/psychGAN/content/psychGAN/stylegan3/')
+# Ensure local StyleGAN3 utilities (torch_utils, dnnlib, legacy, etc.) are importable
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+STYLEGAN3_DIR = os.path.join(PROJECT_ROOT, "content", "psychGAN", "stylegan3")
+if STYLEGAN3_DIR not in sys.path:
+    sys.path.append(STYLEGAN3_DIR)
 import PIL.Image
 from PIL import Image
 
