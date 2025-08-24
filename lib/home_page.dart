@@ -139,7 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Image.asset("images/logo.png",
+                            Image.asset("assets/images/logo.png",
                                 width: 40, height: 40),
                             const SizedBox(width: 5),
                             const Text(
@@ -172,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 onPressed: () {
                                   if (faceManipulationRequest
                                           .manipulatedDimensions.length <
-                                      2) {
+                                      3) {
                                     final selectedNames =
                                         faceManipulationRequest
                                             .manipulatedDimensions
@@ -760,7 +760,7 @@ class _MyHomePageState extends State<MyHomePage> {
         else
           _buildAxisDropZone(
             axis: 'x',
-            label: 'X-Axis',
+            label: '1st variable',
             assignedDim: _xAxisDim,
             color: colors[0],
           ),
@@ -768,7 +768,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (dims.length > 1)
           _buildAxisDropZone(
             axis: 'y',
-            label: 'Y-Axis',
+            label: '2nd variable',
             assignedDim: _yAxisDim,
             color: colors[1],
           ),
@@ -776,7 +776,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (dims.length > 2)
           _buildAxisDropZone(
             axis: 'slider',
-            label: 'Depth',
+            label: '3rd variable',
             assignedDim: _sliderDim,
             color: colors[2],
           ),
