@@ -160,8 +160,8 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                           inactiveColor: Colors.black12,
                           value: widget.manipulatedDimension.nLevels.toDouble(),
                           min: 1.0,
-                          max: 11.0,
-                          divisions: 5,
+                          max: 5.0,
+                          divisions: 2,
                           onChanged: (newValue) {
                             setState(() => widget.manipulatedDimension.nLevels =
                                 newValue.round());

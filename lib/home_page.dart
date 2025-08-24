@@ -41,7 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
   FaceManipulationRequest faceManipulationRequest = FaceManipulationRequest(
       manipulatedDimensions: [
         ManipulatedDimension(
-            name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 5)
+            name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 1)
       ],
       truncationPsi: 0.6,
       maxSteps: 50,
@@ -195,7 +195,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           .add(ManipulatedDimension(
                                               name: availableName,
                                               strength: 25.0,
-                                              nLevels: 5));
+                                              nLevels: 1));
                                       setState(() {
                                         _updateDimensionColors();
                                       });
