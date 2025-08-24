@@ -39,6 +39,23 @@ except Exception:
 
 config = yaml.load(open("config.yaml"), Loader=yaml.FullLoader)
 NETWORK_PKL = config["stylegan_path"]
+if not os.path.exists(NETWORK_PKL):
+    # Attempt to download if file missing (requires wget or requests)
+    print(f"StyleGAN model not found at {NETWORK_PKL}. Attempting download...")
+    try:
+        # Example using requests (install requests: pip install requests)
+        import requests
+        url = "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl"
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(NETWORK_PKL, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print("Download complete.")
+    except Exception as e:
+        print(f"Error downloading StyleGAN model: {e}")
+        print("Please download the model manually and place it at:", NETWORK_PKL)
+        raise FileNotFoundError(f"StyleGAN model file not found: {NETWORK_PKL}") from e
 MODELS_PATH = config["models_path"]
 DATA_PATH = config["data_path"]
 
