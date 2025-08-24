@@ -279,7 +279,13 @@ def generate_images():
     out_fmt = request.args.get("format", "webp")
     quality = int(request.args.get("quality", "90"))
 
-    converted_images = [[encode_image_b64(_img, fmt=out_fmt, quality=quality) for _img in img] if len(img.shape)==4 else encode_image_b64(img, fmt=out_fmt, quality=quality) for img in image_array]
+    def to_b64(image_array):
+        if len(image_array.shape)==4:
+            return [encode_image_b64(_img, fmt=out_fmt, quality=quality) for _img in image_array]
+        else:
+            return [to_b64(img) for img in image_array]
+        
+    converted_images = [to_b64(img) for img in image_array]
     return jsonify(converted_images)
 
 if __name__ == "__main__":
