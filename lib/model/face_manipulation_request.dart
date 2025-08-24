@@ -6,6 +6,7 @@ class FaceManipulationRequest {
   int numFaces;
   int maxSteps;
   bool preserveIdentity;
+  bool changeFace;
   String mode;
 
   FaceManipulationRequest({
@@ -14,15 +15,18 @@ class FaceManipulationRequest {
     required this.numFaces,
     required this.maxSteps,
     required this.preserveIdentity,
+    this.changeFace = false,
     required this.mode,
   });
 
   Map<String, dynamic> toJson() => {
-        'manipulated_dimensions': manipulatedDimensions.map((dim) => dim.toJson()).toList(),
+        'manipulated_dimensions':
+            manipulatedDimensions.map((dim) => dim.toJson()).toList(),
         'truncation_psi': truncationPsi,
         'num_faces': numFaces,
         'max_steps': maxSteps,
         'preserve_identity': preserveIdentity,
+        'change_face': changeFace,
         'mode': mode,
       };
 }

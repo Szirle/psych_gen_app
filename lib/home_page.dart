@@ -13,7 +13,6 @@ import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/shimmer_image_placeholder.dart';
 import 'dart:ui' as ui;
-import 'dart:math';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -173,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 onPressed: () {
                                   if (faceManipulationRequest
                                           .manipulatedDimensions.length <
-                                      3) {
+                                      2) {
                                     final selectedNames =
                                         faceManipulationRequest
                                             .manipulatedDimensions
@@ -432,157 +431,208 @@ class _MyHomePageState extends State<MyHomePage> {
                           )
                         ]),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50.0, vertical: 25),
-                        child: Center(
-                          child: BlocBuilder<FaceManipulationBloc,
-                              FaceManipulationState>(
-                            builder: (context, state) {
-                              final dimensions =
-                                  faceManipulationRequest.manipulatedDimensions;
-                              final is3dMode = dimensions.length == 3 &&
-                                  _xAxisDim != null &&
-                                  _yAxisDim != null &&
-                                  _sliderDim != null;
-                              final is2dMode = dimensions.length == 2;
+                      child: Stack(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 50.0, vertical: 25),
+                            child: Center(
+                              child: BlocBuilder<FaceManipulationBloc,
+                                  FaceManipulationState>(
+                                builder: (context, state) {
+                                  final dimensions = faceManipulationRequest
+                                      .manipulatedDimensions;
+                                  final is3dMode = dimensions.length == 3 &&
+                                      _xAxisDim != null &&
+                                      _yAxisDim != null &&
+                                      _sliderDim != null;
+                                  final is2dMode = dimensions.length == 2;
 
-                              if (state is FaceManipulationLoading) {
-                                if (is3dMode) {
-                                  return ShimmerImagePlaceholder(
-                                    rows: _yAxisDim!.nLevels,
-                                    cols: _xAxisDim!.nLevels,
-                                  );
-                                } else if (is2dMode) {
-                                  return ShimmerImagePlaceholder(
-                                    rows: dimensions[1].nLevels,
-                                    cols: dimensions[0].nLevels,
-                                  );
-                                } else {
-                                  return ShimmerImagePlaceholder(
-                                    count: _calculateImageCount(),
-                                  );
-                                }
-                              } else if (state is FaceManipulationLoaded) {
-                                if (is3dMode) {
-                                  return Column(
-                                    children: [
-                                      _build3dSlider(),
-                                      Expanded(
-                                        child: LayoutBuilder(
-                                          builder: (context, constraints) {
-                                            return _build3dGridView(
-                                                state, constraints, dimensions);
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                } else if (is2dMode) {
-                                  return LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return _build2dGridView(
-                                          state, constraints, dimensions);
-                                    },
-                                  );
-                                } else {
-                                  return LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return _build1dRowView(
-                                          state, constraints, dimensions);
-                                    },
-                                  );
-                                }
-                              } else if (state is FaceManipulationError) {
-                                return AnimatedImageWidget(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red[50],
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: Colors.red[200]!,
-                                            width: 1,
+                                  if (state is FaceManipulationLoading) {
+                                    if (is3dMode) {
+                                      return ShimmerImagePlaceholder(
+                                        rows: _yAxisDim!.nLevels,
+                                        cols: _xAxisDim!.nLevels,
+                                      );
+                                    } else if (is2dMode) {
+                                      return ShimmerImagePlaceholder(
+                                        rows: dimensions[1].nLevels,
+                                        cols: dimensions[0].nLevels,
+                                      );
+                                    } else {
+                                      return ShimmerImagePlaceholder(
+                                        count: _calculateImageCount(),
+                                      );
+                                    }
+                                  } else if (state is FaceManipulationLoaded) {
+                                    if (is3dMode) {
+                                      return Column(
+                                        children: [
+                                          _build3dSlider(),
+                                          Expanded(
+                                            child: LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                return _build3dGridView(state,
+                                                    constraints, dimensions);
+                                              },
+                                            ),
                                           ),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Icon(
-                                              Icons.error_outline,
-                                              color: Colors.red[400],
-                                              size: 48,
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              'Error Loading Images',
-                                              style: TextStyle(
-                                                color: Colors.red[700],
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
+                                        ],
+                                      );
+                                    } else if (is2dMode) {
+                                      return LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return _build2dGridView(
+                                              state, constraints, dimensions);
+                                        },
+                                      );
+                                    } else {
+                                      return LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return _build1dRowView(
+                                              state, constraints, dimensions);
+                                        },
+                                      );
+                                    }
+                                  } else if (state is FaceManipulationError) {
+                                    return AnimatedImageWidget(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red[50],
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: Colors.red[200]!,
+                                                width: 1,
                                               ),
                                             ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              state.message,
-                                              style: TextStyle(
-                                                color: Colors.red[600],
-                                                fontSize: 14,
-                                              ),
-                                              textAlign: TextAlign.center,
+                                            child: Column(
+                                              children: [
+                                                Icon(
+                                                  Icons.error_outline,
+                                                  color: Colors.red[400],
+                                                  size: 48,
+                                                ),
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  'Error Loading Images',
+                                                  style: TextStyle(
+                                                    color: Colors.red[700],
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  state.message,
+                                                  style: TextStyle(
+                                                    color: Colors.red[600],
+                                                    fontSize: 14,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  return AnimatedImageWidget(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.grey[300]!,
+                                          width: 1,
                                         ),
                                       ),
-                                    ],
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: Colors.grey[400],
+                                            size: 48,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'No images to display',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Adjust your settings and try again',
+                                            style: TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 12,
+                            left: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
                                   ),
-                                );
-                              }
-                              return AnimatedImageWidget(
-                                child: Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
-                                      width: 1,
+                                ],
+                                border: Border.all(
+                                    color: Colors.grey[300]!, width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'Change face',
+                                    style: TextStyle(
+                                      fontFamily: 'WorkSans',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.image_not_supported_outlined,
-                                        color: Colors.grey[400],
-                                        size: 48,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'No images to display',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Adjust your settings and try again',
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 8),
+                                  Switch(
+                                    value: faceManipulationRequest.changeFace,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        faceManipulationRequest.changeFace =
+                                            value;
+                                      });
+                                      _loadImages();
+                                    },
+                                    activeColor: const Color(0xFF2B3A55),
                                   ),
-                                ),
-                              );
-                            },
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
