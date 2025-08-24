@@ -1,0 +1,3 @@
+stylegan_path: "./models/stylegan2-ffhq-1024x1024.pkl"
+data_path: "./data"
+models_path: "./models"

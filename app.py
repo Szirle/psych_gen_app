@@ -7,6 +7,7 @@ import json
 import time
 import base64
 import threading
+import yaml
 from types import SimpleNamespace
 from typing import Dict, List, Tuple, Optional
 
@@ -35,10 +36,11 @@ except Exception:
 # -----------------------------
 # Load GAN once into GPU/MPS/CPU
 # -----------------------------
-NETWORK_PKL = os.environ.get(
-    "STYLEGAN_PKL",
-    "/Users/adamsobieszek/PycharmProjects/psychGAN/stylegan2-ffhq-1024x1024.pkl"
-)
+
+config = yaml.load(open("config.yaml"), Loader=yaml.FullLoader)
+NETWORK_PKL = config["stylegan_path"]
+MODELS_PATH = config["models_path"]
+DATA_PATH = config["data_path"]
 
 bm = Build_model(SimpleNamespace(network_pkl=NETWORK_PKL))  # keeps G hot on device
 DEVICE = bm.device
@@ -57,10 +59,10 @@ DTYPE = torch.float32
 models: Dict[str, np.ndarray] = globals().get("models", {})
 all_labels: List[str] = globals().get("all_labels", list(models.keys()))
 
-def _get_direction(dim_name: str, backend: Build_model) -> np.ndarray:
-    coefs = ridge_coefs(dim_name, 100, backend=backend)
+def _get_direction(dim_name: str, backend: Build_model, alpha: float = 100) -> np.ndarray:
+    coefs = ridge_coefs(dim_name, alpha, backend=backend)
     coefs = coefs/coefs.norm()
-    coefs = coefs.reshape(1, 1, -1)
+    coefs = coefs.reshape(1, -1).repeat(NUM_WS, 1)
     return coefs
 
 # -----------------------------
@@ -74,9 +76,12 @@ class FastStyleGANBackend:
         self.gen = torch.Generator(device=self.bm.device)
         self.noise_mode = "const"
         self._seed_base = int(time.time())
-        self.photo_to_coords, self.dim_to_photo_to_ratings = load_psychGAN_data()
+        self.photo_to_coords, self.dim_to_photo_to_ratings = load_psychGAN_data(DATA_PATH)
         self.device = self.bm.device
         self.dtype = DTYPE
+        self.curr_w = self._sample_w(1, truncation_psi=1)
+        self.change_face = False
+        self.w_avg = self.bm.G.mapping.w_avg
 
 
     def _sample_w(self, n: int, truncation_psi: float = 1.0) -> torch.Tensor:
@@ -88,43 +93,94 @@ class FastStyleGANBackend:
         with torch.inference_mode():
             w = self.bm.G.mapping(z, None, truncation_psi=truncation_psi)
         return w  # [n, NUM_WS, 512]
-
+        
     def __call__(
         self,
         *,
         num_faces: int = 1,
         manipulated_dimensions: List[str],
-        strengths: List[float],
+        strengths: List[List[float]],   # list of levels per dimension (ND)
         steps: int = 40,
         latents_from: int = 0,
         latents_to: int = NUM_WS,
         truncation_psi: float = 0.5,
         noise_mode: str = "const",
+        strength_scale: float = 0.1,    # replaces older "/10"
+        change_face: bool = False,
         **kwargs
-    ) -> Tuple[List[np.ndarray], Dict]:
+    ):
         """
-        Returns (images, labels). `images` are NHWC uint8 (RGB).
-        - We generate one base face per request (num_faces=1), then apply all strengths
-          for the first (and only) dimension in `manipulated_dimensions`.
-        - Batched synthesis: 1 forward pass for all strengths (big speedup).
+        Returns (images, labels).
+        images: uint8 NHWC reshaped to (n1, ..., nK, H, W, 3)
+        For each combo of strengths across K dims, we add sum_j w_j * dir_j
+        to W[:, latents_from:latents_to, :], then synthesize in one batch.
         """
         if not manipulated_dimensions:
             raise ValueError("manipulated_dimensions must contain at least one name.")
-        dim_name = manipulated_dimensions[0]
-        n_levels = len(strengths[0])
-        # direction = _get_direction(dim_name)  # [NUM_WS, 512]
-        strengths = torch.tensor(strengths[0], dtype=self.dtype, device=self.device).reshape(-1, 1, 1)/10
-        # n_levels = strengths.shape[0]
-        direction = _get_direction(dim_name, self).repeat(n_levels, 1, 1)
-        with gpu_lock, torch.inference_mode():
-            # 1) Base W for one face
-            w_base = self._sample_w(1, truncation_psi=truncation_psi)  # [1, NUM_WS, 512]=
-            w_base = w_base.repeat(n_levels, 1, 1)
-            w_base = w_base + strengths * direction
-            base_img = self.bm.generate_im_from_w_space(w_base, resolution=256)
+        dims = manipulated_dimensions
+        K = len(dims)
+        if change_face:
+            self.curr_w = self._sample_w(1, truncation_psi=1.0)
+        device = getattr(self, "device", self.bm.device)
+        dtype  = getattr(self, "dtype", torch.float32)
 
-        images = base_img
-        labels = {"dimension": dim_name, "strengths": strengths.tolist()}
+        # --- per-dim levels -> tensors ---
+        level_tensors = [torch.tensor(s, device=device, dtype=dtype) * float(strength_scale)
+                        for s in strengths]
+        grid_shape = [len(t) for t in level_tensors]   # [n1, n2, ... nK]
+
+        # --- ND Cartesian grid of weights -> [N, K] ---
+        grids = torch.meshgrid(*level_tensors, indexing="ij")
+        weights = torch.stack(grids, dim=-1).reshape(-1, K).to(device=device, dtype=dtype)  # [N, K]
+        N = int(weights.shape[0])
+
+        # --- sanity on W slice ---
+        if not (0 <= latents_from < latents_to <= NUM_WS):
+            raise ValueError(f"Bad latents_from/to: {latents_from}, {latents_to} (NUM_WS={NUM_WS})")
+        L = int(latents_to - latents_from)
+
+        # --- directions stacked on requested slice ---
+        # directions_full: [K, NUM_WS, 512]  -> dir_slice: [K, L, 512]
+        dir_list = []
+        for name in dims:
+            d = _get_direction(name, backend=self, alpha=2**((steps-30)/4))   # your new API
+            if isinstance(d, np.ndarray):
+                d = torch.from_numpy(d)
+            d = d.to(device=device, dtype=dtype)        # ensure same device/dtype
+            dir_list.append(d)
+        directions_full = torch.stack(dir_list, dim=0)          # [K, NUM_WS, 512]
+        dir_slice = directions_full[:, latents_from:latents_to, :]  # [K, L, 512]
+
+        # --- build W batch and apply summed deltas (ND) ---
+        with gpu_lock, torch.inference_mode():
+            # base W for a single face, repeated to N
+            w_base = (self.curr_w-self.w_avg)*truncation_psi + self.w_avg     # [1, NUM_WS, 512]
+            w_batch = w_base.repeat(N, 1, 1)                               # [N, NUM_WS, 512]
+
+            # weights_b: [N, K, 1, 1], broadcast with dir_slice: [K, L, 512]
+            # delta_slice: [N, L, 512] = sum over K of weights * dir_slice
+            weights_b = weights[:, :, None, None]                           # [N, K, 1, 1]
+            delta_slice = (weights_b * dir_slice[None, :, :, :]).sum(dim=1) # [N, L, 512]
+
+            # apply to the W slice
+            w_batch[:, latents_from:latents_to, :] += delta_slice           # [N, NUM_WS, 512]
+
+            # synthesize once for whole batch; returns NHWC uint8
+            img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
+
+        # --- reshape back to ND grid: (n1,...,nK,H,W,3) ---
+        H, W = img_nhwc.shape[1], img_nhwc.shape[2]
+        images = img_nhwc.reshape(*grid_shape, H, W, 3)
+
+        labels = {
+            "dimensions": dims,
+            "strengths": [t.detach().cpu().tolist() for t in level_tensors],
+            "grid_shape": grid_shape,
+            "latents_from": latents_from,
+            "latents_to": latents_to,
+            "truncation_psi": truncation_psi,
+            "strength_scale": strength_scale,
+        }
         return images, labels
 
 backend = FastStyleGANBackend(bm)
@@ -134,16 +190,19 @@ backend = FastStyleGANBackend(bm)
 def parse_config(conf):
     if isinstance(conf, str):
         conf = json.loads(conf)
+
     # Map mode -> W-slice
     latents_from, latents_to = {"both": (0, NUM_WS), "color": (9, NUM_WS), "shape": (0, 9)}.get(
         conf.pop("mode", "both"), (0, NUM_WS)
     )
+
+    # strengths: list per dimension (keeps ND structure)
     conf["strengths"] = [
         np.linspace(-1 * dim["strength"], dim["strength"], int(dim["n_levels"])).tolist()
         for dim in conf["manipulated_dimensions"]
     ]
-    conf["manipulated_dimensions"] = [dim["name"] for dim in conf["manipulated_dimensions"]]
 
+    conf["manipulated_dimensions"] = [dim["name"] for dim in conf["manipulated_dimensions"]]
     conf["steps"] = int(conf.pop("max_steps", 40))
     conf["latents_from"] = latents_from
     conf["latents_to"] = latents_to
@@ -185,8 +244,8 @@ def generate_images():
     config = request.get_json(force=True, silent=False)
     config = parse_config(config)
     config["num_faces"] = 1
-
-    
+    config["change_face"] = True if backend.change_face!=config["preserve_identity"] else False
+    backend.change_face = config["preserve_identity"]
     # Call the fast backend (batched + GPU lock)
     images, labels = backend(**config)
 
@@ -197,7 +256,7 @@ def generate_images():
     out_fmt = request.args.get("format", "webp")
     quality = int(request.args.get("quality", "90"))
 
-    converted_images = [encode_image_b64(img, fmt=out_fmt, quality=quality) for img in image_array]
+    converted_images = [[encode_image_b64(_img, fmt=out_fmt, quality=quality) for _img in img] if len(img.shape)==4 else encode_image_b64(img, fmt=out_fmt, quality=quality) for img in image_array]
     return jsonify(converted_images)
 
 if __name__ == "__main__":

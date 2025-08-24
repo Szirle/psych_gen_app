@@ -293,6 +293,7 @@ class Build_model:
 
         print(f'Loading generator from "{network_pkl}"...')
         self.G, self.device = load_generator(network_pkl, device)
+        # compile the generator
         self.noise_mode = 'const'  # mirrors randomize_noise=False
         self.z_dim = getattr(self.G.mapping, 'z_dim', 512)
         self.num_ws = _shape_num_ws(self.G)

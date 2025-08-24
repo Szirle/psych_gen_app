@@ -6,15 +6,16 @@ import numpy as np
 dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
-def load_psychGAN_data():
-    psychGAN_path = "/Users/adamsobieszek/PycharmProjects/psychGAN/"
-    with open(psychGAN_path+"photo_to_coords.pkl", "rb") as f:
-        photo_to_coords = pickle.load(f)
-    with open(psychGAN_path+"dim_to_photo_to_ratings.pkl", "rb") as f:
+def load_psychGAN_data(data_path):
+    if not data_path.endswith("/"):
+        data_path += "/"
+    with open(data_path+"photo_to_coords.pkl", "rb") as f:
+        photo,coords = pickle.load(f)
+    photo_coords = {k: v for k, v in zip(photo, coords)}
+    with open(data_path+"dim_to_photo_to_ratings.pkl", "rb") as f: 
         dim_to_photo_to_ratings = pickle.load(f)
 
-
-    return photo_to_coords, dim_to_photo_to_ratings
+    return photo_coords, dim_to_photo_to_ratings
 
 def pad_list(l, max_len):
     return l[:max_len] + [np.nan] * (max_len - len(l[:max_len]))
