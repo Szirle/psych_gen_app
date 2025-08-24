@@ -921,7 +921,7 @@ class _MyHomePageState extends State<MyHomePage> {
               }
 
               return Container(
-                height: 220, // Approximate height of CharacteristicSelector
+                height: 390, // Increased to comfortably fit bigger selector
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: _buildAxisOutline(
                   label: label,
@@ -959,6 +959,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     allManipulatedDimensions:
                         faceManipulationRequest.manipulatedDimensions,
                     borderColor: _dimensionColors[dim] ?? Colors.grey,
+                    onRangeChanged: (start, end) {
+                      setState(() {
+                        dim.rangeStart = start;
+                        dim.rangeEnd = end;
+                      });
+                      _loadImages();
+                    },
                     onCharacteristicSelected: (characteristicName) {
                       final isAlreadySelected = faceManipulationRequest
                           .manipulatedDimensions

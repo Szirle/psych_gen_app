@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:psych_gen_app/model/face_manipulation_request.dart';
 import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
+import 'package:psych_gen_app/widgets/distribution_range_selector.dart';
 
 class CharacteristicSelector extends StatefulWidget {
   final Color borderColor;
@@ -10,7 +10,8 @@ class CharacteristicSelector extends StatefulWidget {
   final void Function(double) onStrengthChanged;
   final void Function(int)
       onNLevelChanged; // Callback for the odd integer slider
-  ManipulatedDimension manipulatedDimension;
+  final void Function(double, double) onRangeChanged;
+  final ManipulatedDimension manipulatedDimension;
   final List<ManipulatedDimension> allManipulatedDimensions;
 
   CharacteristicSelector({
@@ -20,6 +21,7 @@ class CharacteristicSelector extends StatefulWidget {
     required this.onCharacteristicSelected,
     required this.onStrengthChanged,
     required this.onNLevelChanged, // New callback for odd levels slider
+    required this.onRangeChanged,
     required this.manipulatedDimension,
     required this.allManipulatedDimensions,
   }) : super(key: key);
@@ -182,7 +184,21 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     ),
                   ],
                 ),
-                const SizedBox(),
+                const SizedBox(
+                  height: 5,
+                ),
+                const Text("Control condition distribution range"),
+                DistributionRangeSelector(
+                  dimension: widget.manipulatedDimension,
+                  accentColor: widget.borderColor,
+                  onRangeChanged: (start, end) {
+                    setState(() {
+                      widget.manipulatedDimension.rangeStart = start;
+                      widget.manipulatedDimension.rangeEnd = end;
+                    });
+                    widget.onRangeChanged(start, end);
+                  },
+                ),
               ],
             ),
           ),
