@@ -1,6 +1,7 @@
 # server_fast.py
 # A hyper-fast, GPU-locked Flask server compatible with your existing /images route + config.
 
+import hashlib
 import os
 import io
 import json
@@ -51,8 +52,8 @@ if not os.path.exists(NETWORK_PKL):
         raise FileNotFoundError(f"StyleGAN model file not found: {NETWORK_PKL}") from e
 MODELS_PATH = config["models_path"]
 DATA_PATH = config["data_path"]
-
-bm = Build_model(SimpleNamespace(network_pkl=NETWORK_PKL))  # keeps G hot on device
+STYLEGAN_DISTILLED_PATH = config["stylegan_distilled_path"]
+bm = Build_model(SimpleNamespace(network_pkl=NETWORK_PKL, distilled_network_pkl=STYLEGAN_DISTILLED_PATH))  # keeps G hot on device
 DEVICE = bm.device
 NUM_WS = bm.num_ws
 Z_DIM = bm.z_dim
@@ -91,7 +92,20 @@ class FastStyleGANBackend:
         self.dtype = DTYPE
         self.curr_w = self._sample_w(1, truncation_psi=1)
         self.change_face = False
-        self.w_avg = self.bm.G.mapping.w_avg
+
+        # current face latent (in W)
+        self.curr_w = self._sample_w(1, truncation_psi=1.0)           # [1, NUM_WS, 512]
+        self.w_avg = self.bm.G.mapping.w_avg                          # [512]
+        self.change_face = False
+
+        # caches
+        self._dir_cache: Dict[Tuple[str, int], torch.Tensor] = {}     # (dim, steps) -> [NUM_WS,512]
+        self._img_cache: Dict[Tuple, np.ndarray] = {}                 # per-combo cache
+        self._face_hash = self._hash_w(self.curr_w)
+
+    def _hash_w(self, w: torch.Tensor) -> str:
+        arr = w.detach().to("cpu", dtype=torch.float32).numpy()
+        return hashlib.sha1(arr.tobytes()).hexdigest()
 
 
     def _sample_w(self, n: int, truncation_psi: float = 1.0) -> torch.Tensor:
@@ -103,6 +117,23 @@ class FastStyleGANBackend:
         with torch.inference_mode():
             w = self.bm.G.mapping(z, None, truncation_psi=truncation_psi)
         return w  # [n, NUM_WS, 512]
+        
+
+    def _get_direction_cached(self, dim_name: str, steps: int) -> torch.Tensor:
+        # Direction depends on `steps` via alpha
+        key = (dim_name, int(steps))
+        d = self._dir_cache.get(key)
+        if d is not None:
+            return d
+        alpha = 2 ** ((steps - 30) / 4.0)
+        # new API: pass builder to _get_direction
+        d = _get_direction(dim_name, backend=self, alpha=alpha)
+        if isinstance(d, np.ndarray):
+            d = torch.from_numpy(d)
+        d = d.to(device=self.device, dtype=self.dtype)  # [NUM_WS, 512]
+        self._dir_cache[key] = d
+        return d
+
         
     def __call__(
         self,
@@ -139,13 +170,10 @@ class FastStyleGANBackend:
         level_tensors = [torch.tensor(s, device=device, dtype=dtype) * float(strength_scale)
                         for s in strengths]
         grid_shape = [len(t) for t in level_tensors]   # [n1, n2, ... nK]
-
         # --- ND Cartesian grid of weights -> [N, K] ---
         grids = torch.meshgrid(*level_tensors, indexing="ij")
         weights = torch.stack(grids, dim=-1).reshape(-1, K).to(device=device, dtype=dtype)  # [N, K]
         N = int(weights.shape[0])
-
-        # --- sanity on W slice ---
         if not (0 <= latents_from < latents_to <= NUM_WS):
             raise ValueError(f"Bad latents_from/to: {latents_from}, {latents_to} (NUM_WS={NUM_WS})")
         L = int(latents_to - latents_from)
@@ -154,7 +182,7 @@ class FastStyleGANBackend:
         # directions_full: [K, NUM_WS, 512]  -> dir_slice: [K, L, 512]
         dir_list = []
         for name in dims:
-            d = _get_direction(name, backend=self, alpha=2**((steps-30)/4))   # your new API
+            d = self._get_direction_cached(name, steps)   # your new API
             if isinstance(d, np.ndarray):
                 d = torch.from_numpy(d)
             d = d.to(device=device, dtype=dtype)        # ensure same device/dtype
@@ -174,18 +202,16 @@ class FastStyleGANBackend:
 
         # apply to the W slice
         w_batch[:, latents_from:latents_to, :] += delta_slice           # [N, NUM_WS, 512]
-        w_batch = w_batch[:4,:,:]
         # synthesize once for whole batch; returns NHWC uint8
         img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
         
-
-        # img_nhwc has shape [4, H, W, 3]; repeat to reach N
-        if img_nhwc.shape[0] < N:
-            reps = (N + img_nhwc.shape[0] - 1) // img_nhwc.shape[0]  # ceil(N / 4)
-            img_nhwc = np.concatenate([img_nhwc] * reps, axis=0)[:N]
         # --- reshape back to ND grid: (n1,...,nK,H,W,3) ---
         H, W = img_nhwc.shape[1], img_nhwc.shape[2]
         images = img_nhwc.reshape(*grid_shape, H, W, 3)
+        if len(grid_shape) == 2:
+            images = images.swapaxes(-5, -4)
+        
+        images = images.reshape(*grid_shape, H, W, 3)
 
         labels = {
             "dimensions": dims,
@@ -261,9 +287,15 @@ def generate_images():
     config["num_faces"] = 1
     if "change_face" not in config:
         config["change_face"] = True
+
     # Call the fast backend (batched + GPU lock)
+    import time
+
+    t0 = time.time()
     with gpu_lock, torch.inference_mode(), torch.no_grad():
         images, labels = backend(**config)
+    t1 = time.time()
+    print(f"[PROFILE] backend(**config) took {(t1 - t0)*1000:.2f} ms")
 
     # Your original code sliced images[1:], so keep that behavior:
     image_array = images

@@ -20,52 +20,12 @@ import pickle
 import numpy as np
 from types import SimpleNamespace
 from typing import Iterable, List, Optional, Tuple, Union
-import sys
-# Ensure local StyleGAN3 utilities (torch_utils, dnnlib, legacy, etc.) are importable
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-STYLEGAN3_DIR = os.path.join(PROJECT_ROOT, "content", "psychGAN", "stylegan3")
-if STYLEGAN3_DIR not in sys.path:
-    sys.path.append(STYLEGAN3_DIR)
-sys.path.append(os.path.join(PROJECT_ROOT, "stylegan3"))
+from stylgan_distilled import run_until_resolution, _style_for_block_torgb, load_torgb_head
 import PIL.Image
 from PIL import Image
-
+from utils import load_generator, load_distilled_generator, _to_nhwc_uint8, _get_device, _ensure_tensor, _to01, _grid_preview, _device_synchronize, _reset_peak_mem, _get_mem_bytes
 import torch
 import torch.nn.functional as F
-
-# -----------------------------
-# Utilities
-# -----------------------------
-
-def _get_device(pref: Optional[str] = None) -> torch.device:
-    if pref is not None:
-        try:
-            return torch.device(pref)
-        except Exception:
-            pass
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
-
-
-def _to_nhwc_uint8(img_t: torch.Tensor) -> np.ndarray:
-    """Convert synthesized images from NCHW float32 in [-1,1] to NHWC uint8 [0,255]."""
-    if img_t.ndim != 4:
-        raise ValueError(f"Expected NCHW tensor, got shape {tuple(img_t.shape)}")
-    img = (img_t.clamp(-1, 1) + 1) * 0.5  # [0,1]
-    img = (img * 255).round().clamp(0, 255).to(torch.uint8)
-    img = img.permute(0, 2, 3, 1).contiguous()  # NHWC
-    return img.cpu().numpy()
-
-
-def _ensure_tensor(x, device: torch.device) -> torch.Tensor:
-    if isinstance(x, np.ndarray):
-        return torch.from_numpy(x).to(device=device, dtype=torch.float32)
-    if isinstance(x, torch.Tensor):
-        return x.to(device=device, dtype=torch.float32)
-    raise TypeError(f"Unsupported type: {type(x)}")
 
 
 # -----------------------------
@@ -209,38 +169,26 @@ def get_style_loss(base_style: torch.Tensor, gram_target: torch.Tensor) -> torch
 # Generator loading & image synthesis (PyTorch)
 # -----------------------------
 
-def load_generator(network_pkl: Optional[str] = None, device: Optional[str] = None):
-    """Load a PyTorch StyleGAN2-ADA generator (expects pickle with a dict containing 'G_ema').
-
-    If `network_pkl` is None or missing, raises FileNotFoundError.
-    """
-    dev = _get_device(device)
-    if network_pkl is None or not os.path.exists(network_pkl):
-        raise FileNotFoundError(
-            f"Couldn't find network pickle at {network_pkl!r}. Provide a local .pkl with 'G_ema'.")
-    with open(network_pkl, 'rb') as f:
-        obj = pickle.load(f)
-    if isinstance(obj, dict) and 'G_ema' in obj:
-        G = obj['G_ema'].to(dev)
-    else:
-        # Some pickles store the generator directly
-        try:
-            G = obj.to(dev)
-        except Exception as e:
-            raise RuntimeError("Unsupported pickle format; expected dict with 'G_ema' or a torch.nn.Module") from e
-    G.eval()
-    return G, dev
-
-
 def _mapping(G, z: torch.Tensor, truncation_psi: float = 1.0) -> torch.Tensor:
     # G.mapping returns [N, num_ws, w_dim]
     return G.mapping(z, None, truncation_psi=truncation_psi)
 
-
-def _synthesis(G, w: torch.Tensor, noise_mode: str = 'const') -> torch.Tensor:
-    # Expects w of shape [N, num_ws, w_dim]
-    return G.synthesis(w, noise_mode=noise_mode)
-
+# Old:
+# def _synthesis(G, w: torch.Tensor, noise_mode: str = 'const') -> torch.Tensor:
+#     return G.synthesis(w, noise_mode=noise_mode)
+   
+# New (e.g., first 6 style layers):
+def _synthesis(G, w: torch.Tensor, head=None, noise_mode: str = 'const', num_styles: int = 6) -> torch.Tensor:
+    if head is None:
+        return G.synthesis(w, noise_mode=noise_mode)
+    else:
+        x, img_mid, cur_ws, next_w_idx = run_until_resolution(G, w, 64, noise_mode=noise_mode)
+        # Style vector for ToRGB-like conditioning
+        num_conv = cur_ws.shape[1]
+        w_rgb    = _style_for_block_torgb(cur_ws, num_conv)                           # [B, w_dim]
+            # ---- forward through chosen head ----
+        pred = head(x, w_rgb) 
+        return pred
 
 def _shape_num_ws(G) -> int:
     # best-effort to discover num_ws
@@ -287,17 +235,26 @@ class Build_model:
 
         If `/usr/app/stylegan/stylegan2-ffhq-config-f.pkl` exists, it will be used by default.
         """
-        self.opt = opt or SimpleNamespace(network_pkl=None)
+        self.opt = opt or SimpleNamespace(network_pkl=None, distilled_network_pkl=None)
         network_pkl = self.opt.network_pkl
+        distilled_network_pkl = self.opt.distilled_network_pkl
         if not network_pkl:
             raise FileNotFoundError("Please provide a local StyleGAN2-ADA PyTorch pickle via opt.network_pkl")
 
         print(f'Loading generator from "{network_pkl}"...')
         self.G, self.device = load_generator(network_pkl, device)
+        self.G_distilled, self.device = load_distilled_generator(distilled_network_pkl, self.device)
         # compile the generator
         self.noise_mode = 'const'  # mirrors randomize_noise=False
         self.z_dim = getattr(self.G.mapping, 'z_dim', 512)
         self.num_ws = _shape_num_ws(self.G)
+        self.head =  load_torgb_head(
+        self.G, 64,
+        checkpoint="./models/torgb_64to128_lpips.pth",
+        use_sr_head=True,
+        device=device,
+        eval_mode=True,
+    )
 
         # Minimal wrappers to emulate TF API used downstream
         class _MappingWrapper:
@@ -355,10 +312,10 @@ class Build_model:
         w_t = _ensure_tensor(w, self.device)
         if w_t.ndim == 2:  # [N, 512] -> [N, num_ws, 512]
             w_t = w_t.unsqueeze(1).repeat(1, self.num_ws, 1)
-        img_t = _synthesis(self.G, w_t, noise_mode=self.noise_mode)
-        if resolution != 1024:
-            # select stride pixels from img_t
-            img_t = img_t[:, :, ::1024//resolution, ::1024//resolution].contiguous()
+        img_t = _synthesis(self.G, w_t, self.head, noise_mode=self.noise_mode)
+        # if resolution != 1024:
+        #     # select stride pixels from img_t
+        #     img_t = img_t[:, :, ::1024//resolution, ::1024//resolution].contiguous()
         return _to_nhwc_uint8(img_t)
 
 
@@ -369,10 +326,8 @@ if __name__ == "__main__":
     # Example usage:
     #   python stylegan_pytorch_port.py /path/to/stylegan2-ffhq-1024x1024.pkl 10
     import sys
-    pkl = sys.argv[1] if len(sys.argv) > 1 else None
-    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 10
-    if not pkl:
-        raise SystemExit("Please pass a local StyleGAN2-ADA PyTorch pickle path as the first argument.")
+    pkl = "./models/stylegan2-ffhq-config-f.pkl"
+    seed = 22
     bm = Build_model(SimpleNamespace(network_pkl=pkl))
     img = bm.generate_im_from_random_seed(seed=seed, truncation_psi=0.5)[0]
     Image.fromarray(img).save(f"seed{seed:04d}.png")

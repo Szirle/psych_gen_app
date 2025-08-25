@@ -2,9 +2,88 @@ from sklearn.linear_model import Ridge, LinearRegression
 import torch
 import pickle
 import numpy as np
+import sys
+import os
+from typing import Optional
+import torch.nn as nn
+from stylgan_distilled import *
+# Ensure local StyleGAN3 utilities (torch_utils, dnnlib, legacy, etc.) are importable
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+STYLEGAN3_DIR = os.path.join(PROJECT_ROOT, "content", "psychGAN", "stylegan3")
+if STYLEGAN3_DIR not in sys.path:
+    sys.path.append(STYLEGAN3_DIR)
+sys.path.append(os.path.join(PROJECT_ROOT, "stylegan3"))
 
 dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+
+# -----------------------------
+# Utilities
+# -----------------------------
+
+def _get_device(pref: Optional[str] = None) -> torch.device:
+    if pref is not None:
+        try:
+            return torch.device(pref)
+        except Exception:
+            pass
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _to_nhwc_uint8(img_t: torch.Tensor) -> np.ndarray:
+    """Convert synthesized images from NCHW float32 in [-1,1] to NHWC uint8 [0,255]."""
+    if img_t.ndim != 4:
+        raise ValueError(f"Expected NCHW tensor, got shape {tuple(img_t.shape)}")
+    img = (img_t.clamp(-1, 1) + 1) * 0.5  # [0,1]
+    img = (img * 255).round().clamp(0, 255).to(torch.uint8)
+    img = img.permute(0, 2, 3, 1).contiguous()  # NHWC
+    return img.cpu().numpy()
+
+
+def _ensure_tensor(x, device: torch.device) -> torch.Tensor:
+    if isinstance(x, np.ndarray):
+        return torch.from_numpy(x).to(device=device, dtype=torch.float32)
+    if isinstance(x, torch.Tensor):
+        return x.to(device=device, dtype=torch.float32)
+    raise TypeError(f"Unsupported type: {type(x)}")
+
+
+def load_generator(network_pkl: Optional[str] = None, device: Optional[str] = None):
+    """Load a PyTorch StyleGAN2-ADA generator (expects pickle with a dict containing 'G_ema').
+
+    If `network_pkl` is None or missing, raises FileNotFoundError.
+    """
+
+    dev = _get_device(device)
+    if network_pkl is None or not os.path.exists(network_pkl):
+        raise FileNotFoundError(
+            f"Couldn't find network pickle at {network_pkl!r}. Provide a local .pkl with 'G_ema'.")
+    with open(network_pkl, 'rb') as f:
+        obj = pickle.load(f)
+    if isinstance(obj, dict) and 'G_ema' in obj:
+        G = obj['G_ema'].to(dev)
+    else:
+        # Some pickles store the generator directly
+        try:
+            G = obj.to(dev)
+        except Exception as e:
+            raise RuntimeError("Unsupported pickle format; expected dict with 'G_ema' or a torch.nn.Module") from e
+        
+    G.eval()
+    return G, dev
+
+
+@torch.no_grad()
+def load_distilled_generator(pkl_path: str, device: Optional[torch.device] = None) -> nn.Module:
+    with open(pkl_path, "rb") as f:
+        obj = pickle.load(f)
+    G_tapped = obj["G_ema"].eval().to(device)
+    return G_tapped, device
+
 
 def load_psychGAN_data(data_path):
     if not data_path.endswith("/"):
@@ -16,6 +95,67 @@ def load_psychGAN_data(data_path):
         dim_to_photo_to_ratings = pickle.load(f)
 
     return photo_coords, dim_to_photo_to_ratings
+
+
+########################################################
+
+
+def _to01(x: torch.Tensor) -> torch.Tensor:
+    return (x.clamp(-1, 1) + 1) * 0.5
+
+def _grid_preview(pred: torch.Tensor, target: torch.Tensor, k: int = 4) -> torch.Tensor:
+    from torchvision.utils import make_grid
+    k = min(k, pred.shape[0], target.shape[0])
+    p = _to01(pred[:k]).cpu()
+    t = _to01(target[:k]).cpu()
+    return make_grid(torch.cat([p, t], dim=0), nrow=k)  # CHW
+
+def _device_synchronize(device: torch.device):
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    elif device.type == "mps":
+        try: torch.mps.synchronize()
+        except Exception: pass
+
+def _reset_peak_mem(device: torch.device):
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.empty_cache()
+    elif device.type == "mps":
+        try: torch.mps.empty_cache()
+        except Exception: pass
+
+def _get_mem_bytes(device: torch.device) -> int:
+    if device.type == "cuda":
+        return torch.cuda.max_memory_allocated(device)
+    elif device.type == "mps":
+        try: return torch.mps.current_allocated_memory()
+        except Exception: return 0
+    else:
+        try:
+            import psutil
+            return int(psutil.Process(os.getpid()).memory_info().rss)
+        except Exception:
+            return 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+########################################################
+
+
 
 def pad_list(l, max_len):
     return l[:max_len] + [np.nan] * (max_len - len(l[:max_len]))
