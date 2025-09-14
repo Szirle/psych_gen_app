@@ -243,18 +243,24 @@ class Build_model:
 
         print(f'Loading generator from "{network_pkl}"...')
         self.G, self.device = load_generator(network_pkl, device)
-        self.G_distilled, self.device = load_distilled_generator(distilled_network_pkl, self.device)
-        # compile the generator
         self.noise_mode = 'const'  # mirrors randomize_noise=False
         self.z_dim = getattr(self.G.mapping, 'z_dim', 512)
         self.num_ws = _shape_num_ws(self.G)
-        self.head =  load_torgb_head(
-        self.G, 64,
-        checkpoint="./models/torgb_64to128_lpips.pth",
-        use_sr_head=True,
-        device=device,
-        eval_mode=True,
-    )
+
+
+        if distilled_network_pkl:
+            self.G_distilled, self.device = load_distilled_generator(distilled_network_pkl, self.device)
+            # compile the generator
+            self.head =  load_torgb_head(
+            self.G, 64,
+            checkpoint="./models/torgb_64to128_lpips.pth",
+            use_sr_head=True,
+            device=device,
+            eval_mode=True,
+        )
+        else:
+            self.head = None
+            self.G_distilled = self.G
 
         # Minimal wrappers to emulate TF API used downstream
         class _MappingWrapper:

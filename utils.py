@@ -79,6 +79,8 @@ def load_generator(network_pkl: Optional[str] = None, device: Optional[str] = No
 
 @torch.no_grad()
 def load_distilled_generator(pkl_path: str, device: Optional[torch.device] = None) -> nn.Module:
+    if pkl_path is None:
+        return None, device
     with open(pkl_path, "rb") as f:
         obj = pickle.load(f)
     G_tapped = obj["G_ema"].eval().to(device)
@@ -193,12 +195,16 @@ def tensor_dd(*args):
     output = tuple([a.to(dtype=torch.float32,device=device) if isinstance(a, torch.Tensor) else (torch.tensor(a, dtype=torch.float32).to(device) if isinstance(a, np.ndarray) else a) for a in args])
     return output if len(output)>1 else output[0]
 
-def get_data(dim, train=True, logit=True, backend=None):
-    X, y, weights, imgs = prepare_data({'data':{'attribute_dim':dim}},return_imgs=True, backend=backend)
-    train_imgs = [f"{i}.jpg" for i in range(1,1005)]+[i for i in imgs if "0_our" in i or "_flow_level_0" in i]
-    X, y, weights, imgs = prepare_data({'data':{'attribute_dim':dim,"imgs":(train_imgs if train else list(set(imgs)-set(train_imgs)))}},return_imgs=True, backend=backend) #list(set(imgs)-set(train_imgs))
+def get_data(dim, train=True, logit=True, backend=None, imgs=None):
+    config = {'data':{'attribute_dim':dim}}
+    if imgs is not None:
+        config['data']['imgs'] = imgs
+    X, y, weights, imgs = prepare_data(config,return_imgs=True, backend=backend)
+    # train_imgs = [f"{i}.jpg" for i in range(1,1005)]+[i for i in imgs if "0_our" in i or "_flow_level_0" in i]
+    # config['data']['imgs'] = (train_imgs if train else list(set(imgs)-set(train_imgs)))
+    # X, y, weights, imgs = prepare_data(config,return_imgs=True, backend=backend) 
     
-    weights[[len(i)>8 for i in imgs]] = weights[[len(i)>8 for i in imgs]]*1.5
+    # weights[[len(i)>8 for i in imgs]] = weights[[len(i)>8 for i in imgs]]*1.5
     y = y.nanmean(dim=1)
     
     return X, (torch.logit if logit else lambda x: x)(y), weights, imgs
@@ -224,8 +230,15 @@ def ridge_coefs(dim: str, alpha: float, *, fit_intercept: bool = True, backend=N
         torch.Tensor of shape (n_features,) with dtype float32 on `device`
     """
     # Full set for this dimension (get_data already returns y.nanmean(dim=1))
-    X, y, _, _ = get_data(dim, train=True, backend=backend)
+    imgs = [f"{i}.jpg" for i in range(1,1005)]
+    if dim == "age":
+        dim_c = "gender"
+    else:
+        dim_c = "age"
+    X, controlled_y, _, imgs = get_data(dim_c, train=True, backend=backend, imgs=imgs)
+    X, y, _, imgs = get_data(dim, train=True, backend=backend, imgs=imgs)
 
+    X = torch.cat([X, controlled_y.reshape(-1, 1)], dim=1)
     # To NumPy (fast path using your helpers)
     X_np, y_np = cpu_numpy(X, y)
 
@@ -234,7 +247,7 @@ def ridge_coefs(dim: str, alpha: float, *, fit_intercept: bool = True, backend=N
     model.fit(X_np, y_np)
 
     # Coefficients for predicting original y (negate back), as float32 tensor on desired device
-    coefs_np = (model.coef_).astype(np.float32, copy=False)
+    coefs_np = (model.coef_[:-1]).astype(np.float32, copy=False)
     coefs_t = torch.from_numpy(coefs_np).to(device)
     # print(f"Pearson correlation: {pearsonr(y_np, X_np @ coefs_np)[0]}")
     return coefs_t

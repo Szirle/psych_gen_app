@@ -11,7 +11,6 @@ import threading
 import yaml
 from types import SimpleNamespace
 from typing import Dict, List, Tuple, Optional
-
 import numpy as np
 import cv2
 from flask import Flask, send_from_directory, request, jsonify
@@ -71,6 +70,7 @@ models: Dict[str, np.ndarray] = globals().get("models", {})
 all_labels: List[str] = globals().get("all_labels", list(models.keys()))
 
 def _get_direction(dim_name: str, backend: Build_model, alpha: float = 100) -> np.ndarray:
+    
     coefs = ridge_coefs(dim_name, alpha, backend=backend)
     coefs = coefs/coefs.norm()
     coefs = coefs.reshape(1, -1).repeat(NUM_WS, 1)
@@ -84,7 +84,7 @@ gpu_lock = threading.Lock()
 class FastStyleGANBackend:
     def __init__(self, builder: Build_model):
         self.bm = builder
-        self.gen = torch.Generator(device=self.bm.device)
+        self.seed_gen = torch.Generator(device=self.bm.device)
         self.noise_mode = "const"
         self._seed_base = int(time.time())
         self.photo_to_coords, self.dim_to_photo_to_ratings = load_psychGAN_data(DATA_PATH)
@@ -111,8 +111,8 @@ class FastStyleGANBackend:
     def _sample_w(self, n: int, truncation_psi: float = 1.0) -> torch.Tensor:
         # Deterministic but fast; you can pass seed in config if desired.
         self._seed_base += 1
-        self.gen.manual_seed(self._seed_base)
-        z = torch.randn([n, Z_DIM], generator=self.gen, device=self.bm.device)
+        self.seed_gen.manual_seed(self._seed_base)
+        z = torch.randn([n, Z_DIM], generator=self.seed_gen, device=self.bm.device)
         # Mapping -> [n, NUM_WS, 512]
         with torch.inference_mode():
             w = self.bm.G.mapping(z, None, truncation_psi=truncation_psi)
@@ -121,6 +121,22 @@ class FastStyleGANBackend:
 
     def _get_direction_cached(self, dim_name: str, steps: int) -> torch.Tensor:
         # Direction depends on `steps` via alpha
+        def camel_to_dash(s: str) -> str:
+            """
+            Convert CamelCase or camelCase to dash-separated lowercase.
+            Example: 'CamelCaseString' -> 'camel-case-string'
+                     'myVarName' -> 'my-var-name'
+            """
+            result = []
+            for i, c in enumerate(s):
+                if c.isupper():
+                    if i != 0 and (not s[i-1].isupper() or (i+1 < len(s) and s[i+1].islower())):
+                        result.append('-')
+                    result.append(c.lower())
+                else:
+                    result.append(c)
+            return ''.join(result)
+        
         key = (dim_name, int(steps))
         d = self._dir_cache.get(key)
         if d is not None:
