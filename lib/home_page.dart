@@ -39,16 +39,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final Map<ManipulatedDimension, Color> _dimensionColors = {};
 
-  FaceManipulationRequest faceManipulationRequest = FaceManipulationRequest(
-      manipulatedDimensions: [
-        ManipulatedDimension(
-            name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 1)
-      ],
-      truncationPsi: 0.6,
-      maxSteps: 50,
-      numFaces: 100,
-      mode: 'shape',
-      preserveIdentity: false);
+  FaceManipulationRequest faceManipulationRequest =
+      FaceManipulationRequest(manipulatedDimensions: [
+    ManipulatedDimension(
+        name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 1)
+  ], truncationPsi: 0.6, numFaces: 100, mode: 'shape', preserveIdentity: false);
 
   @override
   void initState() {
@@ -298,37 +293,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                   ],
                                 ),
                                 const SizedBox(height: 10),
-                                const Text('Max Steps',
-                                    style: TextStyle(fontSize: 12)),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Slider(
-                                        value: faceManipulationRequest.maxSteps
-                                            .toDouble(),
-                                        min: 1.0,
-                                        max: 100.0,
-                                        divisions: 99,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            faceManipulationRequest.maxSteps =
-                                                value.toInt();
-                                          });
-                                          _loadImages();
-                                        },
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 50,
-                                      child: Text(
-                                        faceManipulationRequest.maxSteps
-                                            .toString(),
-                                        style: const TextStyle(fontSize: 16),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                                 const SizedBox(height: 10),
                                 const Text('Mode of operation',
                                     style: TextStyle(fontSize: 12)),
@@ -469,7 +433,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                     truncationPsi:
                                         faceManipulationRequest.truncationPsi,
                                     numFaces: faceManipulationRequest.numFaces,
-                                    maxSteps: faceManipulationRequest.maxSteps,
                                     preserveIdentity: faceManipulationRequest
                                         .preserveIdentity,
                                     mode: faceManipulationRequest.mode,

@@ -4,7 +4,6 @@ class FaceManipulationRequest {
   List<ManipulatedDimension> manipulatedDimensions;
   double truncationPsi;
   int numFaces;
-  int maxSteps;
   bool preserveIdentity;
   bool changeFace;
   String mode;
@@ -13,7 +12,6 @@ class FaceManipulationRequest {
     required this.manipulatedDimensions,
     required this.truncationPsi,
     required this.numFaces,
-    required this.maxSteps,
     required this.preserveIdentity,
     this.changeFace = false,
     required this.mode,
@@ -24,7 +22,6 @@ class FaceManipulationRequest {
             manipulatedDimensions.map((dim) => dim.toJson()).toList(),
         'truncation_psi': truncationPsi,
         'num_faces': numFaces,
-        'max_steps': maxSteps,
         'preserve_identity': preserveIdentity,
         'change_face': changeFace,
         'mode': mode,
