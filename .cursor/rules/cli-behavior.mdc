@@ -1,0 +1,8 @@
+---
+description: Prefer non-interactive flags and background long-running commands
+globs: ["**/*"]
+alwaysApply: true
+---
+
+- Prefer non-interactive flags for any commands. If a long-running command is expected to stream output, run it in the background.
+

@@ -1,0 +1,8 @@
+---
+description: Summarize build outcomes and warnings in status updates
+globs: ["**/*"]
+alwaysApply: true
+---
+
+- When reporting status, briefly summarize the build outcome and any warnings.
+

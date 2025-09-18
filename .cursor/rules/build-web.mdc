@@ -1,0 +1,9 @@
+---
+description: Always build Flutter web release after making code edits
+globs: ["**/*"]
+alwaysApply: true
+---
+
+- After making code edits, run this command from the project root without prompting:
+  `flutter build web --release`
+

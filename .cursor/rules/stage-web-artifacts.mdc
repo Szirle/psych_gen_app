@@ -1,0 +1,9 @@
+---
+description: Stage built web artifacts after successful Flutter web build
+globs: ["**/*"]
+alwaysApply: true
+---
+
+- After the build succeeds, stage generated artifacts so they are included in the next commit:
+  `git add build/web`
+
