@@ -1,0 +1,6 @@
+Rule: All newly added or edited user-facing strings must be stored in en.json.
+
+Details:
+- Use easy_localization and reference strings via tr() with keys defined in assets/translations/en.json.
+- Do not hardcode user-visible text in Dart or HTML files.
+- If adding new strings, update en.json and use the localization key in code.

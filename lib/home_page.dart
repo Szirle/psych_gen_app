@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:psych_gen_app/bloc/face_manipulation_bloc.dart';
 import 'package:psych_gen_app/bloc/face_manipulation_event.dart';
@@ -157,12 +158,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Image.asset("assets/images/logo.png",
-                                width: 40, height: 40),
+                            Tooltip(
+                              message: 'tooltip.logo'.tr(),
+                              child: Image.asset("assets/images/logo.png",
+                                  width: 40, height: 40),
+                            ),
                             const SizedBox(width: 5),
-                            const Text(
-                              "PsychGenApp",
-                              style: TextStyle(
+                            Text(
+                              'app.title'.tr(),
+                              style: const TextStyle(
                                   fontFamily: 'WorkSans',
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20,
@@ -176,9 +180,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: ExpansionTile(
                           initiallyExpanded: true,
                           maintainState: true,
-                          title: const Text(
-                            'Experimental design',
-                            style: TextStyle(
+                          title: Text(
+                            'section.experimental_design'.tr(),
+                            style: const TextStyle(
                               fontFamily: 'WorkSans',
                               fontWeight: FontWeight.bold,
                             ),
@@ -186,41 +190,44 @@ class _MyHomePageState extends State<MyHomePage> {
                           children: <Widget>[
                             Column(children: [
                               _buildReorderableSelectors(),
-                              CustomElevatedButton(
-                                onPressed: () {
-                                  if (faceManipulationRequest
-                                          .manipulatedDimensions.length <
-                                      3) {
-                                    final selectedNames =
+                              Tooltip(
+                                message: 'tooltip.add_variable'.tr(),
+                                child: CustomElevatedButton(
+                                  onPressed: () {
+                                    if (faceManipulationRequest
+                                            .manipulatedDimensions.length <
+                                        3) {
+                                      final selectedNames =
+                                          faceManipulationRequest
+                                              .manipulatedDimensions
+                                              .map((d) => d.name)
+                                              .toSet();
+
+                                      ManipulatedDimensionName? availableName;
+                                      for (var name
+                                          in ManipulatedDimensionName.values) {
+                                        if (!selectedNames.contains(name)) {
+                                          availableName = name;
+                                          break;
+                                        }
+                                      }
+
+                                      if (availableName != null) {
                                         faceManipulationRequest
                                             .manipulatedDimensions
-                                            .map((d) => d.name)
-                                            .toSet();
-
-                                    ManipulatedDimensionName? availableName;
-                                    for (var name
-                                        in ManipulatedDimensionName.values) {
-                                      if (!selectedNames.contains(name)) {
-                                        availableName = name;
-                                        break;
+                                            .add(ManipulatedDimension(
+                                                name: availableName,
+                                                strength: 25.0,
+                                                nLevels: 1));
+                                        setState(() {
+                                          _updateDimensionColors();
+                                        });
+                                        _loadImages();
                                       }
                                     }
-
-                                    if (availableName != null) {
-                                      faceManipulationRequest
-                                          .manipulatedDimensions
-                                          .add(ManipulatedDimension(
-                                              name: availableName,
-                                              strength: 25.0,
-                                              nLevels: 1));
-                                      setState(() {
-                                        _updateDimensionColors();
-                                      });
-                                      _loadImages();
-                                    }
-                                  }
-                                },
-                                buttonText: 'Add variable',
+                                  },
+                                  buttonText: 'button.add_variable'.tr(),
+                                ),
                               )
                             ]),
                           ],
@@ -233,9 +240,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         child: ExpansionTile(
                           initiallyExpanded: true,
                           maintainState: true,
-                          title: const Text(
-                            'Settings',
-                            style: TextStyle(
+                          title: Text(
+                            'section.settings'.tr(),
+                            style: const TextStyle(
                               fontFamily: 'WorkSans',
                               fontWeight: FontWeight.bold,
                             ),
@@ -245,40 +252,46 @@ class _MyHomePageState extends State<MyHomePage> {
                               padding: const EdgeInsets.symmetric(
                                   vertical: 0, horizontal: 12),
                               child: Column(children: [
-                                const Text('Preserve Identity',
-                                    style: TextStyle(fontSize: 12)),
+                                Text('settings.preserve_identity'.tr(),
+                                    style: const TextStyle(fontSize: 12)),
                                 Center(
-                                    child: Switch(
-                                  value:
-                                      faceManipulationRequest.preserveIdentity,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      faceManipulationRequest.preserveIdentity =
-                                          value;
-                                    });
-                                    _loadImages();
-                                  },
-                                  activeColor: const Color(0xFF2B3A55),
+                                    child: Tooltip(
+                                  message: 'tooltip.preserve_identity'.tr(),
+                                  child: Switch(
+                                    value: faceManipulationRequest
+                                        .preserveIdentity,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        faceManipulationRequest
+                                            .preserveIdentity = value;
+                                      });
+                                      _loadImages();
+                                    },
+                                    activeColor: const Color(0xFF2B3A55),
+                                  ),
                                 )),
                                 const SizedBox(height: 10),
-                                const Text('Truncation Psi',
-                                    style: TextStyle(fontSize: 12)),
+                                Text('settings.truncation_psi'.tr(),
+                                    style: const TextStyle(fontSize: 12)),
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Slider(
-                                        value: faceManipulationRequest
-                                            .truncationPsi,
-                                        min: 0.1,
-                                        max: 1.0,
-                                        divisions: 9,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            faceManipulationRequest
-                                                .truncationPsi = value;
-                                          });
-                                          _loadImages();
-                                        },
+                                      child: Tooltip(
+                                        message: 'tooltip.truncation_psi'.tr(),
+                                        child: Slider(
+                                          value: faceManipulationRequest
+                                              .truncationPsi,
+                                          min: 0.1,
+                                          max: 1.0,
+                                          divisions: 9,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              faceManipulationRequest
+                                                  .truncationPsi = value;
+                                            });
+                                            _loadImages();
+                                          },
+                                        ),
                                       ),
                                     ),
                                     SizedBox(
@@ -294,84 +307,92 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                                 const SizedBox(height: 10),
                                 const SizedBox(height: 10),
-                                const Text('Mode of operation',
-                                    style: TextStyle(fontSize: 12)),
+                                Text('settings.mode'.tr(),
+                                    style: const TextStyle(fontSize: 12)),
                                 const SizedBox(height: 10),
                                 SizedBox(
                                     height: 36,
-                                    child: DropdownButtonFormField<String>(
-                                      decoration: InputDecoration(
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(5.0),
-                                          borderSide: const BorderSide(
-                                              color: Colors.black26,
-                                              width: 1.0),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(5.0),
-                                          borderSide: const BorderSide(
-                                              color: Colors.black26,
-                                              width: 1.0),
-                                        ),
-                                        contentPadding: const EdgeInsets.only(
-                                            top: 12, left: 12, right: 12),
-                                      ),
-                                      value: faceManipulationRequest.mode,
-                                      onChanged: (String? newValue) {
-                                        setState(() {
-                                          faceManipulationRequest.mode =
-                                              newValue!;
-                                        });
-                                        _loadImages();
-                                      },
-                                      items: ['shape', 'color', 'both']
-                                          .map<DropdownMenuItem<String>>(
-                                              (String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(
-                                            value,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontFamily: 'WorkSans',
-                                            ),
+                                    child: Tooltip(
+                                      message: 'tooltip.mode'.tr(),
+                                      child: DropdownButtonFormField<String>(
+                                        decoration: InputDecoration(
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(5.0),
+                                            borderSide: const BorderSide(
+                                                color: Colors.black26,
+                                                width: 1.0),
                                           ),
-                                        );
-                                      }).toList(),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(5.0),
+                                            borderSide: const BorderSide(
+                                                color: Colors.black26,
+                                                width: 1.0),
+                                          ),
+                                          contentPadding: const EdgeInsets.only(
+                                              top: 12, left: 12, right: 12),
+                                        ),
+                                        value: faceManipulationRequest.mode,
+                                        onChanged: (String? newValue) {
+                                          setState(() {
+                                            faceManipulationRequest.mode =
+                                                newValue!;
+                                          });
+                                          _loadImages();
+                                        },
+                                        items: ['shape', 'color', 'both']
+                                            .map<DropdownMenuItem<String>>(
+                                                (String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(
+                                              value,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontFamily: 'WorkSans',
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
                                     )),
                                 const SizedBox(height: 20),
-                                const Text(
-                                    'Number of images to generate for each condition',
-                                    style: TextStyle(fontSize: 12)),
+                                Text('settings.num_images_each'.tr(),
+                                    style: const TextStyle(fontSize: 12)),
                                 const SizedBox(width: 20),
-                                CustomNumberTextField(
-                                    onChanged: (numberOfFaces) {
-                                  setState(() {
-                                    faceManipulationRequest.numFaces =
-                                        numberOfFaces!;
-                                  });
-                                  _loadImages();
-                                }),
-                                const Text(
-                                    'A total of 1000 images will be generated.',
-                                    style: TextStyle(fontSize: 12)),
+                                Tooltip(
+                                  message: 'tooltip.num_images_each'.tr(),
+                                  child: CustomNumberTextField(
+                                      onChanged: (numberOfFaces) {
+                                    setState(() {
+                                      faceManipulationRequest.numFaces =
+                                          numberOfFaces!;
+                                    });
+                                    _loadImages();
+                                  }),
+                                ),
+                                Text('settings.total_images_info'.tr(),
+                                    style: const TextStyle(fontSize: 12)),
                                 const SizedBox(height: 20),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    elevation: 0,
-                                    backgroundColor: const Color(0xFF2B3A55),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 24, vertical: 18),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(5),
+                                Tooltip(
+                                  message: 'tooltip.generate_dataset'.tr(),
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      backgroundColor: const Color(0xFF2B3A55),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24, vertical: 18),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
                                     ),
-                                  ),
-                                  onPressed: () {},
-                                  child: const Text(
-                                    'Generate dataset',
-                                    style: TextStyle(color: Colors.white),
+                                    onPressed: () {},
+                                    child: Text(
+                                      'button.generate_dataset'.tr(),
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                 ),
                               ]),
@@ -393,7 +414,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Padding(
                             padding: EdgeInsets.fromLTRB(16, 0, 0, 0),
                             child: Text(
-                              "Preview",
+                              'preview.title'.tr(),
                               style: TextStyle(
                                   fontFamily: 'WorkSans',
                                   fontSize: 32,
@@ -403,7 +424,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           Padding(
                             padding: EdgeInsets.fromLTRB(16, 8, 0, 0),
                             child: Text(
-                              "filters  -->  experimental design  -->  download",
+                              'nav.breadcrumb'.tr(),
                               style: TextStyle(
                                   fontFamily: 'WorkSans',
                                   fontSize: 12,
@@ -414,37 +435,41 @@ class _MyHomePageState extends State<MyHomePage> {
                             padding: EdgeInsets.fromLTRB(0, 12, 16, 0),
                             child: SizedBox(
                               width: 150,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  elevation: 0,
-                                  backgroundColor: const Color(0xFF2B3A55),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 18),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(5),
+                              child: Tooltip(
+                                message: 'tooltip.change_face'.tr(),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: const Color(0xFF2B3A55),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
                                   ),
-                                ),
-                                onPressed: () {
-                                  final immediateRequest =
-                                      FaceManipulationRequest(
-                                    manipulatedDimensions:
-                                        faceManipulationRequest
-                                            .manipulatedDimensions,
-                                    truncationPsi:
-                                        faceManipulationRequest.truncationPsi,
-                                    numFaces: faceManipulationRequest.numFaces,
-                                    preserveIdentity: faceManipulationRequest
-                                        .preserveIdentity,
-                                    mode: faceManipulationRequest.mode,
-                                    changeFace: true,
-                                  );
-                                  context
-                                      .read<FaceManipulationBloc>()
-                                      .add(LoadFaceImages(immediateRequest));
-                                },
-                                child: const Text(
-                                  'Change face',
-                                  style: TextStyle(color: Colors.white),
+                                  onPressed: () {
+                                    final immediateRequest =
+                                        FaceManipulationRequest(
+                                      manipulatedDimensions:
+                                          faceManipulationRequest
+                                              .manipulatedDimensions,
+                                      truncationPsi:
+                                          faceManipulationRequest.truncationPsi,
+                                      numFaces:
+                                          faceManipulationRequest.numFaces,
+                                      preserveIdentity: faceManipulationRequest
+                                          .preserveIdentity,
+                                      mode: faceManipulationRequest.mode,
+                                      changeFace: true,
+                                    );
+                                    context
+                                        .read<FaceManipulationBloc>()
+                                        .add(LoadFaceImages(immediateRequest));
+                                  },
+                                  child: Text(
+                                    'button.change_face'.tr(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
                                 ),
                               ),
                             ),
@@ -540,7 +565,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                                 ),
                                                 const SizedBox(height: 16),
                                                 Text(
-                                                  'Error Loading Images',
+                                                  'error.loading_images'.tr(),
                                                   style: TextStyle(
                                                     color: Colors.red[700],
                                                     fontSize: 18,
@@ -584,7 +609,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'No images to display',
+                                            'grid.no_images'.tr(),
                                             style: TextStyle(
                                               color: Colors.grey[600],
                                               fontSize: 16,
@@ -592,7 +617,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
-                                            'Adjust your settings and try again',
+                                            'grid.adjust_settings'.tr(),
                                             style: TextStyle(
                                               color: Colors.grey[500],
                                               fontSize: 12,
@@ -720,21 +745,21 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildAxisDropZones() {
     final dims = faceManipulationRequest.manipulatedDimensions;
     if (dims.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(8.0),
-        child:
-            Text("Add a variable to assign axes.", textAlign: TextAlign.center),
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text('hint.add_variable_to_assign_axes'.tr(),
+            textAlign: TextAlign.center),
       );
     }
 
     return Column(
       children: [
         if (dims.length == 1)
-          _buildStaticAxisDisplay(dims.first, 'X-Axis', colors[0])
+          _buildStaticAxisDisplay(dims.first, 'axis.x'.tr(), colors[0])
         else
           _buildAxisDropZone(
             axis: 'x',
-            label: '1st variable',
+            label: 'axis.x'.tr(),
             assignedDim: _xAxisDim,
             color: colors[0],
           ),
@@ -742,7 +767,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (dims.length > 1)
           _buildAxisDropZone(
             axis: 'y',
-            label: '2nd variable',
+            label: 'axis.y'.tr(),
             assignedDim: _yAxisDim,
             color: colors[1],
           ),
@@ -750,7 +775,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (dims.length > 2)
           _buildAxisDropZone(
             axis: 'slider',
-            label: '3rd variable',
+            label: 'axis.depth'.tr(),
             assignedDim: _sliderDim,
             color: colors[2],
           ),
@@ -798,7 +823,7 @@ class _MyHomePageState extends State<MyHomePage> {
         } else {
           child = Center(
             child: Text(
-              "Drop here for $label",
+              'axis.drop_here'.tr(namedArgs: {'label': label}),
               style: TextStyle(color: Colors.grey[600]),
             ),
           );
@@ -1059,9 +1084,12 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Container(
             color: Colors.white, // The background color of the side panel
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              label,
-              style: labelStyle,
+            child: Tooltip(
+              message: 'tooltip.axis_assignment'.tr(),
+              child: Text(
+                label,
+                style: labelStyle,
+              ),
             ),
           ),
         ),

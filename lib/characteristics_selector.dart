@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/widgets/distribution_range_selector.dart';
@@ -56,7 +57,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text("Variable name"),
+                Text('characteristic.variable_name'.tr()),
                 SizedBox(
                   height: 36,
                   child: DropdownButtonFormField<ManipulatedDimensionName>(
@@ -109,7 +110,10 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                 const SizedBox(
                   height: 5,
                 ),
-                const Text("Variable strength"),
+                Tooltip(
+                  message: 'tooltip.variable_strength'.tr(),
+                  child: Text('characteristic.variable_strength'.tr()),
+                ),
                 Row(
                   children: [
                     Expanded(
@@ -148,7 +152,10 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                 const SizedBox(
                   height: 5,
                 ),
-                const Text("Number of levels"),
+                Tooltip(
+                  message: 'tooltip.number_of_levels'.tr(),
+                  child: Text('characteristic.number_of_levels'.tr()),
+                ),
                 Row(
                   children: [
                     Expanded(
