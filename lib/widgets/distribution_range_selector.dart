@@ -56,11 +56,10 @@ class DistributionRangeSelector extends StatelessWidget {
               height: sliderHeight,
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  rangeTrackShape: const _FullWidthRangeSliderTrackShape(),
-                  activeTrackColor: accentColor,
-                  inactiveTrackColor: Colors.black12,
-                  thumbColor: accentColor
-                ),
+                    rangeTrackShape: const _FullWidthRangeSliderTrackShape(),
+                    activeTrackColor: accentColor,
+                    inactiveTrackColor: Colors.black12,
+                    thumbColor: accentColor),
                 child: RangeSlider(
                   values: RangeValues(dimension.rangeStart, dimension.rangeEnd),
                   min: 0,

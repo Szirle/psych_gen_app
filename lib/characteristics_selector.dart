@@ -184,21 +184,21 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     ),
                   ],
                 ),
-                const SizedBox(
-                  height: 5,
-                ),
-                const Text("Control condition distribution range"),
-                DistributionRangeSelector(
-                  dimension: widget.manipulatedDimension,
-                  accentColor: widget.borderColor,
-                  onRangeChanged: (start, end) {
-                    setState(() {
-                      widget.manipulatedDimension.rangeStart = start;
-                      widget.manipulatedDimension.rangeEnd = end;
-                    });
-                    widget.onRangeChanged(start, end);
-                  },
-                ),
+                // const SizedBox(
+                //   height: 5,
+                // ),
+                // const Text("Control condition distribution range"),
+                // DistributionRangeSelector(
+                //   dimension: widget.manipulatedDimension,
+                //   accentColor: widget.borderColor,
+                //   onRangeChanged: (start, end) {
+                //     setState(() {
+                //       widget.manipulatedDimension.rangeStart = start;
+                //       widget.manipulatedDimension.rangeEnd = end;
+                //     });
+                //     widget.onRangeChanged(start, end);
+                //   },
+                // ),
               ],
             ),
           ),

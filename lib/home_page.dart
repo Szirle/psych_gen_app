@@ -884,7 +884,7 @@ class _MyHomePageState extends State<MyHomePage> {
               }
 
               return Container(
-                height: 390, // Increased to comfortably fit bigger selector
+                height: 220,
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 child: _buildAxisOutline(
                   label: label,
