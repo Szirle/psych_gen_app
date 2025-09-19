@@ -190,44 +190,41 @@ class _MyHomePageState extends State<MyHomePage> {
                           children: <Widget>[
                             Column(children: [
                               _buildReorderableSelectors(),
-                              Tooltip(
-                                message: 'tooltip.add_variable'.tr(),
-                                child: CustomElevatedButton(
-                                  onPressed: () {
-                                    if (faceManipulationRequest
-                                            .manipulatedDimensions.length <
-                                        3) {
-                                      final selectedNames =
-                                          faceManipulationRequest
-                                              .manipulatedDimensions
-                                              .map((d) => d.name)
-                                              .toSet();
-
-                                      ManipulatedDimensionName? availableName;
-                                      for (var name
-                                          in ManipulatedDimensionName.values) {
-                                        if (!selectedNames.contains(name)) {
-                                          availableName = name;
-                                          break;
-                                        }
-                                      }
-
-                                      if (availableName != null) {
+                              CustomElevatedButton(
+                                onPressed: () {
+                                  if (faceManipulationRequest
+                                          .manipulatedDimensions.length <
+                                      3) {
+                                    final selectedNames =
                                         faceManipulationRequest
                                             .manipulatedDimensions
-                                            .add(ManipulatedDimension(
-                                                name: availableName,
-                                                strength: 25.0,
-                                                nLevels: 1));
-                                        setState(() {
-                                          _updateDimensionColors();
-                                        });
-                                        _loadImages();
+                                            .map((d) => d.name)
+                                            .toSet();
+
+                                    ManipulatedDimensionName? availableName;
+                                    for (var name
+                                        in ManipulatedDimensionName.values) {
+                                      if (!selectedNames.contains(name)) {
+                                        availableName = name;
+                                        break;
                                       }
                                     }
-                                  },
-                                  buttonText: 'button.add_variable'.tr(),
-                                ),
+
+                                    if (availableName != null) {
+                                      faceManipulationRequest
+                                          .manipulatedDimensions
+                                          .add(ManipulatedDimension(
+                                              name: availableName,
+                                              strength: 25.0,
+                                              nLevels: 1));
+                                      setState(() {
+                                        _updateDimensionColors();
+                                      });
+                                      _loadImages();
+                                    }
+                                  }
+                                },
+                                buttonText: 'button.add_variable'.tr(),
                               )
                             ]),
                           ],
@@ -312,87 +309,77 @@ class _MyHomePageState extends State<MyHomePage> {
                                 const SizedBox(height: 10),
                                 SizedBox(
                                     height: 36,
-                                    child: Tooltip(
-                                      message: 'tooltip.mode'.tr(),
-                                      child: DropdownButtonFormField<String>(
-                                        decoration: InputDecoration(
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            borderSide: const BorderSide(
-                                                color: Colors.black26,
-                                                width: 1.0),
-                                          ),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            borderSide: const BorderSide(
-                                                color: Colors.black26,
-                                                width: 1.0),
-                                          ),
-                                          contentPadding: const EdgeInsets.only(
-                                              top: 12, left: 12, right: 12),
+                                    child: DropdownButtonFormField<String>(
+                                      decoration: InputDecoration(
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          borderSide: const BorderSide(
+                                              color: Colors.black26,
+                                              width: 1.0),
                                         ),
-                                        value: faceManipulationRequest.mode,
-                                        onChanged: (String? newValue) {
-                                          setState(() {
-                                            faceManipulationRequest.mode =
-                                                newValue!;
-                                          });
-                                          _loadImages();
-                                        },
-                                        items: ['shape', 'color', 'both']
-                                            .map<DropdownMenuItem<String>>(
-                                                (String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(
-                                              value,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontFamily: 'WorkSans',
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          borderSide: const BorderSide(
+                                              color: Colors.black26,
+                                              width: 1.0),
+                                        ),
+                                        contentPadding: const EdgeInsets.only(
+                                            top: 12, left: 12, right: 12),
                                       ),
+                                      value: faceManipulationRequest.mode,
+                                      onChanged: (String? newValue) {
+                                        setState(() {
+                                          faceManipulationRequest.mode =
+                                              newValue!;
+                                        });
+                                        _loadImages();
+                                      },
+                                      items: ['shape', 'color', 'both']
+                                          .map<DropdownMenuItem<String>>(
+                                              (String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(
+                                            value,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontFamily: 'WorkSans',
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
                                     )),
                                 const SizedBox(height: 20),
                                 Text('settings.num_images_each'.tr(),
                                     style: const TextStyle(fontSize: 12)),
                                 const SizedBox(width: 20),
-                                Tooltip(
-                                  message: 'tooltip.num_images_each'.tr(),
-                                  child: CustomNumberTextField(
-                                      onChanged: (numberOfFaces) {
-                                    setState(() {
-                                      faceManipulationRequest.numFaces =
-                                          numberOfFaces!;
-                                    });
-                                    _loadImages();
-                                  }),
-                                ),
+                                CustomNumberTextField(
+                                    onChanged: (numberOfFaces) {
+                                  setState(() {
+                                    faceManipulationRequest.numFaces =
+                                        numberOfFaces!;
+                                  });
+                                  _loadImages();
+                                }),
                                 Text('settings.total_images_info'.tr(),
                                     style: const TextStyle(fontSize: 12)),
                                 const SizedBox(height: 20),
-                                Tooltip(
-                                  message: 'tooltip.generate_dataset'.tr(),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      elevation: 0,
-                                      backgroundColor: const Color(0xFF2B3A55),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 24, vertical: 18),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    elevation: 0,
+                                    backgroundColor: const Color(0xFF2B3A55),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(5),
                                     ),
-                                    onPressed: () {},
-                                    child: Text(
-                                      'button.generate_dataset'.tr(),
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
+                                  ),
+                                  onPressed: () {},
+                                  child: Text(
+                                    'button.generate_dataset'.tr(),
+                                    style: const TextStyle(color: Colors.white),
                                   ),
                                 ),
                               ]),
