@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:psych_gen_app/bloc/face_manipulation_bloc.dart';
-import 'package:psych_gen_app/home_page.dart';
-import 'package:psych_gen_app/repository/face_manipulation_repository_impl.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_bloc.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/pages/face_generation_page.dart';
+import 'package:psych_gen_app/features/face_generation/domain/usecases/generate_face_images.dart';
+import 'package:psych_gen_app/features/face_generation/data/repositories/face_manipulation_repository_impl.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,9 +39,11 @@ class MyApp extends StatelessWidget {
       ),
       home: BlocProvider(
         create: (context) => FaceManipulationBloc(
-          repository: FaceManipulationRepositoryImpl(),
+          generateFaceImages: GenerateFaceImagesUseCase(
+            repository: FaceManipulationRepositoryImpl(),
+          ),
         ),
-        child: const MyHomePage(title: 'Flutter Demo Home Page'),
+        child: const FaceGenerationPage(title: 'Flutter Demo Home Page'),
       ),
     );
   }

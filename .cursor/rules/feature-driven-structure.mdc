@@ -1,0 +1,13 @@
+---
+description: Ensure all new features follow the feature-driven directory structure.
+globs: ["lib/features/**/*"]
+alwaysApply: true
+---
+
+- All new features must be created inside a dedicated directory under `lib/features/`.
+- Each feature directory must contain three subdirectories: `data`, `domain`, and `presentation`.
+- UI-related code (Widgets, BLoCs) must go into `presentation`.
+- Business logic and abstract repositories must go into `domain`.
+- Data fetching and repository implementations must go into `data`.
+- Do not create top-level directories like `lib/blocs`, `lib/models`, or `lib/repositories`. Place these files inside the relevant feature's layered structure.
+

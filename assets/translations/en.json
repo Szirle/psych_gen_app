@@ -41,6 +41,19 @@
   "hint.add_variable_to_assign_axes": "Add a variable to assign axes.",
   "characteristic.variable_name": "Variable name",
   "characteristic.variable_strength": "Variable strength",
-  "characteristic.number_of_levels": "Number of levels"
+  "characteristic.number_of_levels": "Number of levels",
+
+  "filters.must_have": "Must have:",
+  "filters.cant_have": "Can't have:",
+  "filters.add_filter": "Add filter",
+  "filters.add_new": "Add New Filter",
+  "filters.type.intensity": "Intensity",
+  "filters.type.color": "Color",
+  "filters.color.red": "Red",
+  "filters.color.green": "Green",
+  "filters.color.blue": "Blue",
+
+  "common.cancel": "Cancel",
+  "common.add": "Add"
 }
 

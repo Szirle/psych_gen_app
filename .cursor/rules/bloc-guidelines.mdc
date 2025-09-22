@@ -1,0 +1,11 @@
+---
+description: Standardize BLoC implementation and interaction.
+globs: ["lib/features/**/bloc/*.dart", "lib/features/**/pages/*.dart"]
+alwaysApply: true
+---
+
+- BLoCs should not contain complex business logic. Complex logic should be delegated to a use case from the `domain` layer.
+- BLoCs receive events, call one or more use cases, and emit new states.
+- The UI (pages/widgets) should listen to BLoC state changes using `BlocBuilder` or `BlocListener` and add events to the BLoC in response to user interactions.
+- UI widgets should not directly modify their own state for anything other than transient UI animations or local input control (e.g., `TextEditingController`).
+

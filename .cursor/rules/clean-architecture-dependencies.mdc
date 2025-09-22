@@ -1,0 +1,11 @@
+---
+description: Enforce the dependency rule of Clean Architecture.
+globs: ["lib/**/*.dart"]
+alwaysApply: true
+---
+
+- Code within the `domain` layer must not import anything from the `data` or `presentation` layers.
+- Code within the `data` layer can only import from the `domain` layer, not the `presentation` layer.
+- UI widgets in the `presentation` layer should interact with `domain` use cases via a BLoC, not directly with repositories.
+- Imports of `package:flutter/material.dart` or `package:flutter/cupertino.dart` are only allowed within the `presentation` layer.
+
