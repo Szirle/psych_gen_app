@@ -1,31 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:psych_gen_app/core/constants/distributions.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 
 class DistributionRangeSelector extends StatelessWidget {
   final ManipulatedDimension dimension;
   final Color accentColor;
   final void Function(double start, double end) onRangeChanged;
+  final List<double> values;
+  final double? currentStart;
+  final double? currentEnd;
 
   const DistributionRangeSelector({
     Key? key,
     required this.dimension,
     required this.accentColor,
     required this.onRangeChanged,
+    required this.values,
+    this.currentStart,
+    this.currentEnd,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final distribution = normalDistributions[dimension.name] ??
-        generateNormalDistributionPoints();
+    final distribution =
+        values.isNotEmpty ? values : List<double>.filled(100, 0);
+    final startVal = (currentStart ?? dimension.rangeStart).clamp(0.0, 1.0);
+    final endVal = (currentEnd ?? dimension.rangeEnd).clamp(0.0, 1.0);
 
     const double graphHeight = 110;
     const double sliderHeight = 36;
 
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
-      final startX = (dimension.rangeStart.clamp(0.0, 1.0)) * width;
-      final endX = (dimension.rangeEnd.clamp(0.0, 1.0)) * width;
+      final startX = (startVal) * width;
+      final endX = (endVal) * width;
 
       return SizedBox(
         height: graphHeight + sliderHeight,
@@ -41,8 +48,8 @@ class DistributionRangeSelector extends StatelessWidget {
               child: CustomPaint(
                 painter: _DistributionPainter(
                   values: distribution,
-                  highlightStart: dimension.rangeStart,
-                  highlightEnd: dimension.rangeEnd,
+                  highlightStart: startVal,
+                  highlightEnd: endVal,
                   color: accentColor,
                 ),
               ),
@@ -59,7 +66,7 @@ class DistributionRangeSelector extends StatelessWidget {
                     inactiveTrackColor: Colors.black12,
                     thumbColor: accentColor),
                 child: RangeSlider(
-                  values: RangeValues(dimension.rangeStart, dimension.rangeEnd),
+                  values: RangeValues(startVal, endVal),
                   min: 0,
                   max: 1,
                   divisions: 100,

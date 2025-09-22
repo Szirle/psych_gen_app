@@ -2,7 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/distribution_range_selector.dart';
+
+String _humanizeRaw(String s) {
+  if (s.isEmpty) return s;
+  final buffer = StringBuffer();
+  for (int i = 0; i < s.length; i++) {
+    final String c = s[i];
+    final bool isUpper = c.toUpperCase() == c && c.toLowerCase() != c;
+    final bool prevIsLower = i > 0 && s[i - 1].toLowerCase() == s[i - 1];
+    if (i > 0 && isUpper && prevIsLower) buffer.write(' ');
+    buffer.write(c);
+  }
+  return buffer
+      .toString()
+      .split(' ')
+      .map((w) => w.isEmpty ? w : (w[0].toUpperCase() + w.substring(1)))
+      .join(' ');
+}
+
+String _labelForEnum(ManipulatedDimensionName name) => _humanizeRaw(name.name);
 
 class CharacteristicSelector extends StatefulWidget {
   final Color borderColor;
@@ -95,7 +113,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                         value: value,
                         enabled: !isSelected,
                         child: Text(
-                          value.toString().split('.').last,
+                          _labelForEnum(value),
                           style: TextStyle(
                             fontSize: 14,
                             fontFamily: 'WorkSans',
@@ -184,6 +202,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                     ),
                   ],
                 ),
+                // Range distribution selector removed from characteristic selector
               ],
             ),
           ),

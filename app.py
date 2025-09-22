@@ -398,6 +398,125 @@ def generate_images():
         print("Shape of images matched")
     return jsonify(converted_images)
 
+
+# -----------------------------
+# Distributions endpoint
+# -----------------------------
+def _avg_ratings_for_dim(dim_name: str) -> Dict[str, float]:
+    """Return mapping photo -> average rating in [0,1] for a given dimension."""
+    d = backend.dim_to_photo_to_ratings.get(dim_name, {})
+    out: Dict[str, float] = {}
+    for photo, ratings in d.items():
+        try:
+            if ratings is None:
+                continue
+            if isinstance(ratings, (list, tuple)) and len(ratings) > 0:
+                # ensure numeric and in [0,1]
+                vals = [float(x) for x in ratings if x is not None]
+                if len(vals) == 0:
+                    continue
+                avg = float(np.nanmean(vals))
+                if np.isnan(avg):
+                    continue
+                out[photo] = float(np.clip(avg, 0.0, 1.0))
+        except Exception:
+            continue
+    return out
+
+
+def _filter_photos(filters: Dict[str, list]) -> set:
+    """Return set of photo ids that satisfy all filters (inclusive ranges in [0,1])."""
+    if not filters:
+        # If no filters, use intersection of all photos known from any dim
+        photos = set()
+        for dim in backend.dim_to_photo_to_ratings.keys():
+            photos.update(_avg_ratings_for_dim(dim).keys())
+        return photos
+
+    eligible: Optional[set] = None
+    for dim, range_vals in filters.items():
+        try:
+            lo, hi = float(range_vals[0]), float(range_vals[1])
+        except Exception:
+            lo, hi = 0.0, 1.0
+        if lo > hi:
+            lo, hi = hi, lo
+        avg_map = _avg_ratings_for_dim(dim)
+        subset = {p for p, v in avg_map.items() if lo <= v <= hi}
+        eligible = subset if eligible is None else (eligible & subset)
+        if eligible and len(eligible) == 0:
+            break
+    return eligible or set()
+
+
+def _hist_for_dim(dim_name: str, photos_subset: set, num_points: int = 100) -> list:
+    """Compute histogram over [0,1] for dim on photo subset and normalize max to 1."""
+    avg_map = _avg_ratings_for_dim(dim_name)
+    if photos_subset:
+        values = [avg_map[p] for p in photos_subset if p in avg_map]
+    else:
+        values = list(avg_map.values())
+    if len(values) == 0:
+        return [0.0] * num_points
+    hist, _ = np.histogram(values, bins=num_points, range=(0.0, 1.0))
+    hist = hist.astype(np.float32)
+    # simple smoothing
+    if num_points >= 5:
+        k = np.array([1, 2, 3, 2, 1], dtype=np.float32)
+        k = k / k.sum()
+        hist = np.convolve(hist, k, mode="same")
+    m = float(hist.max()) if hist.max() > 0 else 1.0
+    hist = (hist / m).tolist()
+    return [float(x) for x in hist]
+
+
+@app.route("/distributions", methods=["POST"])
+def distributions_endpoint():
+    """
+    Request JSON:
+      {
+        "filters": { "attractive": [0.2, 0.8], ... },
+        "num_points": 100
+      }
+    Response JSON:
+      {
+        "distributions": { "attractive": [..], "dominant": [..], ... }
+      }
+    """
+    try:
+        payload = request.get_json(force=True, silent=False) or {}
+        filters = payload.get("filters", {})
+        requested = payload.get("variables", None)
+        num_points = int(payload.get("num_points", 100))
+        photos_subset = _filter_photos(filters)
+
+        available = list(backend.dim_to_photo_to_ratings.keys())
+        avail_set = set(available)
+
+        def map_name(name: str) -> str:
+            if name in avail_set:
+                return name
+            # common aliases
+            aliases = {
+                "trustworthy": "trustworthiness",
+                "dominant": "dominance",
+            }
+            if name in aliases and aliases[name] in avail_set:
+                return aliases[name]
+            if name + "ness" in avail_set:
+                return name + "ness"
+            if name.endswith("ant") and (name[:-3] + "ance") in avail_set:
+                return name[:-3] + "ance"
+            if name.endswith("y") and (name[:-1] + "iness") in avail_set:
+                return name[:-1] + "iness"
+            return name  # fallback (may be missing)
+
+        dims = available if not requested else [map_name(x) for x in requested]
+        result = {dim: _hist_for_dim(dim, photos_subset, num_points) for dim in dims if dim in avail_set}
+        return jsonify({"distributions": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 if __name__ == "__main__":
     # For development: single process is fine. In production:
     #   gunicorn -w 1 -b 0.0.0.0:8000 server_fast:app

@@ -42,6 +42,7 @@
   "characteristic.variable_name": "Variable name",
   "characteristic.variable_strength": "Variable strength",
   "characteristic.number_of_levels": "Number of levels",
+  "section.filters": "Filters",
 
   "filters.must_have": "Must have:",
   "filters.cant_have": "Can't have:",

@@ -5,6 +5,9 @@ import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_ma
 import 'package:psych_gen_app/features/face_generation/presentation/pages/face_generation_page.dart';
 import 'package:psych_gen_app/features/face_generation/domain/usecases/generate_face_images.dart';
 import 'package:psych_gen_app/features/face_generation/data/repositories/face_manipulation_repository_impl.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/bloc/filters_bloc.dart';
+import 'package:psych_gen_app/features/face_generation/domain/usecases/fetch_distributions.dart';
+import 'package:psych_gen_app/features/face_generation/data/repositories/distributions_repository_impl.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,12 +40,23 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
-      home: BlocProvider(
-        create: (context) => FaceManipulationBloc(
-          generateFaceImages: GenerateFaceImagesUseCase(
-            repository: FaceManipulationRepositoryImpl(),
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) => FaceManipulationBloc(
+              generateFaceImages: GenerateFaceImagesUseCase(
+                repository: FaceManipulationRepositoryImpl(),
+              ),
+            ),
           ),
-        ),
+          BlocProvider(
+            create: (context) => FiltersBloc(
+              fetchDistributions: FetchDistributionsUseCase(
+                repository: DistributionsRepositoryImpl(),
+              ),
+            ),
+          ),
+        ],
         child: const FaceGenerationPage(title: 'Flutter Demo Home Page'),
       ),
     );

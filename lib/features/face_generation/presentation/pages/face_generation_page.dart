@@ -20,6 +20,7 @@ import 'package:psych_gen_app/features/face_generation/presentation/widgets/shim
     as shimmer;
 import 'dart:ui' as ui;
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/plotly_iframe_panel.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
 
 class FaceGenerationPage extends StatefulWidget {
   const FaceGenerationPage({super.key, required this.title});
@@ -255,6 +256,15 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                               )
                             ]),
                           ],
+                        ),
+                      ),
+                      // Filters section (closed by default)
+                      Theme(
+                        data: ThemeData()
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: FiltersPanel(
+                          currentDims:
+                              faceManipulationRequest.manipulatedDimensions,
                         ),
                       ),
                       Theme(
