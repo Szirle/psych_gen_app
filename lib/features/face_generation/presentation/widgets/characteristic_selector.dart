@@ -148,7 +148,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                                 .manipulatedDimension.strength = newRating);
                             widget.onStrengthChanged(newRating);
                           },
-                          min: 1.0,
+                          min: -50.0,
                           max: 50.0,
                         ),
                       ),
