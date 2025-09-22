@@ -1,4 +1,5 @@
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
 
 class FaceManipulationRequest {
   List<ManipulatedDimension> manipulatedDimensions;
@@ -7,6 +8,7 @@ class FaceManipulationRequest {
   bool preserveIdentity;
   bool changeFace;
   String mode;
+  Map<ManipulatedDimensionName, List<double>>? filters;
 
   FaceManipulationRequest({
     required this.manipulatedDimensions,
@@ -15,6 +17,7 @@ class FaceManipulationRequest {
     required this.preserveIdentity,
     this.changeFace = false,
     required this.mode,
+    this.filters,
   });
 
   Map<String, dynamic> toJson() => {
@@ -25,5 +28,7 @@ class FaceManipulationRequest {
         'preserve_identity': preserveIdentity,
         'change_face': changeFace,
         'mode': mode,
+        if (filters != null && filters!.isNotEmpty)
+          'filters': filters!.map((k, v) => MapEntry(k.name, v)),
       };
 }

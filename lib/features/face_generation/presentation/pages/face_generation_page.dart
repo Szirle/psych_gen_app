@@ -21,6 +21,7 @@ import 'package:psych_gen_app/features/face_generation/presentation/widgets/shim
 import 'dart:ui' as ui;
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/plotly_iframe_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/bloc/filters_bloc.dart';
 
 class FaceGenerationPage extends StatefulWidget {
   const FaceGenerationPage({super.key, required this.title});
@@ -65,11 +66,35 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
 
   void _loadImages() {
     faceManipulationRequest.changeFace = false;
+    final filtersPayload = _buildFiltersPayload();
+    faceManipulationRequest.filters =
+        filtersPayload.isEmpty ? null : filtersPayload;
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
     _reloadCharts();
     _initOrUpdate3dState();
+  }
+
+  Map<ManipulatedDimensionName, List<double>> _buildFiltersPayload() {
+    try {
+      final fbState = context.read<FiltersBloc>().state;
+      if (fbState is FiltersLoaded) {
+        final Map<ManipulatedDimensionName, List<double>> out = {};
+        fbState.appliedFilters.forEach((key, range) {
+          if (range.length >= 2) {
+            double start = range[0].clamp(0.0, 1.0);
+            double end = range[1].clamp(0.0, 1.0);
+            // Only include if not default [0,1]
+            if (!(start <= 0.0 && end >= 1.0)) {
+              out[key] = [start, end];
+            }
+          }
+        });
+        return out;
+      }
+    } catch (_) {}
+    return {};
   }
 
   void _reloadCharts() {
@@ -471,6 +496,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                       ),
                                     ),
                                     onPressed: () {
+                                      final filtersPayload =
+                                          _buildFiltersPayload();
                                       final immediateRequest =
                                           FaceManipulationRequest(
                                         manipulatedDimensions:
@@ -485,6 +512,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                 .preserveIdentity,
                                         mode: faceManipulationRequest.mode,
                                         changeFace: true,
+                                        filters: filtersPayload.isEmpty
+                                            ? null
+                                            : filtersPayload,
                                       );
                                       context.read<FaceManipulationBloc>().add(
                                           LoadFaceImages(immediateRequest));
