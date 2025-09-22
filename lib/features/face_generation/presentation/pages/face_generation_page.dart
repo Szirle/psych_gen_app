@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_bloc.dart';
@@ -12,7 +13,6 @@ import 'package:psych_gen_app/features/face_generation/presentation/widgets/char
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/custom_button.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/custom_number_text_field.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/dotted_background_painter.dart';
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_section.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/face_manipulation_request.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
@@ -1221,218 +1221,224 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
     final rows = _yAxisDim!.nLevels;
     final cols = _xAxisDim!.nLevels;
-    final padding = 40.0;
-    final itemPadding = 4.0;
+    const itemPadding = 4.0;
+    const outerPadding = 8.0;
 
     final availableImageWidth =
-        (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
+        (constraints.maxWidth - outerPadding * 2 - (itemPadding * 2 * cols)) /
+            cols;
     final availableImageHeight =
-        (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
+        (constraints.maxHeight - outerPadding * 2 - (itemPadding * 2 * rows)) /
+            rows;
     final imageSize = (availableImageWidth < availableImageHeight
             ? availableImageWidth
             : availableImageHeight)
         .clamp(30.0, 150.0);
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(rows, (y) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(cols, (x) {
-              final s = _sliderValue - 1;
+    final double cellSize = imageSize + itemPadding * 2;
+    final double gridWidth = cols * cellSize;
+    final double gridHeight = rows * cellSize;
 
-              final Map<ManipulatedDimension, int> levelMap = {
-                _xAxisDim!: x,
-                _yAxisDim!: y,
-                _sliderDim!: s,
-              };
-
-              final level0 = levelMap[dimensions[0]]!;
-              final level1 = levelMap[dimensions[1]]!;
-              final level2 = levelMap[dimensions[2]]!;
-
-              final nLevels0 = dimensions[0].nLevels;
-              final nLevels1 = dimensions[1].nLevels;
-
-              final imageIndex =
-                  level2 * (nLevels1 * nLevels0) + level1 * nLevels0 + level0;
-
-              if (imageIndex < state.images.length) {
-                return Padding(
-                  padding: EdgeInsets.all(itemPadding),
-                  child: shimmer.AnimatedImageWidget(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.memory(
-                          state.images[imageIndex],
-                          width: imageSize,
-                          height: imageSize,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(outerPadding),
+        child: SizedBox(
+          width: gridWidth,
+          height: gridHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: AxisWrappingPainter(
+                    xDim: _xAxisDim,
+                    yDim: _yAxisDim,
+                    zDim: null,
+                    dimensionColors: _dimensionColors,
                   ),
-                );
-              } else {
-                return SizedBox(
-                    width: imageSize + (itemPadding * 2),
-                    height: imageSize + (itemPadding * 2));
-              }
-            }),
-          );
-        }),
+                ),
+              ),
+              Align(
+                alignment: Alignment.topLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(rows, (y) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: List.generate(cols, (x) {
+                        final s = _sliderValue - 1;
+
+                        final Map<ManipulatedDimension, int> levelMap = {
+                          _xAxisDim!: x,
+                          _yAxisDim!: y,
+                          _sliderDim!: s,
+                        };
+
+                        final level0 = levelMap[dimensions[0]]!;
+                        final level1 = levelMap[dimensions[1]]!;
+                        final level2 = levelMap[dimensions[2]]!;
+
+                        final nLevels0 = dimensions[0].nLevels;
+                        final nLevels1 = dimensions[1].nLevels;
+
+                        final imageIndex = level2 * (nLevels1 * nLevels0) +
+                            level1 * nLevels0 +
+                            level0;
+
+                        if (imageIndex < state.images.length) {
+                          return Padding(
+                            padding: const EdgeInsets.all(itemPadding),
+                            child: shimmer.AnimatedImageWidget(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.memory(
+                                    state.images[imageIndex],
+                                    width: imageSize,
+                                    height: imageSize,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        } else {
+                          return SizedBox(
+                              width: imageSize + (itemPadding * 2),
+                              height: imageSize + (itemPadding * 2));
+                        }
+                      }),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _build2dGridView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    if (dimensions.length == 2 &&
+    final isFiveByFive = dimensions.length == 2 &&
         dimensions[0].nLevels == 5 &&
         dimensions[1].nLevels == 5 &&
-        state.images.length >= 9) {
-      final rows = 5;
-      final cols = 5;
-      final middleRow = 2;
-      final middleCol = 2;
-      final padding = 16.0;
-      final itemPadding = 4.0;
+        state.images.length >= 9;
 
-      final availableImageWidth =
-          (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
-      final availableImageHeight =
-          (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
-      final imageSize = (availableImageWidth < availableImageHeight
-              ? availableImageWidth
-              : availableImageHeight)
-          .clamp(30.0, 150.0);
-
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(rows, (row) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(cols, (col) {
-                int imageIndex = -1;
-
-                if (row == middleRow) {
-                  imageIndex = col;
-                } else if (col == middleCol) {
-                  imageIndex = 5 + row;
-                }
-
-                if (imageIndex != -1 && imageIndex < state.images.length) {
-                  return Padding(
-                    padding: EdgeInsets.all(itemPadding),
-                    child: shimmer.AnimatedImageWidget(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.memory(
-                            state.images[imageIndex],
-                            width: imageSize,
-                            height: imageSize,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                } else {
-                  return SizedBox(
-                      width: imageSize + (itemPadding * 2),
-                      height: imageSize + (itemPadding * 2));
-                }
-              }),
-            );
-          }),
-        ),
-      );
-    }
-
-    final rows = dimensions[1].nLevels;
-    final cols = dimensions[0].nLevels;
-    final padding = 16.0;
-    final itemPadding = 4.0;
+    final rows = isFiveByFive ? 5 : dimensions[1].nLevels;
+    final cols = isFiveByFive ? 5 : dimensions[0].nLevels;
+    const itemPadding = 4.0;
+    const outerPadding = 8.0;
 
     final availableImageWidth =
-        (constraints.maxWidth - padding - (itemPadding * 2 * cols)) / cols;
+        (constraints.maxWidth - outerPadding * 2 - (itemPadding * 2 * cols)) /
+            cols;
     final availableImageHeight =
-        (constraints.maxHeight - padding - (itemPadding * 2 * rows)) / rows;
+        (constraints.maxHeight - outerPadding * 2 - (itemPadding * 2 * rows)) /
+            rows;
     final imageSize = (availableImageWidth < availableImageHeight
             ? availableImageWidth
             : availableImageHeight)
         .clamp(30.0, 150.0);
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(rows, (row) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(cols, (col) {
-              final imageIndex = row * cols + col;
-              if (imageIndex < state.images.length) {
-                return Padding(
-                  padding: EdgeInsets.all(itemPadding),
-                  child: shimmer.AnimatedImageWidget(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.memory(
-                          state.images[imageIndex],
-                          width: imageSize,
-                          height: imageSize,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+    final double cellSize = imageSize + itemPadding * 2;
+    final double gridWidth = cols * cellSize;
+    final double gridHeight = rows * cellSize;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(outerPadding),
+        child: SizedBox(
+          width: gridWidth,
+          height: gridHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: AxisWrappingPainter(
+                    xDim: dimensions.isNotEmpty ? dimensions[0] : null,
+                    yDim: dimensions.length > 1 ? dimensions[1] : null,
+                    zDim: null,
+                    dimensionColors: _dimensionColors,
                   ),
-                );
-              } else {
-                return SizedBox(
-                    width: imageSize + (itemPadding * 2),
-                    height: imageSize + (itemPadding * 2));
-              }
-            }),
-          );
-        }),
+                ),
+              ),
+              Align(
+                alignment: Alignment.topLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(rows, (row) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: List.generate(cols, (col) {
+                        int imageIndex = -1;
+                        if (isFiveByFive) {
+                          const int middleRow = 2;
+                          const int middleCol = 2;
+                          if (row == middleRow) {
+                            imageIndex = col;
+                          } else if (col == middleCol) {
+                            imageIndex = 5 + row;
+                          }
+                        } else {
+                          imageIndex = row * cols + col;
+                        }
+
+                        if (imageIndex != -1 &&
+                            imageIndex < state.images.length) {
+                          return Padding(
+                            padding: const EdgeInsets.all(itemPadding),
+                            child: shimmer.AnimatedImageWidget(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.memory(
+                                    state.images[imageIndex],
+                                    width: imageSize,
+                                    height: imageSize,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        } else {
+                          return SizedBox(
+                              width: imageSize + (itemPadding * 2),
+                              height: imageSize + (itemPadding * 2));
+                        }
+                      }),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1440,49 +1446,74 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   Widget _build1dRowView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
     final imageCount = state.images.length;
-    final padding = 16.0;
-    final itemPadding = 8.0 * 2;
-    final totalPadding = padding + (itemPadding * imageCount);
-    final availableImageWidth = constraints.maxWidth - totalPadding;
+    const double itemPadding = 8.0;
+    const double outerPadding = 8.0;
+
+    final availableImageWidth = constraints.maxWidth -
+        outerPadding * 2 -
+        ((itemPadding * 2) * imageCount);
     final calculatedImageSize = availableImageWidth / imageCount;
     final imageSize = calculatedImageSize.clamp(20.0, 200.0);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: state.images
-            .map(
-              (image) => Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: shimmer.AnimatedImageWidget(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          image,
-                          width: imageSize,
-                          height: imageSize,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+    final double cellSize = imageSize + itemPadding * 2;
+    final double gridWidth = imageCount * cellSize;
+    final double gridHeight = cellSize;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: outerPadding),
+        child: SizedBox(
+          width: gridWidth,
+          height: gridHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: AxisWrappingPainter(
+                    xDim: dimensions.isNotEmpty ? dimensions[0] : null,
+                    yDim: null,
+                    zDim: null,
+                    dimensionColors: _dimensionColors,
                   ),
                 ),
               ),
-            )
-            .toList(),
+              Align(
+                alignment: Alignment.topLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: state.images.map((image) {
+                    return Padding(
+                      padding: const EdgeInsets.all(itemPadding),
+                      child: shimmer.AnimatedImageWidget(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(
+                              image,
+                              width: imageSize,
+                              height: imageSize,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1529,4 +1560,290 @@ class DottedBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+class AxisArrowsPainter extends CustomPainter {
+  final ManipulatedDimension? xDim;
+  final ManipulatedDimension? yDim;
+  final ManipulatedDimension? zDim;
+  final Map<ManipulatedDimension, Color> dimensionColors;
+
+  AxisArrowsPainter({
+    required this.xDim,
+    required this.yDim,
+    required this.zDim,
+    required this.dimensionColors,
+  });
+
+  static const double _margin = 40.0;
+  static const double _arrowThickness = 2.5;
+  static const double _arrowHeadSize = 10.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double left = _margin + 8;
+    final double right = size.width - _margin - 56; // reserve for FAB
+    final double bottom = size.height - _margin;
+    final double top = _margin;
+
+    if (xDim != null) {
+      _drawArrow(
+        canvas,
+        start: Offset(left, bottom),
+        end: Offset(right, bottom),
+        color: dimensionColors[xDim] ?? const Color(0xFF4A90E2),
+      );
+      _drawCenteredLabel(
+        canvas,
+        text: xDim!.name.name,
+        position: Offset((left + right) / 2, bottom + 16),
+        color: dimensionColors[xDim] ?? const Color(0xFF4A90E2),
+        rotateRadians: 0,
+      );
+    }
+
+    if (yDim != null) {
+      // Draw Y increasing upward
+      _drawArrow(
+        canvas,
+        start: Offset(left, bottom),
+        end: Offset(left, top),
+        color: dimensionColors[yDim] ?? const Color(0xFFD53F8C),
+      );
+      _drawCenteredLabel(
+        canvas,
+        text: yDim!.name.name,
+        position: Offset(left - 18, (top + bottom) / 2),
+        color: dimensionColors[yDim] ?? const Color(0xFFD53F8C),
+        rotateRadians: -math.pi / 2,
+      );
+    }
+
+    if (zDim != null) {
+      // Small diagonal depth arrow in the top-right corner
+      final Offset start = Offset(right - 40, top + 8);
+      final Offset end = Offset(right, top - 8 + 40);
+      _drawArrow(
+        canvas,
+        start: start,
+        end: end,
+        color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA),
+      );
+      _drawCenteredLabel(
+        canvas,
+        text: zDim!.name.name,
+        position: Offset(end.dx + 4, end.dy),
+        color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA),
+        rotateRadians: 0,
+      );
+    }
+  }
+
+  void _drawArrow(Canvas canvas,
+      {required Offset start, required Offset end, required Color color}) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = _arrowThickness
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Shaft
+    canvas.drawLine(start, end, paint);
+
+    // Arrowhead
+    final Offset direction = (end - start);
+    final double length = direction.distance;
+    if (length <= 0.001) return;
+    final Offset unit = direction / length;
+
+    // Perpendicular for head
+    final Offset perp = Offset(-unit.dy, unit.dx);
+
+    final Offset headBase = end - unit * _arrowHeadSize;
+    final Offset p1 = end;
+    final Offset p2 = headBase + perp * (_arrowHeadSize * 0.6);
+    final Offset p3 = headBase - perp * (_arrowHeadSize * 0.6);
+
+    final Path head = Path()
+      ..moveTo(p1.dx, p1.dy)
+      ..lineTo(p2.dx, p2.dy)
+      ..lineTo(p3.dx, p3.dy)
+      ..close();
+
+    final Paint headPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(head, headPaint);
+  }
+
+  void _drawCenteredLabel(Canvas canvas,
+      {required String text,
+      required Offset position,
+      required Color color,
+      required double rotateRadians}) {
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'WorkSans',
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    )..layout();
+
+    final Size ts = textPainter.size;
+    canvas.save();
+    canvas.translate(position.dx, position.dy);
+    canvas.rotate(rotateRadians);
+    textPainter.paint(canvas, Offset(-ts.width / 2, -ts.height / 2));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant AxisArrowsPainter oldDelegate) {
+    return oldDelegate.xDim != xDim ||
+        oldDelegate.yDim != yDim ||
+        oldDelegate.zDim != zDim ||
+        !mapEquals(oldDelegate.dimensionColors, dimensionColors);
+  }
+}
+
+class AxisWrappingPainter extends CustomPainter {
+  final ManipulatedDimension? xDim;
+  final ManipulatedDimension? yDim;
+  final ManipulatedDimension? zDim;
+  final Map<ManipulatedDimension, Color> dimensionColors;
+
+  AxisWrappingPainter({
+    required this.xDim,
+    required this.yDim,
+    required this.zDim,
+    required this.dimensionColors,
+  });
+
+  static const double _arrowThickness = 2.5;
+  static const double _arrowHeadSize = 10.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double left = 0;
+    final double right = size.width;
+    final double bottom = size.height;
+    final double top = 0;
+
+    if (xDim != null) {
+      _drawArrow(canvas,
+          start: Offset(left, bottom),
+          end: Offset(right, bottom),
+          color: dimensionColors[xDim] ?? const Color(0xFF4A90E2));
+      _drawLabel(
+        canvas,
+        text: xDim!.name.name,
+        position: Offset((left + right) / 2, bottom + 14),
+        color: dimensionColors[xDim] ?? const Color(0xFF4A90E2),
+        rotateRadians: 0,
+      );
+    }
+
+    if (yDim != null) {
+      _drawArrow(canvas,
+          start: Offset(left, bottom),
+          end: Offset(left, top),
+          color: dimensionColors[yDim] ?? const Color(0xFFD53F8C));
+      _drawLabel(
+        canvas,
+        text: yDim!.name.name,
+        position: Offset(left - 18, (top + bottom) / 2),
+        color: dimensionColors[yDim] ?? const Color(0xFFD53F8C),
+        rotateRadians: -math.pi / 2,
+      );
+    }
+
+    if (zDim != null) {
+      final Offset start = Offset(right - 40, top + 8);
+      final Offset end = Offset(right, top + 8 - 40);
+      _drawArrow(canvas,
+          start: start,
+          end: end,
+          color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA));
+      _drawLabel(
+        canvas,
+        text: zDim!.name.name,
+        position: Offset(end.dx + 4, end.dy),
+        color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA),
+        rotateRadians: 0,
+      );
+    }
+  }
+
+  void _drawArrow(Canvas canvas,
+      {required Offset start, required Offset end, required Color color}) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = _arrowThickness
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(start, end, paint);
+
+    final Offset direction = (end - start);
+    final double length = direction.distance;
+    if (length <= 0.001) return;
+    final Offset unit = direction / length;
+    final Offset perp = Offset(-unit.dy, unit.dx);
+    final Offset headBase = end - unit * _arrowHeadSize;
+    final Offset p1 = end;
+    final Offset p2 = headBase + perp * (_arrowHeadSize * 0.6);
+    final Offset p3 = headBase - perp * (_arrowHeadSize * 0.6);
+
+    final Path head = Path()
+      ..moveTo(p1.dx, p1.dy)
+      ..lineTo(p2.dx, p2.dy)
+      ..lineTo(p3.dx, p3.dy)
+      ..close();
+
+    final Paint headPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(head, headPaint);
+  }
+
+  void _drawLabel(Canvas canvas,
+      {required String text,
+      required Offset position,
+      required Color color,
+      required double rotateRadians}) {
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'WorkSans',
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    )..layout();
+
+    final Size ts = textPainter.size;
+    canvas.save();
+    canvas.translate(position.dx, position.dy);
+    canvas.rotate(rotateRadians);
+    textPainter.paint(canvas, Offset(-ts.width / 2, -ts.height / 2));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant AxisWrappingPainter oldDelegate) {
+    return oldDelegate.xDim != xDim ||
+        oldDelegate.yDim != yDim ||
+        oldDelegate.zDim != zDim ||
+        !mapEquals(oldDelegate.dimensionColors, dimensionColors);
+  }
 }
