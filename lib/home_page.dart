@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -16,6 +17,7 @@ import 'package:psych_gen_app/model/manipulated_dimension.dart';
 import 'package:psych_gen_app/model/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/shimmer_image_placeholder.dart';
 import 'dart:ui' as ui;
+import 'package:psych_gen_app/widgets/plotly_iframe_panel.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -32,6 +34,8 @@ class _MyHomePageState extends State<MyHomePage> {
   ManipulatedDimension? _yAxisDim;
   ManipulatedDimension? _sliderDim;
   late final TransformationController _previewTransformController;
+  bool _showChartsPanel = true;
+  int _chartsReloadToken = 0;
 
   List<Color> colors = [
     const Color(0xFF3DBDBA),
@@ -62,7 +66,14 @@ class _MyHomePageState extends State<MyHomePage> {
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
+    _reloadCharts();
     _initOrUpdate3dState();
+  }
+
+  void _reloadCharts() {
+    setState(() {
+      _chartsReloadToken++;
+    });
   }
 
   void _resetPreviewTransform() {
@@ -413,68 +424,72 @@ class _MyHomePageState extends State<MyHomePage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Padding(
-                            padding: EdgeInsets.fromLTRB(16, 0, 0, 0),
+                            padding: EdgeInsets.fromLTRB(12, 0, 0, 0),
                             child: Text(
                               'preview.title'.tr(),
                               style: TextStyle(
                                   fontFamily: 'WorkSans',
-                                  fontSize: 32,
+                                  fontSize: 28,
                                   color: Color(0xFF4A5568)),
                             ),
                           ),
                           Padding(
-                            padding: EdgeInsets.fromLTRB(16, 8, 0, 0),
+                            padding: EdgeInsets.fromLTRB(12, 4, 0, 0),
                             child: Text(
                               'nav.breadcrumb'.tr(),
                               style: TextStyle(
                                   fontFamily: 'WorkSans',
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   color: Color(0xFF4A5568)),
                             ),
                           ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(0, 12, 16, 0),
-                            child: SizedBox(
-                              width: 150,
-                              child: Tooltip(
-                                message: 'tooltip.change_face'.tr(),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    elevation: 0,
-                                    backgroundColor: const Color(0xFF2B3A55),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 24, vertical: 18),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(5),
+                          Row(children: [
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(0, 8, 8, 0),
+                              child: SizedBox(
+                                width: 140,
+                                child: Tooltip(
+                                  message: 'tooltip.change_face'.tr(),
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      elevation: 0,
+                                      backgroundColor: const Color(0xFF2B3A55),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
                                     ),
-                                  ),
-                                  onPressed: () {
-                                    final immediateRequest =
-                                        FaceManipulationRequest(
-                                      manipulatedDimensions:
-                                          faceManipulationRequest
-                                              .manipulatedDimensions,
-                                      truncationPsi:
-                                          faceManipulationRequest.truncationPsi,
-                                      numFaces:
-                                          faceManipulationRequest.numFaces,
-                                      preserveIdentity: faceManipulationRequest
-                                          .preserveIdentity,
-                                      mode: faceManipulationRequest.mode,
-                                      changeFace: true,
-                                    );
-                                    context
-                                        .read<FaceManipulationBloc>()
-                                        .add(LoadFaceImages(immediateRequest));
-                                  },
-                                  child: Text(
-                                    'button.change_face'.tr(),
-                                    style: const TextStyle(color: Colors.white),
+                                    onPressed: () {
+                                      final immediateRequest =
+                                          FaceManipulationRequest(
+                                        manipulatedDimensions:
+                                            faceManipulationRequest
+                                                .manipulatedDimensions,
+                                        truncationPsi: faceManipulationRequest
+                                            .truncationPsi,
+                                        numFaces:
+                                            faceManipulationRequest.numFaces,
+                                        preserveIdentity:
+                                            faceManipulationRequest
+                                                .preserveIdentity,
+                                        mode: faceManipulationRequest.mode,
+                                        changeFace: true,
+                                      );
+                                      context.read<FaceManipulationBloc>().add(
+                                          LoadFaceImages(immediateRequest));
+                                      _reloadCharts();
+                                    },
+                                    child: Text(
+                                      'button.change_face'.tr(),
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          )
+                          ])
                         ]),
                     Expanded(
                       child: Stack(
@@ -667,7 +682,94 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
+              // anchor positioned to the LEFT of the panel when open, otherwise at far right
+              SizedBox(
+                width: 22,
+                child: Center(
+                  child: _buildChartsAnchor(isOpen: _showChartsPanel),
+                ),
+              ),
+              if (_showChartsPanel)
+                Container(
+                  width: 380,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                        child: Text(
+                          'panel.charts_title'.tr(),
+                          style: const TextStyle(
+                            fontFamily: 'WorkSans',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFF2B3A55),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: PlotlyIFramePanel(
+                          reloadToken: _chartsReloadToken,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartsAnchor({required bool isOpen}) {
+    return Tooltip(
+      message: isOpen ? 'panel.hide_charts'.tr() : 'panel.show_charts'.tr(),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showChartsPanel = !_showChartsPanel;
+          });
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: 22,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                bottomLeft: Radius.circular(8),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(color: Colors.grey[300]!, width: 1),
+            ),
+            child: Transform.rotate(
+              angle: isOpen ? math.pi : 0,
+              child: const Icon(
+                Icons.chevron_left,
+                size: 18,
+                color: Color(0xFF2B3A55),
+              ),
+            ),
           ),
         ),
       ),

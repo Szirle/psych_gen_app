@@ -274,6 +274,62 @@ app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
 def index():
     return send_from_directory(app.static_folder, "index.html")
 
+@app.route("/charts")
+def plotly_charts_iframe():
+    # Self-contained HTML page rendering a 2x10 grid of mocked Plotly graphs
+    html = """
+<!DOCTYPE html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"UTF-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+    <title>Charts</title>
+    <script src=\"https://cdn.plot.ly/plotly-2.35.2.min.js\"></script>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      #container {
+        height: 100%;
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 180px;
+        gap: 8px;
+        padding: 8px;
+        box-sizing: border-box;
+        background: #ffffff;
+      }
+      .chart { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id=\"container\"></div>
+    <script>
+      function makeData(i) {
+        const x = Array.from({ length: 30 }, (_, k) => k);
+        const y = x.map(k => Math.sin(k / 3 + i / 4) + (Math.random() - 0.5) * 0.3);
+        return [{ x, y, mode: 'lines', line: { color: '#2B3A55', width: 2 } }];
+      }
+      const layout = { margin: { l: 20, r: 10, t: 10, b: 20 }, showlegend: false };
+      const container = document.getElementById('container');
+      for (let i = 0; i < 20; i++) {
+        const div = document.createElement('div');
+        div.className = 'chart';
+        div.id = 'chart-' + i;
+        container.appendChild(div);
+        Plotly.newPlot(div, makeData(i), layout, { displaylogo: false, responsive: true });
+      }
+      window.addEventListener('resize', () => {
+        for (let i = 0; i < 20; i++) {
+          const el = document.getElementById('chart-' + i);
+          if (el) { Plotly.Plots.resize(el); }
+        }
+      });
+    </script>
+  </body>
+</html>
+    """
+    return html
+
 @app.route("/<path:path>")
 def static_files(path):
     return send_from_directory(app.static_folder, path)
