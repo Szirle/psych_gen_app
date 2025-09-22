@@ -179,10 +179,12 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                         child: Slider(
                           activeColor: widget.borderColor,
                           inactiveColor: Colors.black12,
-                          value: widget.manipulatedDimension.nLevels.toDouble(),
-                          min: 1.0,
+                          value: widget.manipulatedDimension.nLevels
+                              .clamp(2, 5)
+                              .toDouble(),
+                          min: 2.0,
                           max: 5.0,
-                          divisions: 2,
+                          divisions: 3,
                           onChanged: (newValue) {
                             setState(() => widget.manipulatedDimension.nLevels =
                                 newValue.round());

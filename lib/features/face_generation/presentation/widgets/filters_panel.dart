@@ -73,7 +73,7 @@ class FiltersPanel extends StatelessWidget {
                   final dim = currentDims.firstWhere(
                     (d) => d.name == name,
                     orElse: () => ManipulatedDimension(
-                        name: name, strength: 25.0, nLevels: 1),
+                        name: name, strength: 25.0, nLevels: 2),
                   );
                   final dist = loaded.distributions[name] ?? const <double>[];
                   return Padding(

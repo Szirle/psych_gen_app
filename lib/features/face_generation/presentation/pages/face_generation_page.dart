@@ -52,7 +52,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   FaceManipulationRequest faceManipulationRequest =
       FaceManipulationRequest(manipulatedDimensions: [
     ManipulatedDimension(
-        name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 1)
+        name: ManipulatedDimensionName.dominant, strength: 25.0, nLevels: 2)
   ], truncationPsi: 0.6, numFaces: 100, mode: 'shape', preserveIdentity: false);
 
   @override
@@ -268,7 +268,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                         ManipulatedDimension(
                                             name: availableName,
                                             strength: 25.0,
-                                            nLevels: 1),
+                                            nLevels: 2),
                                       );
                                       setState(() {
                                         _updateDimensionColors();
