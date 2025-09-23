@@ -133,6 +133,34 @@ Errors
 
 ---
 
+### 3) GET /charts
+Serves a self-contained HTML page with a responsive 2x10 grid of mocked Plotly charts, intended to be embedded via an iframe in the Flutter web app for prototyping/visualization.
+
+Flutter call site: `lib/features/face_generation/presentation/widgets/plotly_iframe_panel.dart`
+Backend handler: `app.py@app.route('/charts')`
+
+Request
+```
+GET /charts[?ts=1699999999]
+```
+
+Query params
+- `ts`: optional cache-buster (integer/string). When present, the client sets the iframe `src` to `/charts?ts=<value>` to force reloads.
+
+Response
+- Content-Type: `text/html`
+- Body: standalone HTML that loads Plotly from CDN and renders 20 small line charts in a CSS grid. The page listens to window resize events and calls `Plotly.Plots.resize` for responsiveness.
+
+Notes
+- This endpoint is not part of the JSON API; it returns HTML, not JSON.
+- Used only by the web client embedding an iframe; native/mobile builds do not use it.
+- The charts are mocked/demo visuals and do not reflect backend data.
+
+Errors
+- On failure, the server will return a standard HTTP error response (e.g., 5xx). The Flutter client should handle iframe load failures gracefully (e.g., by hiding the panel or showing a placeholder).
+
+---
+
 ## Data Models (Flutter)
 
 `FaceManipulationRequest` → JSON
