@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/custom_button.dart';
+import 'package:psych_gen_app/core/designsystem/widgets/custom_button.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/filter_dialog.dart';
 
 class FiltersSection extends StatefulWidget {
