@@ -5,6 +5,7 @@ class DistributionRangeSelector extends StatelessWidget {
   final ManipulatedDimension dimension;
   final Color accentColor;
   final void Function(double start, double end) onRangeChanged;
+  final void Function(double start, double end)? onRangeChangeEnd;
   final List<double> values;
   final double? currentStart;
   final double? currentEnd;
@@ -14,6 +15,7 @@ class DistributionRangeSelector extends StatelessWidget {
     required this.dimension,
     required this.accentColor,
     required this.onRangeChanged,
+    this.onRangeChangeEnd,
     required this.values,
     this.currentStart,
     this.currentEnd,
@@ -72,6 +74,11 @@ class DistributionRangeSelector extends StatelessWidget {
                   divisions: 100,
                   onChanged: (values) {
                     onRangeChanged(values.start, values.end);
+                  },
+                  onChangeEnd: (values) {
+                    if (onRangeChangeEnd != null) {
+                      onRangeChangeEnd!(values.start, values.end);
+                    }
                   },
                 ),
               ),

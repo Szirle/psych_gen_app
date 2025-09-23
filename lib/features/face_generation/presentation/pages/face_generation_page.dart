@@ -261,6 +261,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                         child: FiltersPanel(
                           currentDims:
                               faceManipulationRequest.manipulatedDimensions,
+                          onFiltersCommitted: () {
+                            _loadImages();
+                          },
                         ),
                       ),
                       Theme(

@@ -27,7 +27,9 @@ String _labelForEnum(ManipulatedDimensionName name) => _humanizeRaw(name.name);
 
 class FiltersPanel extends StatelessWidget {
   final List<ManipulatedDimension> currentDims;
-  const FiltersPanel({super.key, required this.currentDims});
+  final VoidCallback onFiltersCommitted;
+  const FiltersPanel(
+      {super.key, required this.currentDims, required this.onFiltersCommitted});
 
   @override
   Widget build(BuildContext context) {
@@ -101,13 +103,16 @@ class FiltersPanel extends StatelessWidget {
                               loaded.appliedFilters[name]?.elementAt(0),
                           currentEnd: loaded.appliedFilters[name]?.elementAt(1),
                           onRangeChanged: (start, end) {
-                            // Only update local filters; do not refetch distributions here
+                            // Update local filters; defer image reload until user releases
                             context.read<FiltersBloc>().add(
                                   UpdateFilterEvent(
                                     dimension: name,
                                     range: [start, end],
                                   ),
                                 );
+                          },
+                          onRangeChangeEnd: (start, end) {
+                            onFiltersCommitted();
                           },
                         ),
                       ],
