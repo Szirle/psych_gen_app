@@ -1,0 +1,39 @@
+---
+description: Keep Flutter ↔ Python API in sync and documented
+globs:
+  - "app.py"
+  - "gan_backend.py"
+  - "lib/features/**/*.dart"
+  - "docs/API_COMMUNICATION.md"
+triggers:
+  - file_change
+---
+
+# API Synchronization Rule
+
+## When this applies
+Any edit to API communications between Flutter and Python, including:
+- Endpoint paths, query params, or JSON keys
+- Request/response payload shapes or field defaults
+- Image array dimensionality/encoding from `/images`
+- Filters/variables handling or histogram length in `/distributions`
+- Manipulated dimension naming/aliasing that affects mapping
+
+## Required actions
+1) Update `docs/API_COMMUNICATION.md` with the exact contract and examples.
+2) Update the opposite side to match in the same change:
+   - If Flutter changed, update Flask handlers in `app.py` (and `parse_config`) and related logic in `gan_backend.py`.
+   - If Python changed, update Flutter datasources and entities under `lib/features/face_generation/`.
+3) Build and stage:
+   - Run `flutter build web --release`
+   - `git add build/web`
+
+## Paths to review
+- Frontend: `lib/features/face_generation/data/datasources/*`, `lib/features/face_generation/domain/entities/*`
+- Backend: `app.py` (routes `/images`, `/distributions`), `gan_backend.py`
+
+## Done checklist
+- [ ] Doc updated (`docs/API_COMMUNICATION.md`)
+- [ ] Other side updated
+- [ ] Web build succeeded and `build/web` staged
+
