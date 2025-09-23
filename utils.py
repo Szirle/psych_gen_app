@@ -95,7 +95,7 @@ def load_psychGAN_data(data_path):
     photo_coords = {k: v for k, v in zip(photo, coords)}
     with open(data_path+"dim_to_photo_to_ratings.pkl", "rb") as f: 
         dim_to_photo_to_ratings = pickle.load(f)
-
+    print(*dim_to_photo_to_ratings.keys())
     return photo_coords, dim_to_photo_to_ratings
 
 
@@ -196,6 +196,7 @@ def tensor_dd(*args):
     return output if len(output)>1 else output[0]
 
 def get_data(dim, train=True, logit=True, backend=None, imgs=None):
+    dim = camel_to_dash(dim)
     config = {'data':{'attribute_dim':dim}}
     if imgs is not None:
         config['data']['imgs'] = imgs
@@ -251,6 +252,37 @@ def ridge_coefs(dim: str, alpha: float, *, fit_intercept: bool = True, backend=N
     coefs_t = torch.from_numpy(coefs_np).to(device)
     # print(f"Pearson correlation: {pearsonr(y_np, X_np @ coefs_np)[0]}")
     return coefs_t
+
+
+
+
+# ---Flutter Backend---
+def camel_to_dash(s: str) -> str:
+    """
+    Convert CamelCase or camelCase to dash-separated lowercase.
+    Example: 'CamelCaseString' -> 'camel-case-string'
+                'myVarName' -> 'my-var-name'
+    """
+    result = []
+    for i, c in enumerate(s):
+        if c.isupper():
+            if i != 0 and (not s[i-1].isupper() or (i+1 < len(s) and s[i+1].islower())):
+                result.append('-')
+            result.append(c.lower())
+        else:
+            result.append(c)
+    return ''.join(result)
+
+def dash_to_camel(s: str) -> str:
+    """
+    Convert dash-separated lowercase to camelCase.
+    Example: 'camel-case-string' -> 'camelCaseString'
+    """
+    parts = s.split('-')
+    if not parts:
+        return s
+    return parts[0] + ''.join(word.capitalize() for word in parts[1:])
+
 
 
 if __name__ == "__main__":

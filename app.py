@@ -17,8 +17,7 @@ from flask import Flask, send_from_directory, request, jsonify
 # ---- Your fast PyTorch StyleGAN loader (from your port) ----
 # Make sure this import path points to the file with Build_model you posted.
 from gan_backend import Build_model, _to_nhwc_uint8
-from utils import load_psychGAN_data, ridge_coefs
-# os.chdir("./build")
+from utils import load_psychGAN_data, ridge_coefs, camel_to_dash, dash_to_camel
 
 
 # -----------------------------
@@ -68,7 +67,6 @@ DTYPE = torch.float32
 # from my_directions_loader import models, all_labels
 models: Dict[str, np.ndarray] = globals().get("models", {})
 all_labels: List[str] = globals().get("all_labels", list(models.keys()))
-
 def _get_direction(dim_name: str, backend: Build_model, alpha: float = 100) -> np.ndarray:
     
     coefs = ridge_coefs(dim_name, alpha, backend=backend)
@@ -120,23 +118,7 @@ class FastStyleGANBackend:
         
 
     def _get_direction_cached(self, dim_name: str, steps: int) -> torch.Tensor:
-        # Direction depends on `steps` via alpha
-        def camel_to_dash(s: str) -> str:
-            """
-            Convert CamelCase or camelCase to dash-separated lowercase.
-            Example: 'CamelCaseString' -> 'camel-case-string'
-                     'myVarName' -> 'my-var-name'
-            """
-            result = []
-            for i, c in enumerate(s):
-                if c.isupper():
-                    if i != 0 and (not s[i-1].isupper() or (i+1 < len(s) and s[i+1].islower())):
-                        result.append('-')
-                    result.append(c.lower())
-                else:
-                    result.append(c)
-            return ''.join(result)
-        
+
         key = (dim_name, int(steps))
         d = self._dir_cache.get(key)
         if d is not None:
@@ -484,37 +466,33 @@ def distributions_endpoint():
       }
     """
     try:
+        available = list(backend.dim_to_photo_to_ratings.keys())
+
+        def map_name(name: str) -> str:
+            if name in available:
+                return name
+            name = camel_to_dash(name)
+                
+            aliases = {
+            }
+            if name in aliases and aliases[name] in available:
+                return aliases[name]
+            return name  # fallback (may be missing)
         payload = request.get_json(force=True, silent=False) or {}
         filters = payload.get("filters", {})
         requested = payload.get("variables", None)
+        requested = [map_name(r) for r in requested]
         num_points = int(payload.get("num_points", 100))
         photos_subset = _filter_photos(filters)
 
-        available = list(backend.dim_to_photo_to_ratings.keys())
-        avail_set = set(available)
 
-        def map_name(name: str) -> str:
-            if name in avail_set:
-                return name
-            # common aliases
-            aliases = {
-                "trustworthy": "trustworthiness",
-                "dominant": "dominance",
-            }
-            if name in aliases and aliases[name] in avail_set:
-                return aliases[name]
-            if name + "ness" in avail_set:
-                return name + "ness"
-            if name.endswith("ant") and (name[:-3] + "ance") in avail_set:
-                return name[:-3] + "ance"
-            if name.endswith("y") and (name[:-1] + "iness") in avail_set:
-                return name[:-1] + "iness"
-            return name  # fallback (may be missing)
-
-        dims = available if not requested else [map_name(x) for x in requested]
-        result = {dim: _hist_for_dim(dim, photos_subset, num_points) for dim in dims if dim in avail_set}
+        print(requested)
+        dims = requested
+        result = {dash_to_camel(dim): _hist_for_dim(dim, photos_subset, num_points) for dim in dims if dim in available}
+        print(*result.keys())
         return jsonify({"distributions": result})
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 400
 
 if __name__ == "__main__":
