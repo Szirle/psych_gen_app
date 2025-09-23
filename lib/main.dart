@@ -29,7 +29,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'PsychGAn',
+      onGenerateTitle: (context) => 'app.title'.tr(),
       debugShowCheckedModeBanner: false,
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
@@ -57,7 +58,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ],
-        child: const FaceGenerationPage(title: 'Flutter Demo Home Page'),
+        child: FaceGenerationPage(title: 'app.title'.tr()),
       ),
     );
   }
