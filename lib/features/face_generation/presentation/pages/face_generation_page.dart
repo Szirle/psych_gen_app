@@ -40,6 +40,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   late final TransformationController _previewTransformController;
   bool _showChartsPanel = true;
   int _chartsReloadToken = 0;
+  final Set<ManipulatedDimensionName> _selectedControlledVars = {};
 
   List<Color> colors = [
     const Color(0xFF3DBDBA),
@@ -69,6 +70,10 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     final filtersPayload = _buildFiltersPayload();
     faceManipulationRequest.filters =
         filtersPayload.isEmpty ? null : filtersPayload;
+    faceManipulationRequest.controlledVariables =
+        _selectedControlledVars.isEmpty
+            ? null
+            : _selectedControlledVars.toList();
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
@@ -241,44 +246,10 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                           children: <Widget>[
                             Column(children: [
                               _buildReorderableSelectors(),
-                              CustomElevatedButton(
-                                onPressed: () {
-                                  if (faceManipulationRequest
-                                          .manipulatedDimensions.length <
-                                      3) {
-                                    final selectedNames =
-                                        faceManipulationRequest
-                                            .manipulatedDimensions
-                                            .map((d) => d.name)
-                                            .toSet();
-
-                                    ManipulatedDimensionName? availableName;
-                                    for (var name
-                                        in ManipulatedDimensionName.values) {
-                                      if (!selectedNames.contains(name)) {
-                                        availableName = name;
-                                        break;
-                                      }
-                                    }
-
-                                    if (availableName != null) {
-                                      faceManipulationRequest
-                                          .manipulatedDimensions
-                                          .add(
-                                        ManipulatedDimension(
-                                            name: availableName,
-                                            strength: 25.0,
-                                            nLevels: 2),
-                                      );
-                                      setState(() {
-                                        _updateDimensionColors();
-                                      });
-                                      _loadImages();
-                                    }
-                                  }
-                                },
-                                buttonText: 'button.add_variable'.tr(),
-                              )
+                              const SizedBox(height: 12),
+                              _buildAddVariableButton(),
+                              const SizedBox(height: 12),
+                              _buildControlledVariablesSection(),
                             ]),
                           ],
                         ),
@@ -512,6 +483,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                 .preserveIdentity,
                                         mode: faceManipulationRequest.mode,
                                         changeFace: true,
+                                        controlledVariables:
+                                            faceManipulationRequest
+                                                .controlledVariables,
                                         filters: filtersPayload.isEmpty
                                             ? null
                                             : filtersPayload,
@@ -767,6 +741,117 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAddVariableButton() {
+    return CustomElevatedButton(
+      onPressed: () {
+        if (faceManipulationRequest.manipulatedDimensions.length < 3) {
+          final selectedNames = faceManipulationRequest.manipulatedDimensions
+              .map((d) => d.name)
+              .toSet();
+
+          ManipulatedDimensionName? availableName;
+          for (var name in ManipulatedDimensionName.values) {
+            if (!selectedNames.contains(name)) {
+              availableName = name;
+              break;
+            }
+          }
+
+          if (availableName != null) {
+            faceManipulationRequest.manipulatedDimensions.add(
+              ManipulatedDimension(
+                  name: availableName, strength: 25.0, nLevels: 2),
+            );
+            setState(() {
+              _updateDimensionColors();
+            });
+            _loadImages();
+          }
+        }
+      },
+      buttonText: 'button.add_variable'.tr(),
+    );
+  }
+
+  String _humanizeRaw(String s) {
+    if (s.isEmpty) return s;
+    final StringBuffer buffer = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      final String c = s[i];
+      final bool isUpper = c.toUpperCase() == c && c.toLowerCase() != c;
+      final bool prevIsLower = i > 0 && s[i - 1].toLowerCase() == s[i - 1];
+      if (i > 0 && isUpper && prevIsLower) buffer.write(' ');
+      buffer.write(c);
+    }
+    return buffer
+        .toString()
+        .split(' ')
+        .map((w) => w.isEmpty ? w : (w[0].toUpperCase() + w.substring(1)))
+        .join(' ');
+  }
+
+  String _labelForEnum(ManipulatedDimensionName name) =>
+      _humanizeRaw(name.name);
+
+  Widget _buildControlledVariablesSection() {
+    final entries = ManipulatedDimensionName.values;
+    return ExpansionTile(
+      initiallyExpanded: false,
+      maintainState: true,
+      title: Text(
+        'section.controlled_variables'.tr(),
+        style: const TextStyle(
+          fontFamily: 'WorkSans',
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+          child: Column(
+            children: List.generate(entries.length, (index) {
+              final name = entries[index];
+              final bool checked = _selectedControlledVars.contains(name);
+              return Column(
+                children: [
+                  CheckboxListTile(
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    activeColor: const Color(0xFF2B3A55),
+                    value: checked,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedControlledVars.add(name);
+                        } else {
+                          _selectedControlledVars.remove(name);
+                        }
+                        faceManipulationRequest.controlledVariables =
+                            _selectedControlledVars.isEmpty
+                                ? null
+                                : _selectedControlledVars.toList();
+                      });
+                      _loadImages();
+                    },
+                    title: Text(
+                      _labelForEnum(name),
+                      style: const TextStyle(
+                        fontFamily: 'WorkSans',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (index != entries.length - 1) const Divider(height: 1),
+                ],
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 

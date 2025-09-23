@@ -9,6 +9,8 @@ class FaceManipulationRequest {
   bool changeFace;
   String mode;
   Map<ManipulatedDimensionName, List<double>>? filters;
+  // Variables the user wants to hold constant/mark as controlled
+  List<ManipulatedDimensionName>? controlledVariables;
 
   FaceManipulationRequest({
     required this.manipulatedDimensions,
@@ -18,6 +20,7 @@ class FaceManipulationRequest {
     this.changeFace = false,
     required this.mode,
     this.filters,
+    this.controlledVariables,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,5 +33,8 @@ class FaceManipulationRequest {
         'mode': mode,
         if (filters != null && filters!.isNotEmpty)
           'filters': filters!.map((k, v) => MapEntry(k.name, v)),
+        if (controlledVariables != null && controlledVariables!.isNotEmpty)
+          'controlled_variables':
+              controlledVariables!.map((e) => e.name).toList(),
       };
 }

@@ -2,6 +2,7 @@
   "app.title": "PsychGenApp",
   "nav.breadcrumb": "filters  -->  experimental design  -->  download",
   "section.experimental_design": "Experimental design",
+  "section.controlled_variables": "Controlled variables",
   "section.settings": "Settings",
   "preview.title": "Preview",
   "button.add_variable": "Add variable",
