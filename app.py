@@ -14,6 +14,7 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import cv2
 from flask import Flask, send_from_directory, request, jsonify
+from flask_cors import CORS
 # ---- Your fast PyTorch StyleGAN loader (from your port) ----
 # Make sure this import path points to the file with Build_model you posted.
 from gan_backend import Build_model, _to_nhwc_uint8

@@ -183,7 +183,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     return Scaffold(
       body: CustomPaint(
         painter: DottedBackgroundPainter(),
-        child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -191,6 +192,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                 elevation: 10.0,
                 child: Container(
                   width: 350,
+                  height: MediaQuery.of(context).size.height,
                   padding: const EdgeInsets.all(10),
                   color: Colors.white,
                   child: ListView(
@@ -322,7 +324,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                   ),
                 ),
               ),
-              Expanded(
+              SizedBox(
+                width: 600,
+                height: MediaQuery.of(context).size.height,
                 child: Column(
                   children: [
                     PreviewHeaderBar(onChangeFacePressed: () {
