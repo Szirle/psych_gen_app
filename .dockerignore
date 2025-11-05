@@ -1,0 +1,47 @@
+.git
+.gitignore
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+*.log
+.venv
+.env
+*.ipynb_checkpoints
+build/ios/
+build/app/
+android/
+ios/
+test/
+
+# VCS and editor
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Flutter build outputs not needed in image (we copy build/web explicitly if present)
+build/
+!build/web/**
+
+# Node/others
+node_modules
+
+# Python caches
+__pycache__
+*.pyc
+*.pyo
+
+# Large training datasets not required at runtime (keep code subdirs that utils imports)
+content/**
+!content/psychGAN/stylegan3/**
+
+# Ignore test, docs
+test
+docs
+
+# Local files
+.DS_Store
+
+
