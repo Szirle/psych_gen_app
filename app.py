@@ -29,30 +29,77 @@ import torch
 # -----------------------------
 
 config = yaml.load(open("config.yaml"), Loader=yaml.FullLoader)
-NETWORK_PKL = config["stylegan_path"]
-if not os.path.exists(NETWORK_PKL):
-    os.makedirs(os.path.dirname(NETWORK_PKL), exist_ok=True)
-    # Attempt to download if file missing (requires wget or requests)
-    print(f"StyleGAN model not found at {NETWORK_PKL}. Attempting download...")
+def _download_if_missing(dest_path: str, url: Optional[str]) -> bool:
+    """Download a file to dest_path if missing. Returns True if the file exists after call.
+    If url is None and the file is missing, returns False.
+    """
+    if os.path.exists(dest_path):
+        return True
+    if not url:
+        print(f"Missing file {dest_path} and no URL provided to download.")
+        return False
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    print(f"File not found at {dest_path}. Attempting download from {url} ...")
     try:
-        # Example using requests (install requests: pip install requests)
         import requests
-        url = "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl"
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        
-        with open(NETWORK_PKL, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        print("Download complete.")
+        with requests.get(url, stream=True, timeout=60) as response:
+            response.raise_for_status()
+            with open(dest_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        print(f"Download complete: {dest_path}")
+        return True
     except Exception as e:
-        print(f"Error downloading StyleGAN model: {e}")
-        print("Please download the model manually and place it at:", NETWORK_PKL)
-        raise FileNotFoundError(f"StyleGAN model file not found: {NETWORK_PKL}") from e
+        print(f"Error downloading {url} -> {dest_path}: {e}")
+        return False
+
+
 MODELS_PATH = config["models_path"]
 DATA_PATH = config["data_path"]
-STYLEGAN_DISTILLED_PATH = config["stylegan_distilled_path"]
-bm = Build_model(SimpleNamespace(network_pkl=NETWORK_PKL, distilled_network_pkl=STYLEGAN_DISTILLED_PATH))  # keeps G hot on device
+
+# Main StyleGAN2 model (allow URL override via env)
+NETWORK_PKL = config["stylegan_path"]
+STYLEGAN2_PKL_URL = os.environ.get(
+    "STYLEGAN2_PKL_URL",
+    "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl",
+)
+if not _download_if_missing(NETWORK_PKL, STYLEGAN2_PKL_URL):
+    raise FileNotFoundError(f"StyleGAN model file not found and could not be downloaded: {NETWORK_PKL}")
+
+# Distilled/tapped model (optional). Provide URL via env to fetch on-the-fly.
+STYLEGAN_DISTILLED_PATH = config.get("stylegan_distilled_path")
+STYLEGAN_TAPPED_URL = os.environ.get("STYLEGAN_TAPPED_URL")
+
+# Optional ToRGB head checkpoint expected by Build_model when distilled is used.
+TORGB_HEAD_PATH = os.path.join(MODELS_PATH, "torgb_64to128_lpips.pth")
+TORGB_HEAD_URL = os.environ.get("TORGB_HEAD_URL")
+
+# If we have a distilled path configured, try to ensure it exists (download if URL provided).
+use_distilled = False
+if STYLEGAN_DISTILLED_PATH:
+    have_tapped = _download_if_missing(STYLEGAN_DISTILLED_PATH, STYLEGAN_TAPPED_URL)
+    # Only enable distilled path if the checkpoint for ToRGB head is also present or downloadable.
+    if have_tapped:
+        if _download_if_missing(TORGB_HEAD_PATH, TORGB_HEAD_URL):
+            use_distilled = True
+        else:
+            print(
+                "Distilled model present but missing ToRGB head checkpoint. "
+                "Set TORGB_HEAD_URL to enable distilled path; falling back to base generator."
+            )
+    else:
+        print(
+            "Distilled/tapped model is not available and no STYLEGAN_TAPPED_URL provided. "
+            "Proceeding without distilled model."
+        )
+
+bm = Build_model(
+    SimpleNamespace(
+        network_pkl=NETWORK_PKL,
+        distilled_network_pkl=(STYLEGAN_DISTILLED_PATH if use_distilled else None),
+    )
+)  # keeps G hot on device
 DEVICE = bm.device
 NUM_WS = bm.num_ws
 Z_DIM = bm.z_dim
