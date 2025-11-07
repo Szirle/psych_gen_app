@@ -1,9 +1,9 @@
-numpy
+numpy<2
 scikit-learn
 requests
 flask
 pyyaml
-pillow
+pillow<10
 pandas
 opencv-python
 flask-cors
