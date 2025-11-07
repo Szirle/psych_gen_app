@@ -15,7 +15,7 @@ COPY requirements.txt /app/requirements.txt
 
 # Install PyTorch CUDA wheels + deps
 RUN python3 -m pip install --upgrade pip && \
-    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 torch==2.3.1 torchvision==0.18.1 && \
+    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 torch==2.3.1 torchvision==0.18.1 --no-deps && \
     pip3 install --no-cache-dir -r requirements.txt && \
     pip3 install --no-cache-dir gunicorn
 
