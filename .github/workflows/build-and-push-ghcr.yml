@@ -2,7 +2,9 @@ name: Build and push container to GHCR
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "main"
+      - "feature/use-remote-backend"
   workflow_dispatch:
 
 permissions:
