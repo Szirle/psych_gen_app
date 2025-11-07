@@ -9,3 +9,4 @@ pillow
 pandas
 opencv-python
 flask-cors
+ninja
