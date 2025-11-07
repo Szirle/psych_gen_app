@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:psych_gen_app/core/constants/api_config.dart';
 
 // Import dart:html only on web builds
 // ignore: avoid_web_libraries_in_flutter
@@ -19,6 +20,7 @@ class PlotlyIFramePanel extends StatefulWidget {
 
 class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
   static const String _viewType = 'plotly-iframe-view';
+  static final String _chartsUrl = ApiConfig.resolve('/charts');
   bool _registered = false;
   html.IFrameElement? _iframe;
   bool _backendAvailable = false;
@@ -37,11 +39,11 @@ class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
     setState(() {
       _checkingBackend = true;
     });
-    
+
     try {
-      final response = await http.get(Uri.parse('/charts')).timeout(
-        const Duration(seconds: 2),
-      );
+      final response = await http.get(Uri.parse(_chartsUrl)).timeout(
+            const Duration(seconds: 2),
+          );
       setState(() {
         _backendAvailable = response.statusCode == 200;
         _checkingBackend = false;
@@ -57,7 +59,7 @@ class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
   void _registerViewFactoryOnce() {
     if (_registered) return;
     _iframe = html.IFrameElement()
-      ..src = '/charts'
+      ..src = _chartsUrl
       ..style.border = '0'
       ..style.width = '100%'
       ..style.height = '100%'
@@ -75,7 +77,7 @@ class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
     if (kIsWeb && oldWidget.reloadToken != widget.reloadToken) {
       _checkBackendStatus();
       final ts = DateTime.now().millisecondsSinceEpoch;
-      _iframe?.src = '/charts?ts=$ts';
+      _iframe?.src = '$_chartsUrl?ts=$ts';
     }
   }
 
@@ -84,13 +86,13 @@ class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
     if (!kIsWeb) {
       return const SizedBox.shrink();
     }
-    
+
     if (_checkingBackend) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
-    
+
     if (!_backendAvailable) {
       return Center(
         child: Container(
@@ -144,7 +146,7 @@ class _PlotlyIFramePanelState extends State<PlotlyIFramePanel> {
         ),
       );
     }
-    
+
     return const HtmlElementView(viewType: _viewType);
   }
 }
