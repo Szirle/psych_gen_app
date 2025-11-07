@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn9-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,8 +15,8 @@ COPY requirements.txt /app/requirements.txt
 
 # Install PyTorch CUDA wheels + deps
 RUN python3 -m pip install --upgrade pip && \
-    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 torch==2.3.1 torchvision==0.18.1 --no-deps && \
-    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 nvidia-nccl-cu12==2.27.5 && \
+    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu124 torch==2.5.1 torchvision==0.20.1 --no-deps && \
+    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu124 nvidia-nccl-cu12==2.28.3 && \
     pip3 install --no-cache-dir -r requirements.txt && \
     pip3 install --no-cache-dir gunicorn
 
