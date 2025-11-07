@@ -13,6 +13,7 @@ import 'package:psych_gen_app/features/face_generation/domain/entities/manipulat
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/core/designsystem/widgets/shimmer_image_placeholder.dart'
     as shimmer;
+import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/plotly_iframe_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_header_bar.dart';
@@ -186,7 +187,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Material(
                 elevation: 10.0,
@@ -202,8 +203,26 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                           children: [
                             Tooltip(
                               message: 'tooltip.logo'.tr(),
-                              child: Image.asset("assets/images/logo.png",
-                                  width: 40, height: 40),
+                              child: Image.asset(
+                                "assets/images/logo.png",
+                                width: 40,
+                                height: 40,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Icon(
+                                      Icons.image_outlined,
+                                      size: 24,
+                                      color: Colors.grey[400],
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                             const SizedBox(width: 5),
                             Text(
@@ -725,8 +744,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  child: Image.memory(
-                                    state.images[imageIndex],
+                                  child: SafeMemoryImage(
+                                    imageBytes: state.images[imageIndex],
                                     width: imageSize,
                                     height: imageSize,
                                     fit: BoxFit.cover,
@@ -838,8 +857,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
-                                  child: Image.memory(
-                                    state.images[imageIndex],
+                                  child: SafeMemoryImage(
+                                    imageBytes: state.images[imageIndex],
                                     width: imageSize,
                                     height: imageSize,
                                     fit: BoxFit.cover,
@@ -920,8 +939,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(
-                              image,
+                            child: SafeMemoryImage(
+                              imageBytes: image,
                               width: imageSize,
                               height: imageSize,
                               fit: BoxFit.cover,

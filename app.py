@@ -298,6 +298,12 @@ def parse_config(conf):
 # Flask app + static
 # -----------------------------
 app = Flask(__name__, static_folder="build/web")
+cors_origins = os.environ.get("API_CORS_ALLOW_ORIGINS", "*")
+CORS(
+    app,
+    resources={r"/*": {"origins": cors_origins.split(",")}},
+    supports_credentials=True,
+)
 app.config["JSONIFY_PRETTYPRINT_REGULAR"] = False
 
 @app.route("/")
