@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TORCH_EXTENSIONS_DIR=/app/torch_extensions
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip git libgl1 libglib2.0-0 build-essential ninja-build && \
+    python3 python3-pip python3-dev git libgl1 libglib2.0-0 build-essential ninja-build && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -15,7 +15,8 @@ COPY requirements.txt /app/requirements.txt
 
 # Install PyTorch CUDA wheels + deps
 RUN python3 -m pip install --upgrade pip && \
-    pip3 install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 -r requirements.txt && \
+    pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 torch==2.3.1 torchvision==0.18.1 && \
+    pip3 install --no-cache-dir -r requirements.txt && \
     pip3 install --no-cache-dir gunicorn
 
 # App code
