@@ -865,13 +865,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
 
   Widget _build2dGridView(FaceManipulationLoaded state,
       BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    final isFiveByFive = dimensions.length == 2 &&
-        dimensions[0].nLevels == 5 &&
-        dimensions[1].nLevels == 5 &&
-        state.images.length >= 9;
-
-    final rows = isFiveByFive ? 5 : dimensions[1].nLevels;
-    final cols = isFiveByFive ? 5 : dimensions[0].nLevels;
+    final rows = dimensions[1].nLevels;
+    final cols = dimensions[0].nLevels;
     const itemPadding = 4.0;
     const outerPadding = 8.0;
 
@@ -918,21 +913,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: List.generate(cols, (col) {
-                        int imageIndex = -1;
-                        if (isFiveByFive) {
-                          const int middleRow = 2;
-                          const int middleCol = 2;
-                          if (row == middleRow) {
-                            imageIndex = col;
-                          } else if (col == middleCol) {
-                            imageIndex = 5 + row;
-                          }
-                        } else {
-                          imageIndex = row * cols + col;
-                        }
+                        final int imageIndex = row * cols + col;
 
-                        if (imageIndex != -1 &&
-                            imageIndex < state.images.length) {
+                        if (imageIndex < state.images.length) {
                           return Padding(
                             padding: const EdgeInsets.all(itemPadding),
                             child: shimmer.AnimatedImageWidget(
