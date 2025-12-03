@@ -1,22 +1,35 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:psych_gen_app/core/constants/api_config.dart';
+import 'package:psych_gen_app/core/utils/logging.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/face_manipulation_request.dart';
 
 class FaceManipulationApiDataSource {
-  static const String _defaultBaseUrl = 'http://127.0.0.1:8000';
-  static const String baseUrl =
-      String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl);
-  static String get postRoute => '$baseUrl/images';
+  static const String _logName = 'FaceManipulationApiDataSource';
+  static String get postRoute => ApiConfig.resolve('/images');
 
   Future<List<Uint8List>> postFaceManipulation(
       FaceManipulationRequest requestBody) async {
     try {
-      String requestBodyJson = json.encode(requestBody.toJson());
+      final requestBodyJson = json.encode(requestBody.toJson());
+      final stopwatch = Stopwatch()..start();
+      developer.log(
+        'POST $postRoute | payload=${truncateForLog(requestBodyJson)}',
+        name: _logName,
+      );
+
       final response = await http.post(
         Uri.parse(postRoute),
         headers: {'Content-Type': 'application/json'},
         body: requestBodyJson,
+      );
+      stopwatch.stop();
+
+      developer.log(
+        'POST $postRoute | status=${response.statusCode} | duration=${stopwatch.elapsedMilliseconds}ms | bodyLength=${response.body.length}',
+        name: _logName,
       );
 
       if (response.statusCode == 200) {
@@ -65,15 +78,38 @@ class FaceManipulationApiDataSource {
               }
             }
           }
+          developer.log(
+            'POST $postRoute | decodedImages=${images.length}',
+            name: _logName,
+          );
           return images;
         }
 
-        throw Exception(
-            'Unexpected response format: ${response.body.substring(0, response.body.length.clamp(0, 200))}');
+        final message =
+            'Unexpected response format for $postRoute: ${truncateForLog(response.body)}';
+        developer.log(
+          message,
+          name: _logName,
+          level: 1000,
+        );
+        throw Exception(message);
       } else {
-        throw Exception('ailed with status code ${response.statusCode}');
+        developer.log(
+          'POST $postRoute | failure status=${response.statusCode} | body=${truncateForLog(response.body)}',
+          name: _logName,
+          level: 1000,
+        );
+        throw Exception(
+            'Request failed with status code ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, stack) {
+      developer.log(
+        'POST $postRoute | exception=$e',
+        name: _logName,
+        error: e,
+        stackTrace: stack,
+        level: 1000,
+      );
       throw Exception('An error occurred during the request: $e');
     }
   }
