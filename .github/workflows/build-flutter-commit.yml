@@ -1,0 +1,48 @@
+name: Build Flutter Web and Commit
+
+on:
+  workflow_dispatch:   # tylko ręczne odpalenie z GitHuba
+
+jobs:
+  build-and-commit:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "stable"
+          channel: "stable"
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release
+
+      - name: Commit build directory
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update web build [skip ci]"
+            git push
+          fi
