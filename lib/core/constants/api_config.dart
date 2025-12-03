@@ -2,7 +2,7 @@ class ApiConfig {
   ApiConfig._();
 
   static const String defaultBaseUrl =
-      'https://qd4u7ojkn92tz2-8000.proxy.runpod.net';
+      'https://xqah3uloah3498-8000.proxy.runpod.net';
 
   static const String baseUrl =
       String.fromEnvironment('API_BASE_URL', defaultValue: defaultBaseUrl);
