@@ -16,10 +16,8 @@ import 'package:psych_gen_app/features/face_generation/domain/entities/manipulat
 import 'package:psych_gen_app/core/designsystem/widgets/shimmer_image_placeholder.dart'
     as shimmer;
 import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/plotly_iframe_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_header_bar.dart';
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/charts_anchor.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_painters.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/axis_assignment.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/controlled_variables_section.dart';
@@ -42,8 +40,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   ManipulatedDimension? _yAxisDim;
   ManipulatedDimension? _sliderDim;
   late final TransformationController _previewTransformController;
-  bool _showChartsPanel = true;
-  int _chartsReloadToken = 0;
+  // bool _showChartsPanel = true;
+  // int _chartsReloadToken = 0;
   final Set<ManipulatedDimensionName> _selectedControlledVars = {};
 
   List<Color> colors = [
@@ -81,7 +79,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     context
         .read<FaceManipulationBloc>()
         .add(LoadFaceImages(faceManipulationRequest));
-    _reloadCharts();
+    // _reloadCharts();
     _initOrUpdate3dState();
   }
 
@@ -106,11 +104,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     return {};
   }
 
-  void _reloadCharts() {
-    setState(() {
-      _chartsReloadToken++;
-    });
-  }
+  // void _reloadCharts() {
+  //   setState(() {
+  //     _chartsReloadToken++;
+  //   });
+  // }
 
   void _resetPreviewTransform() {
     try {
@@ -196,11 +194,10 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                     ? constraints.maxWidth
                     : mediaQuery.size.width;
             const double sidePanelWidth = 350;
-            const double anchorWidth = 22;
+            const double anchorWidth = 0;
             const double minPreviewWidth = 600;
-            const double chartsPanelWidth = 380;
-            final double activeChartsWidth =
-                _showChartsPanel ? chartsPanelWidth : 0;
+            // const double chartsPanelWidth = 380;
+            const double activeChartsWidth = 0;
             final double requiredWidth = sidePanelWidth +
                 anchorWidth +
                 activeChartsWidth +
@@ -413,7 +410,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                 context
                                     .read<FaceManipulationBloc>()
                                     .add(LoadFaceImages(immediateRequest));
-                                _reloadCharts();
+                                // _reloadCharts();
                               }),
                               Expanded(
                                 child: Stack(
@@ -652,59 +649,60 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                           ),
                         ),
                       ),
-                      SizedBox(
-                        width: anchorWidth,
-                        child: Center(
-                          child: ChartsAnchor(
-                            isOpen: _showChartsPanel,
-                            onTap: () {
-                              setState(() {
-                                _showChartsPanel = !_showChartsPanel;
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                      if (_showChartsPanel)
-                        SizedBox(
-                          width: chartsPanelWidth,
-                          child: Container(
-                            height: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                                  child: Text(
-                                    'panel.charts_title'.tr(),
-                                    style: const TextStyle(
-                                      fontFamily: 'WorkSans',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Color(0xFF2B3A55),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: PlotlyIFramePanel(
-                                    reloadToken: _chartsReloadToken,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      // Charts panel temporarily disabled.
+                      // SizedBox(
+                      //   width: anchorWidth,
+                      //   child: Center(
+                      //     child: ChartsAnchor(
+                      //       isOpen: _showChartsPanel,
+                      //       onTap: () {
+                      //         setState(() {
+                      //           _showChartsPanel = !_showChartsPanel;
+                      //         });
+                      //       },
+                      //     ),
+                      //   ),
+                      // ),
+                      // if (_showChartsPanel)
+                      //   SizedBox(
+                      //     width: chartsPanelWidth,
+                      //     child: Container(
+                      //       height: double.infinity,
+                      //       decoration: BoxDecoration(
+                      //         color: Colors.white,
+                      //         boxShadow: [
+                      //           BoxShadow(
+                      //             color: Colors.black.withOpacity(0.06),
+                      //             blurRadius: 8,
+                      //             offset: const Offset(0, 2),
+                      //           ),
+                      //         ],
+                      //       ),
+                      //       child: Column(
+                      //         crossAxisAlignment: CrossAxisAlignment.start,
+                      //         children: [
+                      //           Padding(
+                      //             padding:
+                      //                 const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                      //             child: Text(
+                      //               'panel.charts_title'.tr(),
+                      //               style: const TextStyle(
+                      //                 fontFamily: 'WorkSans',
+                      //                 fontWeight: FontWeight.bold,
+                      //                 fontSize: 16,
+                      //                 color: Color(0xFF2B3A55),
+                      //               ),
+                      //             ),
+                      //           ),
+                      //           Expanded(
+                      //             child: PlotlyIFramePanel(
+                      //               reloadToken: _chartsReloadToken,
+                      //             ),
+                      //           ),
+                      //         ],
+                      //       ),
+                      //     ),
+                      //   ),
                     ],
                   ),
                 ),
