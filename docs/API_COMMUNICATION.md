@@ -3,8 +3,8 @@
 This document describes how the Flutter client communicates with the Python (Flask) backend in this project. Any changes to request/response shapes, endpoints, or serialization MUST update this document and the opposite side (frontend/backend) in the same change.
 
 ### Base URL
-- Default in Flutter: `http://127.0.0.1:8000`
-- Override at build time: `--dart-define=API_BASE_URL=https://your-host`
+- Default in Flutter: relative (same-origin), e.g. `/images`, `/distributions`, `/charts`
+- Override at build time: `--dart-define=API_BASE_URL=https://your-host` (or another absolute/relative prefix)
 
 ### Content Type
 - Requests: `application/json`
