@@ -87,7 +87,7 @@ class DistributionRangeSelector extends StatelessWidget {
               left: startX - 10,
               top: graphHeight + sliderHeight - 30,
               child: _ValueBubble(
-                value: (dimension.rangeStart * 100).round(),
+                value: (startVal * 100).round(),
                 color: accentColor,
               ),
             ),
@@ -95,7 +95,7 @@ class DistributionRangeSelector extends StatelessWidget {
               left: endX - 16,
               top: graphHeight + sliderHeight - 30,
               child: _ValueBubble(
-                value: (dimension.rangeEnd * 100).round(),
+                value: (endVal * 100).round(),
                 color: accentColor,
               ),
             ),

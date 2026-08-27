@@ -7,8 +7,8 @@ This document describes how the Flutter client communicates with the Python (Fla
 - Override at build time: `--dart-define=API_BASE_URL=https://your-host` (or another absolute/relative prefix)
 
 ### Content Type
-- Requests: `application/json`
-- Responses: `application/json`
+- JSON endpoints use `application/json` for requests and responses.
+- `/charts` returns `text/html`.
 
 ---
 
@@ -28,21 +28,21 @@ Request body
       "name": "dominant",          // string; must match Flutter enum names (see below)
       "strength": 25.0,             // double; max absolute strength for this dimension
       "n_levels": 5,                // int; number of levels along this dimension
-      "range_start": 0.0,           // double; optional, range filter hint (currently unused by /images)
-      "range_end": 1.0              // double; optional, range filter hint (currently unused by /images)
+      "range_start": 0.0,           // double; retained for client state, unused by /images
+      "range_end": 1.0              // double; retained for client state, unused by /images
     },
     // ... 1–3 dimensions supported
   ],
   "truncation_psi": 0.6,            // double; sampling temperature
-  "num_faces": 100,                 // int; currently ignored by backend (/images sets num_faces=1 internally)
-  "preserve_identity": false,       // bool; currently not used by backend synthesis logic
+  "num_faces": 100,                 // int; dataset-only setting, ignored by preview generation
+  "preserve_identity": false,       // bool; reserved, ignored by preview generation
   "change_face": false,             // bool; when true, backend resamples the base face latent
   "mode": "shape",                 // "shape" | "color" | "both"; maps to W-slice on backend
-  "filters": {                      // optional; currently ignored by /images (used by /distributions)
+  "filters": {                      // optional; selects a stored base-face latent
     "dominant": [0.2, 0.8],
     "trustworthy": [0.1, 0.9]
   },
-  "controlled_variables": [         // optional; list of dimension names; currently unused by backend
+  "controlled_variables": [         // optional; reserved, ignored by preview generation
     "attractive"
   ],
   "max_steps": 40                   // optional; controls backend direction strength schedule
@@ -52,12 +52,18 @@ Request body
 Notes
 - Backend converts each dimension to a list of levels using `linspace(-strength, strength, n_levels)`.
 - Backend uses `mode` to select which W layers are affected: `shape -> [0..9)`, `color -> [9..end)`, `both -> [0..end)`.
-- If `change_face` is missing, backend defaults it to true.
-- `filters` and `controlled_variables` are accepted by Flutter but are currently not applied in `/images` generation.
-- `num_faces` is currently overridden to 1 on the backend.
+- Requests must contain 1–3 distinct dimensions. Each `n_levels` must be 2–5, `truncation_psi` must be 0.1–1.0, and `max_steps` must be 1–100.
+- Flutter camelCase names are normalized to the dataset's dash-separated names, such as `wellGroomed` → `well-groomed`.
+- If `change_face` is missing, the backend defaults it to true. When filters are active, it chooses a different eligible stored latent when more than one exists.
+- Filters are inclusive ranges over average empirical ratings. The selected photo must have both ratings and a latent in `photo_to_coords.pkl`.
+- With `change_face=false`, the current base is retained while it remains eligible. If the filters change and exclude it, another eligible base is selected.
+- `num_faces`, `preserve_identity`, and `controlled_variables` remain reserved and are not applied to preview generation.
 
 Response body
 - Nested arrays of base64-encoded images (WEBP by default, PNG/JPG via query string), with depth equal to the number of manipulated dimensions.
+- For 1D, the response is `[dimension0]`.
+- For 2D, the response is in UI row-major order: `[dimension1][dimension0]`. The second variable selects the row and the first variable selects the column. This is important for unequal grids such as 3×4.
+- For 3D, the response retains model order `[dimension0][dimension1][dimension2]`; Flutter converts it to depth-slice display order with dimension 0 changing fastest.
 
 Examples
 - 1D (K=1):
@@ -84,15 +90,17 @@ Examples
 ```
 
 Client decoding behavior
-- For K=1: iterate list and decode each base64 string.
-- For K=2: iterate rows and columns to flatten.
-- For K=3: iterate depth slices, rows, then columns to flatten in the order used in the app.
+- For 1D, decode the list directly.
+- For 2D, flatten the response rows directly; each row contains all first-variable/x-axis levels.
+- For 3D, traverse dimensions from last to first while indexing the response in model order.
 
 Response format/quality override
-- Query params: `?format=png|jpg|webp&quality=90`
+- Query params: `?format=png|jpg|webp&quality=90`; quality must be 1–100.
 
 Errors
-- Non-200 results should be treated as failures on the client. The backend prints diagnostics and may return 400 for malformed requests.
+- Validation failures return HTTP 400 with `{ "error": "...", "details": ... }`.
+- When filters match no stored latent, the endpoint returns HTTP 422 with the same error shape.
+- Unexpected generation failures return a non-diagnostic HTTP 500 error to the client.
 
 ---
 
@@ -117,19 +125,20 @@ Response body
 ```
 {
   "distributions": {
-    "dominance": [0.0, 0.01, 0.07, ...]  // length == num_points
+    "dominant": [0.0, 0.01, 0.07, ...]  // length == num_points
   }
 }
 ```
 
 Name mapping
-- Backend is tolerant to small naming differences and will map some common variants:
-  - "trustworthy" -> "trustworthiness"
-  - "dominant" -> "dominance"
-  - appends "ness" or converts "ant"->"ance" and "y"->"iness" when possible
+- Names are matched to the actual dataset keys after converting camelCase to dash-separated lowercase.
+- Response keys are converted back to Flutter camelCase.
+- Unsupported requested variables or filter keys produce a 400 response rather than being silently omitted.
+- If filters are absent, histograms use all ratings available for each requested variable. If filters match zero photos, every requested histogram contains only zeroes.
 
 Errors
-- On failure, backend returns `{ "error": "..." }` with HTTP 400.
+- `num_points` must be an integer from 2 through 1000.
+- Validation failures return `{ "error": "...", "details": ... }` with HTTP 400.
 
 ---
 
@@ -201,7 +210,7 @@ islander, native, black, white, looksLikeYou, gay, electable, godly, outdoors
 ## Cross‑Side Change Protocol
 
 When changing the API request/response or endpoint behavior on either side:
-1) Update this file: `docs/flutter_python_api.md` with the exact new contract.
+1) Update this file: `docs/API_COMMUNICATION.md` with the exact new contract.
 2) Update the other side to match:
    - If editing Flutter (datasources/entities), update Python Flask handlers to parse/produce the new fields.
    - If editing Python (Flask routes/shape), update Flutter datasources/entities and client decoding.
@@ -221,8 +230,8 @@ Affected code paths
 ---
 
 ## Known Current Limitations
-- `/images` currently ignores `num_faces`, `filters`, and `controlled_variables`.
+- `/images` ignores `num_faces`, `preserve_identity`, and `controlled_variables`.
+- Dataset export is not implemented.
+- The charts iframe is disabled in the active UI and `/charts` contains mocked prototype data.
 - Base64 output format defaults to WEBP; adjust with query parameters.
 - Large requests may be GPU/CPU intensive; server serializes access using a lock.
-
-

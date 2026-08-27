@@ -42,12 +42,20 @@ class DistributionsApiDataSource {
       );
 
       if (response.statusCode != 200) {
+        String serverMessage = response.body;
+        try {
+          final dynamic body = json.decode(response.body);
+          if (body is Map && body['error'] is String) {
+            serverMessage = body['error'] as String;
+          }
+        } catch (_) {}
         developer.log(
           'POST $postRoute | failure status=${response.statusCode} | body=${truncateForLog(response.body)}',
           name: _logName,
           level: 1000,
         );
-        throw Exception('Distributions request failed: ${response.statusCode}');
+        throw Exception(
+            'Distributions request failed (${response.statusCode}): $serverMessage');
       }
 
       final Map<String, dynamic> decoded = json.decode(response.body);

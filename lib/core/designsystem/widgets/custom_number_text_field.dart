@@ -132,6 +132,7 @@ class _CustomNumberTextFieldState extends State<CustomNumberTextField> {
         : intValue += up ? widget.step : -widget.step;
     _controller.text = intValue.toString();
     _updateArrows(intValue);
+    widget.onChanged?.call(intValue);
     _focusNode.requestFocus();
   }
 

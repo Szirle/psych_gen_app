@@ -1,5 +1,6 @@
-import 'dart:async';
 import 'package:bloc/bloc.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/face_manipulation_request.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 import 'package:psych_gen_app/features/face_generation/domain/usecases/generate_face_images.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_event.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_state.dart';
@@ -7,8 +8,8 @@ import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_ma
 class FaceManipulationBloc
     extends Bloc<FaceManipulationEvent, FaceManipulationState> {
   final GenerateFaceImagesUseCase _generateFaceImages;
-  Timer? _debounce;
   static const int debounceDuration = 500;
+  int _latestRequest = 0;
 
   FaceManipulationBloc({required GenerateFaceImagesUseCase generateFaceImages})
       : _generateFaceImages = generateFaceImages,
@@ -20,24 +21,58 @@ class FaceManipulationBloc
     LoadFaceImages event,
     Emitter<FaceManipulationState> emit,
   ) async {
-    _debounce?.cancel();
-    final completer = Completer<void>();
-    _debounce = Timer(Duration(milliseconds: debounceDuration), () {
-      completer.complete();
-    });
-    await completer.future;
-    emit(FaceManipulationLoading());
+    final requestId = ++_latestRequest;
+    final request = _snapshotRequest(event.request);
+    final previousGrid = switch (state) {
+      FaceManipulationLoaded(:final grid) => grid,
+      FaceManipulationLoading(:final previousGrid) => previousGrid,
+      FaceManipulationError(:final previousGrid) => previousGrid,
+      _ => null,
+    };
+    emit(FaceManipulationLoading(previousGrid: previousGrid));
+    await Future<void>.delayed(
+      const Duration(milliseconds: debounceDuration),
+    );
+    if (requestId != _latestRequest || emit.isDone) return;
     try {
-      final images = await _generateFaceImages(event.request);
-      emit(FaceManipulationLoaded(images));
+      final images = await _generateFaceImages(request);
+      if (requestId != _latestRequest || emit.isDone) return;
+      emit(FaceManipulationLoaded(
+        FaceImageGrid.fromRequest(images, request),
+      ));
     } catch (e) {
-      emit(FaceManipulationError('Error fetching images: $e'));
+      if (requestId != _latestRequest || emit.isDone) return;
+      emit(FaceManipulationError(
+        'Error fetching images: $e',
+        previousGrid: previousGrid,
+      ));
     }
   }
 
-  @override
-  Future<void> close() {
-    _debounce?.cancel();
-    return super.close();
+  FaceManipulationRequest _snapshotRequest(FaceManipulationRequest request) {
+    return FaceManipulationRequest(
+      manipulatedDimensions: request.manipulatedDimensions
+          .map(
+            (dimension) => ManipulatedDimension(
+              name: dimension.name,
+              strength: dimension.strength,
+              nLevels: dimension.nLevels,
+              rangeStart: dimension.rangeStart,
+              rangeEnd: dimension.rangeEnd,
+            ),
+          )
+          .toList(),
+      truncationPsi: request.truncationPsi,
+      numFaces: request.numFaces,
+      preserveIdentity: request.preserveIdentity,
+      changeFace: request.changeFace,
+      mode: request.mode,
+      filters: request.filters?.map(
+        (key, value) => MapEntry(key, List<double>.from(value)),
+      ),
+      controlledVariables: request.controlledVariables == null
+          ? null
+          : List.of(request.controlledVariables!),
+    );
   }
 }

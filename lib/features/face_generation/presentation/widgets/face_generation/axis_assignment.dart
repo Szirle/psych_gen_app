@@ -76,6 +76,7 @@ class AxisAssignment extends StatelessWidget {
                   CharacteristicSelector(
                     manipulatedDimension: dim,
                     allManipulatedDimensions: manipulatedDimensions,
+                    canClose: manipulatedDimensions.length > 1,
                     borderColor: dimensionColors[dim] ?? Colors.grey,
                     onRangeChanged: (start, end) {
                       dim.rangeStart = start;
@@ -204,5 +205,4 @@ class AxisAssignment extends StatelessWidget {
     );
   }
 }
-
 

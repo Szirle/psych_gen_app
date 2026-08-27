@@ -24,3 +24,20 @@ class UpdateFilterEvent extends FiltersEvent {
   @override
   List<Object?> get props => [dimension, range, variables];
 }
+
+class CommitFilterEvent extends FiltersEvent {
+  final ManipulatedDimensionName dimension;
+  final List<double>? range;
+  final int numPoints;
+  final List<ManipulatedDimensionName>? variables;
+
+  const CommitFilterEvent({
+    required this.dimension,
+    this.range,
+    this.numPoints = 100,
+    this.variables,
+  });
+
+  @override
+  List<Object?> get props => [dimension, range, numPoints, variables];
+}

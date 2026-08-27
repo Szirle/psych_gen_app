@@ -1,5 +1,206 @@
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
+
+class AsyncGeneratedImageTile extends StatelessWidget {
+  final Uint8List? imageBytes;
+  final double size;
+  final bool isLoading;
+  final double borderRadius;
+
+  const AsyncGeneratedImageTile({
+    super.key,
+    required this.imageBytes,
+    required this.size,
+    required this.isLoading,
+    this.borderRadius = 6,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: borderRadius > 6 ? 8 : 4,
+            offset: Offset(0, borderRadius > 6 ? 4 : 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _GeneratedImagePlaceholder(size: size),
+            if (imageBytes != null)
+              _InPlaceImageReplacement(
+                imageBytes: imageBytes!,
+                size: size,
+              ),
+            if (isLoading) const _ShimmerLoadingOverlay(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GeneratedImagePlaceholder extends StatelessWidget {
+  final double size;
+
+  const _GeneratedImagePlaceholder({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.grey.shade300,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_outlined,
+            size: (size * 0.25).clamp(16.0, 28.0),
+            color: Colors.grey[500],
+          ),
+          SizedBox(height: size * 0.06),
+          Container(
+            width: size * 0.4,
+            height: (size * 0.08).clamp(4.0, 8.0),
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          SizedBox(height: size * 0.03),
+          Container(
+            width: size * 0.6,
+            height: (size * 0.06).clamp(3.0, 6.0),
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerLoadingOverlay extends StatelessWidget {
+  const _ShimmerLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Shimmer.fromColors(
+        baseColor: Colors.white.withOpacity(0.04),
+        highlightColor: Colors.white.withOpacity(0.48),
+        period: const Duration(milliseconds: 1200),
+        child: const ColoredBox(color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _InPlaceImageReplacement extends StatefulWidget {
+  final Uint8List imageBytes;
+  final double size;
+
+  const _InPlaceImageReplacement({
+    required this.imageBytes,
+    required this.size,
+  });
+
+  @override
+  State<_InPlaceImageReplacement> createState() =>
+      _InPlaceImageReplacementState();
+}
+
+class _InPlaceImageReplacementState extends State<_InPlaceImageReplacement>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  Uint8List? _outgoingBytes;
+  bool _incomingReady = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
+      value: 1,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _InPlaceImageReplacement oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.imageBytes, widget.imageBytes)) {
+      _outgoingBytes = oldWidget.imageBytes;
+      _incomingReady = false;
+      _controller.value = 0;
+    }
+  }
+
+  void _handleIncomingReady(Uint8List bytes) {
+    if (_incomingReady ||
+        !mounted ||
+        !listEquals(bytes, widget.imageBytes)) {
+      return;
+    }
+    _incomingReady = true;
+    _controller.forward();
+  }
+
+  Widget _image(Uint8List bytes, {bool incoming = false}) {
+    return SafeMemoryImage(
+      imageBytes: bytes,
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.cover,
+      onImageReady: incoming ? () => _handleIncomingReady(bytes) : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_outgoingBytes != null) _image(_outgoingBytes!),
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: _controller.value,
+                child: SizedBox.square(
+                  dimension: widget.size,
+                  child: _image(widget.imageBytes, incoming: true),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
 
 class ShimmerImagePlaceholder extends StatelessWidget {
   final double? width;
@@ -179,76 +380,6 @@ class ShimmerImagePlaceholder extends StatelessWidget {
             ),
           );
         }
-      },
-    );
-  }
-}
-
-class AnimatedImageWidget extends StatefulWidget {
-  final Widget child;
-  final Duration duration;
-
-  const AnimatedImageWidget({
-    super.key,
-    required this.child,
-    this.duration = const Duration(milliseconds: 500),
-  });
-
-  @override
-  State<AnimatedImageWidget> createState() => _AnimatedImageWidgetState();
-}
-
-class _AnimatedImageWidgetState extends State<AnimatedImageWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.elasticOut,
-    ));
-
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: widget.child,
-          ),
-        );
       },
     );
   }

@@ -10,7 +10,7 @@ import base64
 import threading
 import yaml
 from types import SimpleNamespace
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 import numpy as np
 import cv2
 from flask import Flask, send_from_directory, request, jsonify
@@ -18,7 +18,20 @@ from flask_cors import CORS
 # ---- Your fast PyTorch StyleGAN loader (from your port) ----
 # Make sure this import path points to the file with Build_model you posted.
 from gan_backend import Build_model, _to_nhwc_uint8
-from utils import load_psychGAN_data, ridge_coefs, camel_to_dash, dash_to_camel
+from early_output_backend import EarlyOutputStyleGAN
+from utils import load_psychGAN_data, ridge_coefs
+from api_contract import (
+    ApiValidationError,
+    dash_to_camel,
+    eligible_photo_ids,
+    normalized_histogram,
+    parse_filters,
+    parse_image_encoding,
+    parse_image_request,
+    parse_num_points,
+    parse_requested_dimensions,
+    reshape_image_grid_for_api,
+)
 
 
 # -----------------------------
@@ -38,7 +51,9 @@ def _download_if_missing(dest_path: str, url: Optional[str]) -> bool:
     if not url:
         print(f"Missing file {dest_path} and no URL provided to download.")
         return False
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    destination_directory = os.path.dirname(dest_path)
+    if destination_directory:
+        os.makedirs(destination_directory, exist_ok=True)
     print(f"File not found at {dest_path}. Attempting download from {url} ...")
     try:
         import requests
@@ -58,48 +73,109 @@ def _download_if_missing(dest_path: str, url: Optional[str]) -> bool:
 MODELS_PATH = config["models_path"]
 DATA_PATH = config["data_path"]
 
-# Main StyleGAN2 model (allow URL override via env)
-NETWORK_PKL = config["stylegan_path"]
-STYLEGAN2_PKL_URL = os.environ.get(
-    "STYLEGAN2_PKL_URL",
-    "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl",
-)
-if not _download_if_missing(NETWORK_PKL, STYLEGAN2_PKL_URL):
-    raise FileNotFoundError(f"StyleGAN model file not found and could not be downloaded: {NETWORK_PKL}")
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return bool(default)
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
-# Distilled/tapped model (optional). Provide URL via env to fetch on-the-fly.
-STYLEGAN_DISTILLED_PATH = config.get("stylegan_distilled_path")
-STYLEGAN_TAPPED_URL = os.environ.get("STYLEGAN_TAPPED_URL")
 
-# Optional ToRGB head checkpoint expected by Build_model when distilled is used.
-TORGB_HEAD_PATH = os.path.join(MODELS_PATH, "torgb_64to128_lpips.pth")
-TORGB_HEAD_URL = os.environ.get("TORGB_HEAD_URL")
+def _configured_early_output_path() -> Optional[str]:
+    """Resolve an explicit checkpoint or a configured 128/256 selection."""
+    explicit_path = os.environ.get("STYLEGAN_EARLY_OUTPUT_PATH")
+    if explicit_path:
+        return explicit_path
 
-# If we have a distilled path configured, try to ensure it exists (download if URL provided).
-use_distilled = False
-if STYLEGAN_DISTILLED_PATH:
-    have_tapped = _download_if_missing(STYLEGAN_DISTILLED_PATH, STYLEGAN_TAPPED_URL)
-    # Only enable distilled path if the checkpoint for ToRGB head is also present or downloadable.
-    if have_tapped:
-        if _download_if_missing(TORGB_HEAD_PATH, TORGB_HEAD_URL):
-            use_distilled = True
-        else:
-            print(
-                "Distilled model present but missing ToRGB head checkpoint. "
-                "Set TORGB_HEAD_URL to enable distilled path; falling back to base generator."
-            )
-    else:
+    configured_resolution = os.environ.get(
+        "STYLEGAN_EARLY_OUTPUT_RESOLUTION",
+        config.get("stylegan_early_output_resolution"),
+    )
+    if configured_resolution in (None, "", "none", "off", False):
+        return None
+    try:
+        resolution = int(configured_resolution)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "stylegan_early_output_resolution must be 128, 256, or null"
+        ) from error
+    if resolution not in (128, 256):
+        raise ValueError("stylegan_early_output_resolution must be 128 or 256")
+    return config.get(
+        f"stylegan_early_output_{resolution}_path",
+        os.path.join(
+            MODELS_PATH,
+            "stylegan2-ffhq-config-f-early-output-128.pt"
+            if resolution == 128
+            else "stylegan2-ffhq-config-f-early-output.pt",
+        ),
+    )
+
+
+EARLY_OUTPUT_PATH = _configured_early_output_path()
+EARLY_OUTPUT_URL = os.environ.get("STYLEGAN_EARLY_OUTPUT_URL")
+
+if EARLY_OUTPUT_PATH and _download_if_missing(EARLY_OUTPUT_PATH, EARLY_OUTPUT_URL):
+    bm: Any = EarlyOutputStyleGAN(
+        EARLY_OUTPUT_PATH,
+        device=os.environ.get("GAN_DEVICE", config.get("gan_device", "auto")),
+        precision=os.environ.get(
+            "GAN_PRECISION", config.get("early_output_precision", "auto")
+        ),
+        compile=_env_bool(
+            "GAN_COMPILE", config.get("early_output_compile", False)
+        ),
+        compile_mode=os.environ.get(
+            "GAN_COMPILE_MODE", config.get("early_output_compile_mode", "default")
+        ),
+        noise_mode=os.environ.get("GAN_NOISE_MODE", "const"),
+    )
+    print(f"Loaded early-output StyleGAN2: {bm.describe()}")
+else:
+    if EARLY_OUTPUT_PATH:
         print(
-            "Distilled/tapped model is not available and no STYLEGAN_TAPPED_URL provided. "
-            "Proceeding without distilled model."
+            "Early-output checkpoint is unavailable; falling back to the original generator."
         )
 
-bm = Build_model(
-    SimpleNamespace(
-        network_pkl=NETWORK_PKL,
-        distilled_network_pkl=(STYLEGAN_DISTILLED_PATH if use_distilled else None),
+    # Original StyleGAN2 model (allow URL override via env).
+    NETWORK_PKL = config["stylegan_path"]
+    STYLEGAN2_PKL_URL = os.environ.get(
+        "STYLEGAN2_PKL_URL",
+        "https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl",
     )
-)  # keeps G hot on device
+    if not _download_if_missing(NETWORK_PKL, STYLEGAN2_PKL_URL):
+        raise FileNotFoundError(
+            f"StyleGAN model file not found and could not be downloaded: {NETWORK_PKL}"
+        )
+
+    # Distilled/tapped model (optional). Provide URL via env to fetch on-the-fly.
+    STYLEGAN_DISTILLED_PATH = config.get("stylegan_distilled_path")
+    STYLEGAN_TAPPED_URL = os.environ.get("STYLEGAN_TAPPED_URL")
+    TORGB_HEAD_PATH = os.path.join(MODELS_PATH, "torgb_64to128_lpips.pth")
+    TORGB_HEAD_URL = os.environ.get("TORGB_HEAD_URL")
+
+    use_distilled = False
+    if STYLEGAN_DISTILLED_PATH:
+        have_tapped = _download_if_missing(
+            STYLEGAN_DISTILLED_PATH, STYLEGAN_TAPPED_URL
+        )
+        if have_tapped and _download_if_missing(TORGB_HEAD_PATH, TORGB_HEAD_URL):
+            use_distilled = True
+        elif have_tapped:
+            print(
+                "Distilled model present but missing ToRGB head checkpoint. "
+                "Set TORGB_HEAD_URL to enable it; falling back to the base generator."
+            )
+
+    bm = Build_model(
+        SimpleNamespace(
+            network_pkl=NETWORK_PKL,
+            distilled_network_pkl=(
+                STYLEGAN_DISTILLED_PATH if use_distilled else None
+            ),
+        ),
+        device=os.environ.get("GAN_DEVICE", config.get("gan_device")),
+    )
+
 DEVICE = bm.device
 NUM_WS = bm.num_ws
 Z_DIM = bm.z_dim
@@ -115,7 +191,7 @@ DTYPE = torch.float32
 # from my_directions_loader import models, all_labels
 models: Dict[str, np.ndarray] = globals().get("models", {})
 all_labels: List[str] = globals().get("all_labels", list(models.keys()))
-def _get_direction(dim_name: str, backend: Build_model, alpha: float = 100) -> np.ndarray:
+def _get_direction(dim_name: str, backend: Any, alpha: float = 100) -> np.ndarray:
     
     coefs = ridge_coefs(dim_name, alpha, backend=backend)
     coefs = coefs/coefs.norm()
@@ -134,6 +210,7 @@ class FastStyleGANBackend:
         self.noise_mode = "const"
         self._seed_base = int(time.time())
         self.photo_to_coords, self.dim_to_photo_to_ratings = load_psychGAN_data(DATA_PATH)
+        self._average_ratings_cache: Dict[str, Dict[str, float]] = {}
         self.device = self.bm.device
         self.dtype = DTYPE
         self.curr_w = self._sample_w(1, truncation_psi=1)
@@ -148,6 +225,8 @@ class FastStyleGANBackend:
         self._dir_cache: Dict[Tuple[str, int], torch.Tensor] = {}     # (dim, steps) -> [NUM_WS,512]
         self._img_cache: Dict[Tuple, np.ndarray] = {}                 # per-combo cache
         self._face_hash = self._hash_w(self.curr_w)
+        self._current_photo_id: Optional[str] = None
+        self._active_filter_signature: Tuple = ()
 
     def _hash_w(self, w: torch.Tensor) -> str:
         arr = w.detach().to("cpu", dtype=torch.float32).numpy()
@@ -163,6 +242,67 @@ class FastStyleGANBackend:
         with torch.inference_mode():
             w = self.bm.G.mapping(z, None, truncation_psi=truncation_psi)
         return w  # [n, NUM_WS, 512]
+
+    def _set_random_base(self) -> None:
+        previous_hash = self._face_hash
+        for _ in range(3):
+            candidate = self._sample_w(1, truncation_psi=1.0)
+            candidate_hash = self._hash_w(candidate)
+            if candidate_hash != previous_hash:
+                self.curr_w = candidate
+                self._face_hash = candidate_hash
+                break
+        self._current_photo_id = None
+
+    def _set_photo_base(self, photo_id: str) -> None:
+        coords = self.photo_to_coords[photo_id]
+        if isinstance(coords, np.ndarray):
+            coords = torch.from_numpy(coords)
+        if not isinstance(coords, torch.Tensor):
+            coords = torch.tensor(coords)
+        coords = coords.to(device=self.device, dtype=self.dtype).reshape(1, 1, -1)
+        if coords.shape[-1] != self.curr_w.shape[-1]:
+            raise ApiValidationError(
+                f"Stored latent for {photo_id} has an incompatible shape.",
+                status_code=422,
+            )
+        self.curr_w = coords.repeat(1, NUM_WS, 1)
+        self._face_hash = self._hash_w(self.curr_w)
+        self._current_photo_id = photo_id
+
+    def select_base_face(
+        self,
+        filters: Dict[str, Tuple[float, float]],
+        eligible_photos: Optional[set],
+        change_face: bool,
+    ) -> None:
+        """Select a stable random or rating-filtered base latent."""
+        signature = tuple(sorted((name, low, high) for name, (low, high) in filters.items()))
+        if eligible_photos is None:
+            if change_face or self._active_filter_signature:
+                self._set_random_base()
+            self._active_filter_signature = ()
+            return
+
+        if not eligible_photos:
+            raise ApiValidationError(
+                "No stored face satisfies all selected filters.",
+                details={"filters": {key: list(value) for key, value in filters.items()}},
+                status_code=422,
+            )
+        if (
+            not change_face
+            and self._current_photo_id in eligible_photos
+        ):
+            self._active_filter_signature = signature
+            return
+
+        candidates = sorted(eligible_photos)
+        if change_face and self._current_photo_id in candidates and len(candidates) > 1:
+            candidates.remove(self._current_photo_id)
+        self._seed_base += 1
+        self._set_photo_base(candidates[self._seed_base % len(candidates)])
+        self._active_filter_signature = signature
         
 
     def _get_direction_cached(self, dim_name: str, steps: int) -> torch.Tensor:
@@ -208,7 +348,7 @@ class FastStyleGANBackend:
         dims = manipulated_dimensions
         K = len(dims)
         if change_face:
-            self.curr_w = self._sample_w(1, truncation_psi=1.0)
+            self._set_random_base()
         device = getattr(self, "device", self.bm.device)
         dtype  = getattr(self, "dtype", torch.float32)
 
@@ -252,12 +392,10 @@ class FastStyleGANBackend:
         img_nhwc = self.bm.generate_im_from_w_space(w_batch)            # [N, H, W, 3] uint8
         
         # --- reshape back to ND grid: (n1,...,nK,H,W,3) ---
-        H, W = img_nhwc.shape[1], img_nhwc.shape[2]
-        images = img_nhwc.reshape(*grid_shape, H, W, 3)
-        if len(grid_shape) == 2:
-            images = images.swapaxes(-5, -4)
-        
-        images = images.reshape(*grid_shape, H, W, 3)
+        images = reshape_image_grid_for_api(img_nhwc, grid_shape)
+        # The 2D preview API is row-major for direct UI consumption:
+        # [dimension1 row][dimension0 column].  Keep the true transposed shape;
+        # reshaping it back to [n0, n1] scrambles unequal grids such as 3x4.
 
         labels = {
             "dimensions": dims,
@@ -275,25 +413,14 @@ backend = FastStyleGANBackend(bm)
 # Config parsing (kept compatible)
 # -----------------------------
 def parse_config(conf):
+    """Parse the public preview request into backend kwargs and canonical filters."""
     if isinstance(conf, str):
-        conf = json.loads(conf)
-
-    # Map mode -> W-slice
-    latents_from, latents_to = {"both": (0, NUM_WS), "color": (9, NUM_WS), "shape": (0, 9)}.get(
-        conf.pop("mode", "both"), (0, NUM_WS)
-    )
-
-    # strengths: list per dimension (keeps ND structure)
-    conf["strengths"] = [
-        np.linspace(-1 * dim["strength"], dim["strength"], int(dim["n_levels"])).tolist()
-        for dim in conf["manipulated_dimensions"]
-    ]
-
-    conf["manipulated_dimensions"] = [dim["name"] for dim in conf["manipulated_dimensions"]]
-    conf["steps"] = int(conf.pop("max_steps", 40))
-    conf["latents_from"] = latents_from
-    conf["latents_to"] = latents_to
-    return conf
+        try:
+            conf = json.loads(conf)
+        except json.JSONDecodeError as error:
+            raise ApiValidationError("The request body contains invalid JSON.") from error
+    available = list(backend.dim_to_photo_to_ratings.keys())
+    return parse_image_request(conf, available, NUM_WS)
 # -----------------------------
 # Flask app + static
 # -----------------------------
@@ -388,51 +515,46 @@ def encode_image_b64(img: np.ndarray, fmt: str = "webp", quality: int = 90) -> s
         raise RuntimeError("Image encode failed")
     return base64.b64encode(buf).decode("ascii")
 
+
+def _api_error(error: Exception, status_code: int = 400):
+    details = getattr(error, "details", None)
+    body = {"error": str(error)}
+    if details is not None:
+        body["details"] = details
+    return jsonify(body), getattr(error, "status_code", status_code)
+
 @app.route("/images", methods=["POST"])
 def generate_images():
-    config = request.get_json(force=True, silent=False)
-    config = parse_config(config)
-    config["num_faces"] = 1
-    if "change_face" not in config:
-        config["change_face"] = True
+    try:
+        payload = request.get_json(force=True, silent=True)
+        config, filters = parse_config(payload)
+        out_fmt, quality = parse_image_encoding(
+            request.args.get("format"), request.args.get("quality")
+        )
+        change_face = bool(payload.get("change_face", True))
+        eligible = _filter_photos(filters, require_coordinates=True)
 
-    # Call the fast backend (batched + GPU lock)
-    import time
+        t0 = time.time()
+        with gpu_lock, torch.inference_mode(), torch.no_grad():
+            backend.select_base_face(filters, eligible, change_face)
+            images, _labels = backend(**config)
+        t1 = time.time()
+        print(f"[PROFILE] backend(**config) took {(t1 - t0)*1000:.2f} ms")
 
-    t0 = time.time()
-    with gpu_lock, torch.inference_mode(), torch.no_grad():
-        images, labels = backend(**config)
-    t1 = time.time()
-    print(f"[PROFILE] backend(**config) took {(t1 - t0)*1000:.2f} ms")
+        def to_b64(image_array):
+            if len(image_array.shape) == 4:
+                return [
+                    encode_image_b64(image, fmt=out_fmt, quality=quality)
+                    for image in image_array
+                ]
+            return [to_b64(image) for image in image_array]
 
-    # Your original code sliced images[1:], so keep that behavior:
-    image_array = images
-
-    # Allow client to pick format via ?format=png|jpg|webp (default webp)
-    out_fmt = request.args.get("format", "webp")
-    quality = int(request.args.get("quality", "90"))
-
-    def to_b64(image_array):
-        if len(image_array.shape)==4:
-            return [encode_image_b64(_img, fmt=out_fmt, quality=quality) for _img in image_array]
-        else:
-            return [to_b64(img) for img in image_array]
-        
-    converted_images = to_b64(image_array)
-    is_good = True
-    strengths = config["strengths"]
-    for dim, s_list in enumerate(strengths):
-        c = converted_images
-        for _ in range(dim):
-            c = c[0]
-        if len(c) != len(s_list):
-            print(f"Dim {dim} has {len(c)} images, but {len(s_list)} strengths")
-            is_good = False
-    if not is_good:
-        print("Shape of images did not match")
-    else:
-        print("Shape of images matched")
-    return jsonify(converted_images)
+        return jsonify(to_b64(images))
+    except ApiValidationError as error:
+        return _api_error(error)
+    except Exception as error:
+        print(f"/images failed: {error}")
+        return _api_error(RuntimeError("Image generation failed."), 500)
 
 
 # -----------------------------
@@ -440,6 +562,9 @@ def generate_images():
 # -----------------------------
 def _avg_ratings_for_dim(dim_name: str) -> Dict[str, float]:
     """Return mapping photo -> average rating in [0,1] for a given dimension."""
+    cached = backend._average_ratings_cache.get(dim_name)
+    if cached is not None:
+        return cached
     d = backend.dim_to_photo_to_ratings.get(dim_name, {})
     out: Dict[str, float] = {}
     for photo, ratings in d.items():
@@ -457,53 +582,29 @@ def _avg_ratings_for_dim(dim_name: str) -> Dict[str, float]:
                 out[photo] = float(np.clip(avg, 0.0, 1.0))
         except Exception:
             continue
+    backend._average_ratings_cache[dim_name] = out
     return out
 
 
-def _filter_photos(filters: Dict[str, list]) -> set:
-    """Return set of photo ids that satisfy all filters (inclusive ranges in [0,1])."""
-    if not filters:
-        # If no filters, use intersection of all photos known from any dim
-        photos = set()
-        for dim in backend.dim_to_photo_to_ratings.keys():
-            photos.update(_avg_ratings_for_dim(dim).keys())
-        return photos
-
-    eligible: Optional[set] = None
-    for dim, range_vals in filters.items():
-        try:
-            lo, hi = float(range_vals[0]), float(range_vals[1])
-        except Exception:
-            lo, hi = 0.0, 1.0
-        if lo > hi:
-            lo, hi = hi, lo
-        avg_map = _avg_ratings_for_dim(dim)
-        subset = {p for p, v in avg_map.items() if lo <= v <= hi}
-        eligible = subset if eligible is None else (eligible & subset)
-        if eligible and len(eligible) == 0:
-            break
-    return eligible or set()
+def _filter_photos(
+    filters: Dict[str, Tuple[float, float]], require_coordinates: bool = False
+) -> Optional[set]:
+    """Return None for no filters or the exact filtered set, including empty."""
+    averages = {dimension: _avg_ratings_for_dim(dimension) for dimension in filters}
+    coordinate_ids = backend.photo_to_coords.keys() if require_coordinates else None
+    return eligible_photo_ids(filters, averages, coordinate_ids)
 
 
-def _hist_for_dim(dim_name: str, photos_subset: set, num_points: int = 100) -> list:
+def _hist_for_dim(
+    dim_name: str, photos_subset: Optional[set], num_points: int = 100
+) -> list:
     """Compute histogram over [0,1] for dim on photo subset and normalize max to 1."""
     avg_map = _avg_ratings_for_dim(dim_name)
-    if photos_subset:
+    if photos_subset is not None:
         values = [avg_map[p] for p in photos_subset if p in avg_map]
     else:
         values = list(avg_map.values())
-    if len(values) == 0:
-        return [0.0] * num_points
-    hist, _ = np.histogram(values, bins=num_points, range=(0.0, 1.0))
-    hist = hist.astype(np.float32)
-    # simple smoothing
-    if num_points >= 5:
-        k = np.array([1, 2, 3, 2, 1], dtype=np.float32)
-        k = k / k.sum()
-        hist = np.convolve(hist, k, mode="same")
-    m = float(hist.max()) if hist.max() > 0 else 1.0
-    hist = (hist / m).tolist()
-    return [float(x) for x in hist]
+    return normalized_histogram(values, num_points)
 
 
 @app.route("/distributions", methods=["POST"])
@@ -521,33 +622,25 @@ def distributions_endpoint():
     """
     try:
         available = list(backend.dim_to_photo_to_ratings.keys())
-
-        def map_name(name: str) -> str:
-            if name in available:
-                return name
-            name = camel_to_dash(name)
-                
-            aliases = {
-            }
-            if name in aliases and aliases[name] in available:
-                return aliases[name]
-            return name  # fallback (may be missing)
-        payload = request.get_json(force=True, silent=False) or {}
-        filters = payload.get("filters", {})
-        requested = payload.get("variables", None)
-        requested = [map_name(r) for r in requested]
-        num_points = int(payload.get("num_points", 100))
+        payload = request.get_json(force=True, silent=True)
+        if payload is None:
+            raise ApiValidationError("The request body must be a JSON object.")
+        if not isinstance(payload, dict):
+            raise ApiValidationError("The request body must be a JSON object.")
+        filters = parse_filters(payload.get("filters"), available)
+        requested = parse_requested_dimensions(payload.get("variables"), available)
+        num_points = parse_num_points(payload.get("num_points", 100))
         photos_subset = _filter_photos(filters)
-
-
-        print(requested)
-        dims = requested
-        result = {dash_to_camel(dim): _hist_for_dim(dim, photos_subset, num_points) for dim in dims if dim in available}
-        print(*result.keys())
+        result = {
+            dash_to_camel(dim): _hist_for_dim(dim, photos_subset, num_points)
+            for dim in requested
+        }
         return jsonify({"distributions": result})
-    except Exception as e:
-        print(e)
-        return jsonify({"error": str(e)}), 400
+    except ApiValidationError as error:
+        return _api_error(error)
+    except Exception as error:
+        print(f"/distributions failed: {error}")
+        return _api_error(RuntimeError("Distribution calculation failed."), 500)
 
 if __name__ == "__main__":
     # For development: single process is fine. In production:

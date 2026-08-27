@@ -31,6 +31,7 @@ class CharacteristicSelector extends StatefulWidget {
   final void Function(double, double) onRangeChanged;
   final ManipulatedDimension manipulatedDimension;
   final List<ManipulatedDimension> allManipulatedDimensions;
+  final bool canClose;
 
   CharacteristicSelector({
     Key? key,
@@ -42,6 +43,7 @@ class CharacteristicSelector extends StatefulWidget {
     required this.onRangeChanged,
     required this.manipulatedDimension,
     required this.allManipulatedDimensions,
+    this.canClose = true,
   }) : super(key: key);
 
   @override
@@ -209,28 +211,27 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
             ),
           ),
         ),
-        Positioned(
-          right: 0,
-          top: 16,
-          child: InkWell(
-            onTap: () {
-              widget.onClose();
-            },
-            child: Container(
-              width: 25,
-              height: 25,
-              decoration: BoxDecoration(
-                color: widget.borderColor,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 20,
+        if (widget.canClose)
+          Positioned(
+            right: 0,
+            top: 16,
+            child: InkWell(
+              onTap: widget.onClose,
+              child: Container(
+                width: 25,
+                height: 25,
+                decoration: BoxDecoration(
+                  color: widget.borderColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }

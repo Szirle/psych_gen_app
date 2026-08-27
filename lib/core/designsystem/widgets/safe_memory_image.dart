@@ -9,6 +9,7 @@ class SafeMemoryImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final Widget? errorWidget;
+  final VoidCallback? onImageReady;
 
   const SafeMemoryImage({
     super.key,
@@ -17,6 +18,7 @@ class SafeMemoryImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.errorWidget,
+    this.onImageReady,
   });
 
   @override
@@ -27,12 +29,18 @@ class SafeMemoryImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           return _buildErrorWidget();
         },
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (frame == null) {
-            return _buildErrorWidget();
+            return SizedBox(width: width, height: height);
+          }
+          if (onImageReady != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              onImageReady!();
+            });
           }
           return child;
         },
@@ -61,4 +69,3 @@ class SafeMemoryImage extends StatelessWidget {
         );
   }
 }
-

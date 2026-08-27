@@ -1,30 +1,141 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:psych_gen_app/core/designsystem/widgets/custom_number_text_field.dart';
+import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
+import 'package:psych_gen_app/core/designsystem/widgets/shimmer_image_placeholder.dart';
+import 'package:psych_gen_app/features/face_generation/data/datasources/face_manipulation_api_datasource.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_state.dart';
+import 'package:shimmer/shimmer.dart';
 
-import 'package:psych_gen_app/main.dart';
+String _encoded(int value) => base64Encode(Uint8List.fromList([value]));
+
+Uint8List _pixelBytes() => base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    );
+
+List<int> _firstBytes(List<Uint8List> images) =>
+    images.map((image) => image.first).toList();
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('retains existing endpoint faces and leaves a new middle level empty', () {
+    final grid = FaceImageGrid(
+      images: [Uint8List.fromList([1]), Uint8List.fromList([2])],
+      dimensionNames: const ['dominant'],
+      levelValues: const [
+        [-25, 25],
+      ],
+    );
+    final target = [
+      ManipulatedDimension(
+        name: ManipulatedDimensionName.dominant,
+        strength: 25,
+        nLevels: 3,
+      ),
+    ];
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(grid.imageFor(target, [0])?.first, 1);
+    expect(grid.imageFor(target, [1]), isNull);
+    expect(grid.imageFor(target, [2])?.first, 2);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('loading shimmer overlays the retained image', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: AsyncGeneratedImageTile(
+            imageBytes: _pixelBytes(),
+            size: 100,
+            isLoading: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(SafeMemoryImage), findsOneWidget);
+    expect(find.byType(Shimmer), findsOneWidget);
+  });
+
+  testWidgets('replacement keeps outgoing and incoming images in one fixed tile',
+      (tester) async {
+    Widget tile(Uint8List bytes) => MaterialApp(
+          home: Center(
+            child: AsyncGeneratedImageTile(
+              key: const ValueKey('tile'),
+              imageBytes: bytes,
+              size: 100,
+              isLoading: false,
+            ),
+          ),
+        );
+
+    final outgoing = _pixelBytes();
+    final incoming = Uint8List.fromList([...outgoing, 0]);
+    await tester.pumpWidget(tile(outgoing));
+    await tester.pumpWidget(tile(incoming));
+
+    expect(find.byType(SafeMemoryImage), findsNWidgets(2));
+    expect(find.byType(Opacity), findsNothing);
+    expect(
+      tester.getSize(find.byType(AsyncGeneratedImageTile)),
+      const Size(100, 100),
+    );
+  });
+
+  test('decodes an unequal 2D response with dimension zero changing fastest', () {
+    final grid = <dynamic>[
+      <dynamic>[_encoded(0), _encoded(1), _encoded(2)],
+      <dynamic>[_encoded(10), _encoded(11), _encoded(12)],
+      <dynamic>[_encoded(20), _encoded(21), _encoded(22)],
+      <dynamic>[_encoded(30), _encoded(31), _encoded(32)],
+    ];
+
+    expect(
+      _firstBytes(decodeImageGridForDisplay(grid, [3, 4])),
+      [0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32],
+    );
+  });
+
+  test('decodes an unequal 3D response with depth changing slowest', () {
+    final grid = <dynamic>[
+      <dynamic>[
+        <dynamic>[_encoded(0), _encoded(100)],
+        <dynamic>[_encoded(10), _encoded(110)],
+        <dynamic>[_encoded(20), _encoded(120)],
+      ],
+      <dynamic>[
+        <dynamic>[_encoded(1), _encoded(101)],
+        <dynamic>[_encoded(11), _encoded(111)],
+        <dynamic>[_encoded(21), _encoded(121)],
+      ],
+    ];
+
+    expect(
+      _firstBytes(decodeImageGridForDisplay(grid, [2, 3, 2])),
+      [0, 1, 10, 11, 20, 21, 100, 101, 110, 111, 120, 121],
+    );
+  });
+
+  testWidgets('number field arrows notify listeners', (tester) async {
+    int? changedValue;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustomNumberTextField(
+            onChanged: (value) => changedValue = value,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '3');
+    await tester.tap(find.byIcon(Icons.arrow_drop_up));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(changedValue, 4);
   });
 }

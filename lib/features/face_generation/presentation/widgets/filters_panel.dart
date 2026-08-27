@@ -27,7 +27,8 @@ String _labelForEnum(ManipulatedDimensionName name) => _humanizeRaw(name.name);
 
 class FiltersPanel extends StatelessWidget {
   final List<ManipulatedDimension> currentDims;
-  final VoidCallback onFiltersCommitted;
+  final void Function(Map<ManipulatedDimensionName, List<double>> filters)
+      onFiltersCommitted;
   const FiltersPanel(
       {super.key, required this.currentDims, required this.onFiltersCommitted});
 
@@ -104,15 +105,33 @@ class FiltersPanel extends StatelessWidget {
                           currentEnd: loaded.appliedFilters[name]?.elementAt(1),
                           onRangeChanged: (start, end) {
                             // Update local filters; defer image reload until user releases
+                            final isDefault = start <= 0.0 && end >= 1.0;
                             context.read<FiltersBloc>().add(
                                   UpdateFilterEvent(
                                     dimension: name,
-                                    range: [start, end],
+                                    range: isDefault ? null : [start, end],
                                   ),
                                 );
                           },
                           onRangeChangeEnd: (start, end) {
-                            onFiltersCommitted();
+                            final isDefault = start <= 0.0 && end >= 1.0;
+                            final committed = loaded.appliedFilters.map(
+                              (key, value) =>
+                                  MapEntry(key, List<double>.from(value)),
+                            );
+                            if (isDefault) {
+                              committed.remove(name);
+                            } else {
+                              committed[name] = [start, end];
+                            }
+                            context.read<FiltersBloc>().add(
+                                  CommitFilterEvent(
+                                    dimension: name,
+                                    range: isDefault ? null : [start, end],
+                                    variables: ManipulatedDimensionName.values,
+                                  ),
+                                );
+                            onFiltersCommitted(committed);
                           },
                         ),
                       ],

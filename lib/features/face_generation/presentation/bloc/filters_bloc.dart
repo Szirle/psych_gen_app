@@ -12,21 +12,30 @@ class FiltersBloc extends Bloc<FiltersEvent, FiltersState> {
   FiltersBloc({required this.fetchDistributions}) : super(FiltersInitial()) {
     on<LoadDistributionsEvent>(_onLoad);
     on<UpdateFilterEvent>(_onUpdateFilter);
+    on<CommitFilterEvent>(_onCommitFilter);
   }
 
   Map<ManipulatedDimensionName, List<double>> _filters = {};
+  int _latestLoad = 0;
+
+  Map<ManipulatedDimensionName, List<double>> _snapshotFilters() =>
+      _filters.map((key, value) => MapEntry(key, List<double>.from(value)));
 
   Future<void> _onLoad(
       LoadDistributionsEvent event, Emitter<FiltersState> emit) async {
     emit(FiltersLoading());
+    final loadId = ++_latestLoad;
+    final filters = _snapshotFilters();
     try {
       final data = await fetchDistributions(
-        filters: _filters,
+        filters: filters,
         numPoints: event.numPoints,
         variables: event.variables,
       );
-      emit(FiltersLoaded(distributions: data, appliedFilters: _filters));
+      if (loadId != _latestLoad || emit.isDone) return;
+      emit(FiltersLoaded(distributions: data, appliedFilters: filters));
     } catch (e) {
+      if (loadId != _latestLoad || emit.isDone) return;
       emit(FiltersError(message: e.toString()));
     }
   }
@@ -37,13 +46,40 @@ class FiltersBloc extends Bloc<FiltersEvent, FiltersState> {
     if (event.range == null) {
       _filters.remove(event.dimension);
     } else {
-      _filters[event.dimension] = event.range!;
+      _filters[event.dimension] = List<double>.from(event.range!);
     }
     // Do NOT auto-reload distributions on every change; update state locally.
     final current = state;
     if (current is FiltersLoaded) {
       emit(FiltersLoaded(
-          distributions: current.distributions, appliedFilters: _filters));
+        distributions: current.distributions,
+        appliedFilters: _snapshotFilters(),
+      ));
+    }
+  }
+
+  Future<void> _onCommitFilter(
+      CommitFilterEvent event, Emitter<FiltersState> emit) async {
+    _filters = _snapshotFilters();
+    if (event.range == null) {
+      _filters.remove(event.dimension);
+    } else {
+      _filters[event.dimension] = List<double>.from(event.range!);
+    }
+    final filters = _snapshotFilters();
+    final loadId = ++_latestLoad;
+    emit(FiltersLoading());
+    try {
+      final data = await fetchDistributions(
+        filters: filters,
+        numPoints: event.numPoints,
+        variables: event.variables,
+      );
+      if (loadId != _latestLoad || emit.isDone) return;
+      emit(FiltersLoaded(distributions: data, appliedFilters: filters));
+    } catch (e) {
+      if (loadId != _latestLoad || emit.isDone) return;
+      emit(FiltersError(message: e.toString()));
     }
   }
 }

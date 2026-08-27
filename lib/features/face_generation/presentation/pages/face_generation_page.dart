@@ -15,7 +15,6 @@ import 'package:psych_gen_app/features/face_generation/domain/entities/manipulat
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/core/designsystem/widgets/shimmer_image_placeholder.dart'
     as shimmer;
-import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_header_bar.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_painters.dart';
@@ -67,9 +66,13 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     _loadImages();
   }
 
-  void _loadImages() {
+  void _loadImages({
+    Map<ManipulatedDimensionName, List<double>>? filtersOverride,
+  }) {
     faceManipulationRequest.changeFace = false;
-    final filtersPayload = _buildFiltersPayload();
+    final filtersPayload = filtersOverride == null
+        ? _buildFiltersPayload()
+        : _nonDefaultFilters(filtersOverride);
     faceManipulationRequest.filters =
         filtersPayload.isEmpty ? null : filtersPayload;
     faceManipulationRequest.controlledVariables =
@@ -87,21 +90,26 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     try {
       final fbState = context.read<FiltersBloc>().state;
       if (fbState is FiltersLoaded) {
-        final Map<ManipulatedDimensionName, List<double>> out = {};
-        fbState.appliedFilters.forEach((key, range) {
-          if (range.length >= 2) {
-            double start = range[0].clamp(0.0, 1.0);
-            double end = range[1].clamp(0.0, 1.0);
-            // Only include if not default [0,1]
-            if (!(start <= 0.0 && end >= 1.0)) {
-              out[key] = [start, end];
-            }
-          }
-        });
-        return out;
+        return _nonDefaultFilters(fbState.appliedFilters);
       }
     } catch (_) {}
     return {};
+  }
+
+  Map<ManipulatedDimensionName, List<double>> _nonDefaultFilters(
+    Map<ManipulatedDimensionName, List<double>> filters,
+  ) {
+    final Map<ManipulatedDimensionName, List<double>> out = {};
+    filters.forEach((key, range) {
+      if (range.length >= 2) {
+        final double start = range[0].clamp(0.0, 1.0);
+        final double end = range[1].clamp(0.0, 1.0);
+        if (!(start <= 0.0 && end >= 1.0)) {
+          out[key] = [start, end];
+        }
+      }
+    });
+    return out;
   }
 
   // void _reloadCharts() {
@@ -167,14 +175,6 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
         _sliderValue = 1;
       }
     }
-  }
-
-  int _calculateImageCount() {
-    int totalImages = 1;
-    for (var dimension in faceManipulationRequest.manipulatedDimensions) {
-      totalImages *= dimension.nLevels;
-    }
-    return totalImages;
   }
 
   // _logExpectedVsActual removed (was unused)
@@ -334,8 +334,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                   child: FiltersPanel(
                                     currentDims: faceManipulationRequest
                                         .manipulatedDimensions,
-                                    onFiltersCommitted: () {
-                                      _loadImages();
+                                    onFiltersCommitted: (filters) {
+                                      _loadImages(filtersOverride: filters);
                                     },
                                   ),
                                 ),
@@ -373,7 +373,6 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                         faceManipulationRequest.numFaces =
                                             numberOfFaces;
                                       });
-                                      _loadImages();
                                     },
                                     onGenerateDatasetPressed: () {},
                                   ),
@@ -416,8 +415,22 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                 child: Stack(
                                   children: [
                                     Positioned.fill(
-                                      child: BlocBuilder<FaceManipulationBloc,
+                                      child: BlocConsumer<FaceManipulationBloc,
                                           FaceManipulationState>(
+                                        listener: (context, state) {
+                                          if (state is FaceManipulationError &&
+                                              state.previousGrid != null) {
+                                            ScaffoldMessenger.of(context)
+                                              ..hideCurrentSnackBar()
+                                              ..showSnackBar(
+                                                SnackBar(
+                                                  content: Text(state.message),
+                                                  backgroundColor:
+                                                      Colors.red[700],
+                                                ),
+                                              );
+                                          }
+                                        },
                                         builder: (context, state) {
                                           final dimensions =
                                               faceManipulationRequest
@@ -429,35 +442,35 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                   _sliderDim != null;
                                           final is2dMode =
                                               dimensions.length == 2;
+                                          final FaceImageGrid? grid =
+                                              switch (state) {
+                                            FaceManipulationLoaded(:final grid) =>
+                                              grid,
+                                            FaceManipulationLoading(
+                                              :final previousGrid
+                                            ) =>
+                                              previousGrid,
+                                            FaceManipulationError(
+                                              :final previousGrid
+                                            ) =>
+                                              previousGrid,
+                                            _ => null,
+                                          };
+                                          final isLoading =
+                                              state is FaceManipulationLoading;
 
-                                          if (state
-                                              is FaceManipulationLoading) {
-                                            if (is3dMode) {
-                                              return shimmer
-                                                  .ShimmerImagePlaceholder(
-                                                      rows: _yAxisDim!.nLevels,
-                                                      cols: _xAxisDim!.nLevels);
-                                            } else if (is2dMode) {
-                                              return shimmer
-                                                  .ShimmerImagePlaceholder(
-                                                      rows:
-                                                          dimensions[1].nLevels,
-                                                      cols: dimensions[0]
-                                                          .nLevels);
-                                            } else {
-                                              return shimmer
-                                                  .ShimmerImagePlaceholder(
-                                                      count:
-                                                          _calculateImageCount());
-                                            }
-                                          } else if (state
-                                              is FaceManipulationLoaded) {
+                                          if (grid != null || isLoading) {
                                             if (is3dMode) {
                                               return Column(
                                                 children: [
                                                   ThreeDLevelSlider(
                                                     sliderDim: _sliderDim,
-                                                    sliderValue: _sliderValue,
+                                                    sliderValue: _sliderValue
+                                                        .clamp(
+                                                          1,
+                                                          _sliderDim!.nLevels,
+                                                        )
+                                                        .toInt(),
                                                     onChanged: (val) {
                                                       setState(() {
                                                         _sliderValue = val;
@@ -476,9 +489,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                         builder: (context,
                                                             constraints) {
                                                           return _build3dGridView(
-                                                              state,
-                                                              constraints,
-                                                              dimensions);
+                                                            grid,
+                                                            isLoading,
+                                                            constraints,
+                                                            dimensions,
+                                                          );
                                                         },
                                                       ),
                                                     ),
@@ -496,9 +511,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                   builder:
                                                       (context, constraints) {
                                                     return _build2dGridView(
-                                                        state,
-                                                        constraints,
-                                                        dimensions);
+                                                      grid,
+                                                      isLoading,
+                                                      constraints,
+                                                      dimensions,
+                                                    );
                                                   },
                                                 ),
                                               );
@@ -513,17 +530,19 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                   builder:
                                                       (context, constraints) {
                                                     return _build1dRowView(
-                                                        state,
-                                                        constraints,
-                                                        dimensions);
+                                                      grid,
+                                                      isLoading,
+                                                      constraints,
+                                                      dimensions,
+                                                    );
                                                   },
                                                 ),
                                               );
                                             }
                                           } else if (state
-                                              is FaceManipulationError) {
-                                            return shimmer.AnimatedImageWidget(
-                                              child: Column(
+                                                  is FaceManipulationError &&
+                                              state.previousGrid == null) {
+                                            return Column(
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
                                                 children: [
@@ -578,11 +597,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                     ),
                                                   ),
                                                 ],
-                                              ),
-                                            );
+                                              );
                                           }
-                                          return shimmer.AnimatedImageWidget(
-                                            child: Container(
+                                          return Container(
                                               padding: const EdgeInsets.all(20),
                                               decoration: BoxDecoration(
                                                 color: Colors.grey[100],
@@ -620,8 +637,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                   ),
                                                 ],
                                               ),
-                                            ),
-                                          );
+                                            );
                                         },
                                       ),
                                     ),
@@ -748,8 +764,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
 
   // _build3dSlider removed (extracted)
 
-  Widget _build3dGridView(FaceManipulationLoaded state,
-      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+  Widget _build3dGridView(
+      FaceImageGrid? grid,
+      bool isLoading,
+      BoxConstraints constraints,
+      List<ManipulatedDimension> dimensions) {
     final rows = _yAxisDim!.nLevels;
     final cols = _xAxisDim!.nLevels;
     const itemPadding = 4.0;
@@ -798,7 +817,10 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: List.generate(cols, (x) {
-                        final s = _sliderValue - 1;
+                        final s = _sliderValue
+                                .clamp(1, _sliderDim!.nLevels)
+                                .toInt() -
+                            1;
 
                         final Map<ManipulatedDimension, int> levelMap = {
                           _xAxisDim!: x,
@@ -810,45 +832,19 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                         final level1 = levelMap[dimensions[1]]!;
                         final level2 = levelMap[dimensions[2]]!;
 
-                        final nLevels0 = dimensions[0].nLevels;
-                        final nLevels1 = dimensions[1].nLevels;
-
-                        final imageIndex = level2 * (nLevels1 * nLevels0) +
-                            level1 * nLevels0 +
-                            level0;
-
-                        if (imageIndex < state.images.length) {
-                          return Padding(
-                            padding: const EdgeInsets.all(itemPadding),
-                            child: shimmer.AnimatedImageWidget(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: SafeMemoryImage(
-                                    imageBytes: state.images[imageIndex],
-                                    width: imageSize,
-                                    height: imageSize,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        } else {
-                          return SizedBox(
-                              width: imageSize + (itemPadding * 2),
-                              height: imageSize + (itemPadding * 2));
-                        }
+                        final imageBytes = grid?.imageFor(
+                          dimensions,
+                          [level0, level1, level2],
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.all(itemPadding),
+                          child: shimmer.AsyncGeneratedImageTile(
+                            key: ValueKey('preview-3d-$x-$y'),
+                            imageBytes: imageBytes,
+                            size: imageSize,
+                            isLoading: isLoading,
+                          ),
+                        );
                       }),
                     );
                   }),
@@ -861,8 +857,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     );
   }
 
-  Widget _build2dGridView(FaceManipulationLoaded state,
-      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
+  Widget _build2dGridView(
+      FaceImageGrid? grid,
+      bool isLoading,
+      BoxConstraints constraints,
+      List<ManipulatedDimension> dimensions) {
     final rows = dimensions[1].nLevels;
     final cols = dimensions[0].nLevels;
     const itemPadding = 4.0;
@@ -911,40 +910,19 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: List.generate(cols, (col) {
-                        final int imageIndex = row * cols + col;
-
-                        if (imageIndex < state.images.length) {
-                          return Padding(
-                            padding: const EdgeInsets.all(itemPadding),
-                            child: shimmer.AnimatedImageWidget(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: SafeMemoryImage(
-                                    imageBytes: state.images[imageIndex],
-                                    width: imageSize,
-                                    height: imageSize,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        } else {
-                          return SizedBox(
-                              width: imageSize + (itemPadding * 2),
-                              height: imageSize + (itemPadding * 2));
-                        }
+                        final imageBytes = grid?.imageFor(
+                          dimensions,
+                          [col, row],
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.all(itemPadding),
+                          child: shimmer.AsyncGeneratedImageTile(
+                            key: ValueKey('preview-2d-$col-$row'),
+                            imageBytes: imageBytes,
+                            size: imageSize,
+                            isLoading: isLoading,
+                          ),
+                        );
                       }),
                     );
                   }),
@@ -957,9 +935,12 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     );
   }
 
-  Widget _build1dRowView(FaceManipulationLoaded state,
-      BoxConstraints constraints, List<ManipulatedDimension> dimensions) {
-    final imageCount = state.images.length;
+  Widget _build1dRowView(
+      FaceImageGrid? grid,
+      bool isLoading,
+      BoxConstraints constraints,
+      List<ManipulatedDimension> dimensions) {
+    final imageCount = dimensions.isEmpty ? 1 : dimensions[0].nLevels;
     const double itemPadding = 8.0;
     const double outerPadding = 8.0;
 
@@ -995,34 +976,21 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                 alignment: Alignment.topLeft,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: state.images.map((image) {
+                  children: List.generate(imageCount, (index) {
+                    final imageBytes = dimensions.isEmpty
+                        ? null
+                        : grid?.imageFor(dimensions, [index]);
                     return Padding(
                       padding: const EdgeInsets.all(itemPadding),
-                      child: shimmer.AnimatedImageWidget(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SafeMemoryImage(
-                              imageBytes: image,
-                              width: imageSize,
-                              height: imageSize,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
+                      child: shimmer.AsyncGeneratedImageTile(
+                        key: ValueKey('preview-1d-$index'),
+                        imageBytes: imageBytes,
+                        size: imageSize,
+                        isLoading: isLoading,
+                        borderRadius: 8,
                       ),
                     );
-                  }).toList(),
+                  }),
                 ),
               ),
             ],
