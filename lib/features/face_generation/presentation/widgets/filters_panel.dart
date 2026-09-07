@@ -34,6 +34,7 @@ class FiltersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     return ExpansionTile(
       initiallyExpanded: false,
       maintainState: true,
@@ -88,17 +89,17 @@ class FiltersPanel extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 6.0),
                           child: Text(
                             _labelForEnum(name),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'WorkSans',
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2B3A55),
+                              color: accent,
                             ),
                           ),
                         ),
                         DistributionRangeSelector(
                           dimension: dim,
-                          accentColor: const Color(0xFF2B3A55),
+                          accentColor: accent,
                           values: dist,
                           currentStart:
                               loaded.appliedFilters[name]?.elementAt(0),

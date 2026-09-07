@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:psych_gen_app/core/designsystem/widgets/safe_memory_image.dart';
@@ -10,6 +11,7 @@ class AsyncGeneratedImageTile extends StatelessWidget {
   final double size;
   final bool isLoading;
   final double borderRadius;
+  final VoidCallback? onTap;
 
   const AsyncGeneratedImageTile({
     super.key,
@@ -17,36 +19,118 @@ class AsyncGeneratedImageTile extends StatelessWidget {
     required this.size,
     required this.isLoading,
     this.borderRadius = 6,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: borderRadius > 6 ? 8 : 4,
-            offset: Offset(0, borderRadius > 6 ? 4 : 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _GeneratedImagePlaceholder(size: size),
-            if (imageBytes != null)
-              _InPlaceImageReplacement(
-                imageBytes: imageBytes!,
-                size: size,
-              ),
-            if (isLoading) const _ShimmerLoadingOverlay(),
+    return _CanvasImageTapRegion(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: borderRadius > 6 ? 8 : 4,
+              offset: Offset(0, borderRadius > 6 ? 4 : 2),
+            ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _GeneratedImagePlaceholder(size: size),
+              if (imageBytes != null)
+                _InPlaceImageReplacement(
+                  imageBytes: imageBytes!,
+                  size: size,
+                ),
+              if (isLoading) const _ShimmerLoadingOverlay(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Detects a click without entering Flutter's gesture arena.
+///
+/// The surrounding [InteractiveViewer] remains the sole owner of drag, wheel,
+/// trackpad and pinch gestures. A quick look is opened only when the primary
+/// pointer is released without moving beyond the normal touch slop.
+class _CanvasImageTapRegion extends StatefulWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+
+  const _CanvasImageTapRegion({required this.onTap, required this.child});
+
+  @override
+  State<_CanvasImageTapRegion> createState() => _CanvasImageTapRegionState();
+}
+
+class _CanvasImageTapRegionState extends State<_CanvasImageTapRegion> {
+  static const double _clickSlop = 8;
+  int? _pointer;
+  Offset? _startPosition;
+  bool _moved = false;
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (widget.onTap == null || event.buttons != kPrimaryButton) return;
+    if (_pointer != null) {
+      _moved = true;
+      return;
+    }
+    _pointer = event.pointer;
+    _startPosition = event.position;
+    _moved = false;
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _pointer || _startPosition == null) return;
+    if ((event.position - _startPosition!).distance > _clickSlop) {
+      _moved = true;
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer != _pointer) return;
+    final shouldTap = !_moved && widget.onTap != null;
+    _resetPointer();
+    if (shouldTap) widget.onTap!();
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _pointer) _resetPointer();
+  }
+
+  void _resetPointer() {
+    _pointer = null;
+    _startPosition = null;
+    _moved = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor:
+          widget.onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+      child: Semantics(
+        button: widget.onTap != null,
+        label: widget.onTap == null ? null : 'Open image quick look',
+        onTap: widget.onTap,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _handlePointerDown,
+          onPointerMove: _handlePointerMove,
+          onPointerUp: _handlePointerUp,
+          onPointerCancel: _handlePointerCancel,
+          child: widget.child,
         ),
       ),
     );
@@ -60,22 +144,23 @@ class _GeneratedImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ColoredBox(
-      color: Colors.grey.shade300,
+      color: scheme.surfaceContainerHighest,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.image_outlined,
             size: (size * 0.25).clamp(16.0, 28.0),
-            color: Colors.grey[500],
+            color: scheme.onSurfaceVariant,
           ),
           SizedBox(height: size * 0.06),
           Container(
             width: size * 0.4,
             height: (size * 0.08).clamp(4.0, 8.0),
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -84,7 +169,7 @@ class _GeneratedImagePlaceholder extends StatelessWidget {
             width: size * 0.6,
             height: (size * 0.06).clamp(3.0, 6.0),
             decoration: BoxDecoration(
-              color: Colors.grey[400],
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -151,9 +236,7 @@ class _InPlaceImageReplacementState extends State<_InPlaceImageReplacement>
   }
 
   void _handleIncomingReady(Uint8List bytes) {
-    if (_incomingReady ||
-        !mounted ||
-        !listEquals(bytes, widget.imageBytes)) {
+    if (_incomingReady || !mounted || !listEquals(bytes, widget.imageBytes)) {
       return;
     }
     _incomingReady = true;

@@ -16,8 +16,6 @@ class _FilterDialogState extends State<FilterDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
       title: Text('filters.add_new'.tr()),
       content: SizedBox(
         height: 100,
@@ -29,8 +27,6 @@ class _FilterDialogState extends State<FilterDialog> {
                 width: 160,
                 child: DropdownButtonFormField<String>(
                   decoration: InputDecoration(
-                    fillColor: Colors.white,
-                    focusColor: Colors.white,
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(5.0),
                       borderSide:
@@ -78,8 +74,6 @@ class _FilterDialogState extends State<FilterDialog> {
                 width: 160,
                 child: DropdownButtonFormField<String>(
                   decoration: InputDecoration(
-                    fillColor: Colors.white,
-                    focusColor: Colors.white,
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(5.0),
                       borderSide:

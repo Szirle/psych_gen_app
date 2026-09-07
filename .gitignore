@@ -46,3 +46,5 @@ app.*.map.json
 /checkpoints/*
 /checkpoints_tapped/*
 /runs/*
+traversal_app.py
+TRAVERSAL_APP.md

@@ -178,8 +178,45 @@ def _mapping(G, z: torch.Tensor, truncation_psi: float = 1.0) -> torch.Tensor:
 #     return G.synthesis(w, noise_mode=noise_mode)
    
 # New (e.g., first 6 style layers):
-def _synthesis(G, w: torch.Tensor, head=None, noise_mode: str = 'const', num_styles: int = 6) -> torch.Tensor:
+def _synthesis(
+    G,
+    w: torch.Tensor,
+    head=None,
+    noise_mode: str = 'const',
+    num_styles: int = 6,
+    cancellation_check=None,
+) -> torch.Tensor:
     if head is None:
+        if cancellation_check is not None:
+            synthesis = G.synthesis
+            ws = w.to(torch.float32)
+            block_ws = []
+            w_idx = 0
+            for resolution in synthesis.block_resolutions:
+                block = getattr(synthesis, f'b{resolution}')
+                block_ws.append(
+                    ws.narrow(1, w_idx, block.num_conv + block.num_torgb)
+                )
+                w_idx += block.num_conv
+
+            x = img = None
+            for resolution, current_ws in zip(
+                synthesis.block_resolutions, block_ws
+            ):
+                cancellation_check()
+                block = getattr(synthesis, f'b{resolution}')
+                x, img = block(
+                    x,
+                    img,
+                    current_ws,
+                    noise_mode=noise_mode,
+                )
+                if ws.device.type == "mps":
+                    # Bound queued activations to one resolution block. Python
+                    # cancellation checks alone do not drain asynchronous GPU work.
+                    torch.mps.synchronize()
+                cancellation_check()
+            return img
         return G.synthesis(w, noise_mode=noise_mode)
     else:
         x, img_mid, cur_ws, next_w_idx = run_until_resolution(G, w, 64, noise_mode=noise_mode)
@@ -314,11 +351,22 @@ class Build_model:
         img_t = _synthesis(self.G, w, noise_mode=self.noise_mode)
         return _to_nhwc_uint8(img_t)
 
-    def generate_im_from_w_space(self, w: Union[np.ndarray, torch.Tensor], resolution: int = 1024):
+    def generate_im_from_w_space(
+        self,
+        w: Union[np.ndarray, torch.Tensor],
+        resolution: int = 1024,
+        cancellation_check=None,
+    ):
         w_t = _ensure_tensor(w, self.device)
         if w_t.ndim == 2:  # [N, 512] -> [N, num_ws, 512]
             w_t = w_t.unsqueeze(1).repeat(1, self.num_ws, 1)
-        img_t = _synthesis(self.G, w_t, self.head, noise_mode=self.noise_mode)
+        img_t = _synthesis(
+            self.G,
+            w_t,
+            self.head,
+            noise_mode=self.noise_mode,
+            cancellation_check=cancellation_check,
+        )
         # if resolution != 1024:
         #     # select stride pixels from img_t
         #     img_t = img_t[:, :, ::1024//resolution, ::1024//resolution].contiguous()

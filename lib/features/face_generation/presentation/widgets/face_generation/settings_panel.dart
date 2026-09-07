@@ -24,6 +24,45 @@ class SettingsPanel extends StatelessWidget {
     required this.onGenerateDatasetPressed,
   });
 
+  Widget _buildModeToggle(BuildContext context, String value, String other) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = mode == 'both' || mode == value;
+
+    return Expanded(
+      child: Semantics(
+        toggled: selected,
+        child: FilledButton.icon(
+          onPressed: () => onModeChanged(selected ? other : 'both'),
+          icon: Icon(
+            selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+            size: 18,
+          ),
+          label: Text('settings.$value'.tr()),
+          style: FilledButton.styleFrom(
+            backgroundColor: selected
+                ? scheme.primaryContainer
+                : scheme.surfaceContainerHighest,
+            foregroundColor:
+                selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+            minimumSize: const Size(0, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            textStyle: const TextStyle(
+              fontFamily: 'WorkSans',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            side: BorderSide(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ).copyWith(animationDuration: const Duration(milliseconds: 160)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ExpansionTile(
@@ -48,7 +87,6 @@ class SettingsPanel extends StatelessWidget {
               child: Switch(
                 value: preserveIdentity,
                 onChanged: onPreserveIdentityChanged,
-                activeColor: const Color(0xFF2B3A55),
               ),
             )),
             const SizedBox(height: 10),
@@ -82,41 +120,13 @@ class SettingsPanel extends StatelessWidget {
             const SizedBox(height: 10),
             Text('settings.mode'.tr(), style: const TextStyle(fontSize: 12)),
             const SizedBox(height: 10),
-            SizedBox(
-                height: 36,
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5.0),
-                      borderSide:
-                          const BorderSide(color: Colors.black26, width: 1.0),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(5.0),
-                      borderSide:
-                          const BorderSide(color: Colors.black26, width: 1.0),
-                    ),
-                    contentPadding:
-                        const EdgeInsets.only(top: 12, left: 12, right: 12),
-                  ),
-                  value: mode,
-                  onChanged: (String? newValue) {
-                    if (newValue != null) onModeChanged(newValue);
-                  },
-                  items: ['shape', 'color', 'both']
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontFamily: 'WorkSans',
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                )),
+            Row(
+              children: [
+                _buildModeToggle(context, 'shape', 'color'),
+                const SizedBox(width: 8),
+                _buildModeToggle(context, 'color', 'shape'),
+              ],
+            ),
             const SizedBox(height: 20),
             Text('settings.num_images_each'.tr(),
                 style: const TextStyle(fontSize: 12)),
@@ -130,7 +140,6 @@ class SettingsPanel extends StatelessWidget {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 elevation: 0,
-                backgroundColor: const Color(0xFF2B3A55),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                 shape: RoundedRectangleBorder(
@@ -138,10 +147,7 @@ class SettingsPanel extends StatelessWidget {
                 ),
               ),
               onPressed: onGenerateDatasetPressed,
-              child: Text(
-                'button.generate_dataset'.tr(),
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text('button.generate_dataset'.tr()),
             ),
           ]),
         )

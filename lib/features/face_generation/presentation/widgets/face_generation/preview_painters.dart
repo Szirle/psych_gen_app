@@ -77,7 +77,7 @@ class AxisWrappingPainter extends CustomPainter {
           color: dimensionColors[xDim] ?? const Color(0xFF4A90E2));
       _drawLabel(
         canvas,
-        text: xDim!.name.name,
+        text: xDim!.displayName,
         position: Offset((left + right) / 2, bottom + 14),
         color: dimensionColors[xDim] ?? const Color(0xFF4A90E2),
         rotateRadians: 0,
@@ -91,7 +91,7 @@ class AxisWrappingPainter extends CustomPainter {
           color: dimensionColors[yDim] ?? const Color(0xFFD53F8C));
       _drawLabel(
         canvas,
-        text: yDim!.name.name,
+        text: yDim!.displayName,
         position: Offset(left - 18, (top + bottom) / 2),
         color: dimensionColors[yDim] ?? const Color(0xFFD53F8C),
         rotateRadians: -math.pi / 2,
@@ -107,7 +107,7 @@ class AxisWrappingPainter extends CustomPainter {
           color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA));
       _drawLabel(
         canvas,
-        text: zDim!.name.name,
+        text: zDim!.displayName,
         position: Offset(end.dx + 4, end.dy),
         color: dimensionColors[zDim] ?? const Color(0xFF3DBDBA),
         rotateRadians: 0,
@@ -182,5 +182,3 @@ class AxisWrappingPainter extends CustomPainter {
         !mapEquals(oldDelegate.dimensionColors, dimensionColors);
   }
 }
-
-

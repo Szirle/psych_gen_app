@@ -10,7 +10,9 @@
   "button.generate_dataset": "Generate dataset",
   "settings.preserve_identity": "Preserve Identity",
   "settings.truncation_psi": "Truncation Psi",
-  "settings.mode": "Mode of operation",
+  "settings.mode": "Manipulation changes",
+  "settings.shape": "Shape",
+  "settings.color": "Color",
   "settings.num_images_each": "Number of images to generate for each condition",
   "settings.total_images_info": "A total of 1000 images will be generated.",
   "label.variable_name": "Variable name",
@@ -58,4 +60,3 @@
   "common.cancel": "Cancel",
   "common.add": "Add"
 }
-

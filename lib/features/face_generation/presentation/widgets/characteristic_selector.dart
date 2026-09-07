@@ -23,6 +23,8 @@ String _humanizeRaw(String s) {
 String _labelForEnum(ManipulatedDimensionName name) => _humanizeRaw(name.name);
 
 class CharacteristicSelector extends StatefulWidget {
+  final bool traversalMode;
+  final int numTraversals;
   final Color borderColor;
   final void Function() onClose;
   final void Function(ManipulatedDimensionName) onCharacteristicSelected;
@@ -43,6 +45,8 @@ class CharacteristicSelector extends StatefulWidget {
     required this.onRangeChanged,
     required this.manipulatedDimension,
     required this.allManipulatedDimensions,
+    this.traversalMode = false,
+    this.numTraversals = 512,
     this.canClose = true,
   }) : super(key: key);
 
@@ -53,17 +57,20 @@ class CharacteristicSelector extends StatefulWidget {
 class _CharacteristicSelectorState extends State<CharacteristicSelector> {
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: scheme.surfaceContainer,
             border: Border.all(color: widget.borderColor, width: 2),
             borderRadius: BorderRadius.circular(5),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
+                color: Colors.black.withOpacity(
+                  Theme.of(context).brightness == Brightness.dark ? 0.35 : 0.15,
+                ),
                 spreadRadius: 1,
                 blurRadius: 5,
                 offset: const Offset(0, 3),
@@ -76,55 +83,82 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('characteristic.variable_name'.tr()),
+                Text(widget.traversalMode
+                    ? 'Traversal index'
+                    : 'characteristic.variable_name'.tr()),
                 SizedBox(
                   height: 36,
-                  child: DropdownButtonFormField<ManipulatedDimensionName>(
-                    decoration: InputDecoration(
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide:
-                            const BorderSide(color: Colors.black26, width: 1.0),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5.0),
-                        borderSide:
-                            const BorderSide(color: Colors.black26, width: 1.0),
-                      ),
-                      contentPadding:
-                          const EdgeInsets.only(top: 12, left: 12, right: 12),
-                    ),
-                    style: const TextStyle(
-                      fontFamily: 'WorkSans',
-                    ),
-                    value: widget.manipulatedDimension.name,
-                    onChanged: (ManipulatedDimensionName? newValue) {
-                      setState(() {
-                        widget.manipulatedDimension.name = newValue!;
-                      });
-                      widget.onCharacteristicSelected(newValue!);
-                    },
-                    items: ManipulatedDimensionName.values
-                        .map<DropdownMenuItem<ManipulatedDimensionName>>(
-                            (ManipulatedDimensionName value) {
-                      final bool isSelected = widget.allManipulatedDimensions
-                          .any((dim) =>
-                              dim.name == value &&
-                              dim != widget.manipulatedDimension);
-                      return DropdownMenuItem<ManipulatedDimensionName>(
-                        value: value,
-                        enabled: !isSelected,
-                        child: Text(
-                          _labelForEnum(value),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontFamily: 'WorkSans',
-                            color: isSelected ? Colors.grey : Colors.black,
+                  child: widget.traversalMode
+                      ? DropdownButtonFormField<int>(
+                          decoration: _dropdownDecoration(),
+                          value: widget.manipulatedDimension.traversalIndex,
+                          onChanged: (int? newValue) {
+                            if (newValue == null) return;
+                            setState(() => widget.manipulatedDimension
+                                .traversalIndex = newValue);
+                            widget.onCharacteristicSelected(
+                                widget.manipulatedDimension.name);
+                          },
+                          items: List.generate(widget.numTraversals, (index) {
+                            final isSelected = widget.allManipulatedDimensions
+                                .any((dim) =>
+                                    dim != widget.manipulatedDimension &&
+                                    dim.traversalIndex == index);
+                            return DropdownMenuItem<int>(
+                              value: index,
+                              enabled: !isSelected,
+                              child: Text('Traversal $index'),
+                            );
+                          }),
+                        )
+                      : DropdownButtonFormField<ManipulatedDimensionName>(
+                          decoration: InputDecoration(
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(5.0),
+                              borderSide: const BorderSide(
+                                  color: Colors.black26, width: 1.0),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(5.0),
+                              borderSide: const BorderSide(
+                                  color: Colors.black26, width: 1.0),
+                            ),
+                            contentPadding: const EdgeInsets.only(
+                                top: 12, left: 12, right: 12),
                           ),
+                          style: const TextStyle(
+                            fontFamily: 'WorkSans',
+                          ),
+                          value: widget.manipulatedDimension.name,
+                          onChanged: (ManipulatedDimensionName? newValue) {
+                            setState(() {
+                              widget.manipulatedDimension.name = newValue!;
+                            });
+                            widget.onCharacteristicSelected(newValue!);
+                          },
+                          items: ManipulatedDimensionName.values
+                              .map<DropdownMenuItem<ManipulatedDimensionName>>(
+                                  (ManipulatedDimensionName value) {
+                            final bool isSelected =
+                                widget.allManipulatedDimensions.any((dim) =>
+                                    dim.name == value &&
+                                    dim != widget.manipulatedDimension);
+                            return DropdownMenuItem<ManipulatedDimensionName>(
+                              value: value,
+                              enabled: !isSelected,
+                              child: Text(
+                                _labelForEnum(value),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontFamily: 'WorkSans',
+                                  color: isSelected
+                                      ? scheme.onSurface.withOpacity(0.4)
+                                      : scheme.onSurface,
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
-                  ),
                 ),
                 const SizedBox(height: 5),
                 Tooltip(
@@ -141,7 +175,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                         ),
                         child: Slider(
                           activeColor: widget.borderColor,
-                          inactiveColor: Colors.black12,
+                          inactiveColor: scheme.surfaceContainerHighest,
                           value: widget.manipulatedDimension.strength,
                           label: widget.manipulatedDimension.strength
                               .toStringAsFixed(1),
@@ -180,7 +214,7 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                         ),
                         child: Slider(
                           activeColor: widget.borderColor,
-                          inactiveColor: Colors.black12,
+                          inactiveColor: scheme.surfaceContainerHighest,
                           value: widget.manipulatedDimension.nLevels
                               .clamp(2, 5)
                               .toDouble(),
@@ -235,4 +269,16 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
       ],
     );
   }
+
+  InputDecoration _dropdownDecoration() => InputDecoration(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5.0),
+          borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5.0),
+          borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+        ),
+        contentPadding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+      );
 }

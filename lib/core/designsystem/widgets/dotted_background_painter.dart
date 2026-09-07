@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 
 class DottedBackgroundPainter extends CustomPainter {
+  const DottedBackgroundPainter({
+    required this.color,
+    required this.spacing,
+    this.origin = Offset.zero,
+    this.radius = 1.8,
+  });
+
+  final Color color;
+  final double spacing;
+  final Offset origin;
+  final double radius;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.grey
+      ..color = color
       ..strokeWidth = 1;
 
-    var dotSize = 2.0;
-    var spaceBetween = 50.0;
+    final startX = origin.dx % spacing;
+    final startY = origin.dy % spacing;
 
-    for (double i = 0; i < size.width; i += spaceBetween) {
-      for (double j = 0; j < size.height; j += spaceBetween) {
-        canvas.drawCircle(Offset(i, j), dotSize, paint);
+    for (double i = startX; i < size.width; i += spacing) {
+      for (double j = startY; j < size.height; j += spacing) {
+        canvas.drawCircle(Offset(i, j), radius, paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant DottedBackgroundPainter oldDelegate) =>
+      color != oldDelegate.color ||
+      spacing != oldDelegate.spacing ||
+      origin != oldDelegate.origin ||
+      radius != oldDelegate.radius;
 }

@@ -64,14 +64,20 @@ class _CustomNumberTextFieldState extends State<CustomNumberTextField> {
           maxLength:
               widget.max.toString().length + (widget.min.isNegative ? 1 : 0),
           decoration: InputDecoration(
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(5.0),
-                borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 1.0,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(5.0),
-                borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 1.0,
+                ),
               ),
               contentPadding:
                   const EdgeInsets.only(top: 12, left: 12, right: 12),

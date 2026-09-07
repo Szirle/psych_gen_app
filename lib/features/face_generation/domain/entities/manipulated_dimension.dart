@@ -2,6 +2,7 @@ import 'package:psych_gen_app/features/face_generation/domain/entities/manipulat
 
 class ManipulatedDimension {
   ManipulatedDimensionName name;
+  int? traversalIndex;
   double strength;
   int nLevels;
   double rangeStart;
@@ -9,13 +10,21 @@ class ManipulatedDimension {
 
   ManipulatedDimension(
       {required this.name,
+      this.traversalIndex,
       required this.strength,
       required this.nLevels,
       this.rangeStart = 0.0,
       this.rangeEnd = 1.0});
 
+  String get apiName => traversalIndex == null
+      ? name.toString().split('.').last
+      : 'traversal-$traversalIndex';
+
+  String get displayName =>
+      traversalIndex == null ? name.name : 'Traversal $traversalIndex';
+
   Map<String, dynamic> toJson() => {
-        'name': name.toString().split('.').last,
+        'name': apiName,
         'strength': strength,
         'n_levels': nLevels,
         'range_start': rangeStart,

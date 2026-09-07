@@ -48,5 +48,3 @@ class ChartsAnchor extends StatelessWidget {
     );
   }
 }
-
-

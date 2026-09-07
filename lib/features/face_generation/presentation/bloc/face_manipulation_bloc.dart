@@ -55,6 +55,7 @@ class FaceManipulationBloc
           .map(
             (dimension) => ManipulatedDimension(
               name: dimension.name,
+              traversalIndex: dimension.traversalIndex,
               strength: dimension.strength,
               nLevels: dimension.nLevels,
               rangeStart: dimension.rangeStart,
@@ -67,6 +68,7 @@ class FaceManipulationBloc
       preserveIdentity: request.preserveIdentity,
       changeFace: request.changeFace,
       mode: request.mode,
+      previewRevision: request.previewRevision,
       filters: request.filters?.map(
         (key, value) => MapEntry(key, List<double>.from(value)),
       ),

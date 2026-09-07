@@ -12,23 +12,25 @@ class CustomElevatedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
         elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        surfaceTintColor: scheme.surface,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(7),
-          side: const BorderSide(color: Colors.black, width: 1),
+          side: BorderSide(color: scheme.outline, width: 1),
         ),
       ),
       child: Text(
         buttonText,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'WorkSans',
-          color: Colors.black,
+          color: scheme.onSurface,
         ),
       ),
     );

@@ -82,5 +82,3 @@ class ControlledVariablesSection extends StatelessWidget {
     );
   }
 }
-
-

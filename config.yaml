@@ -3,13 +3,12 @@ data_path: "./data"
 models_path: "./models"
 stylegan_distilled_path: "./models/stylegan_tapped_64_trained.pkl"
 
-# Set to 128 or 256 to use an integrated early-output checkpoint. Leave null
+# Set to 128 to use the pointwise_style32 preview checkpoint. Leave null
 # to retain the original generator. Environment variables can override these:
 # STYLEGAN_EARLY_OUTPUT_PATH, STYLEGAN_EARLY_OUTPUT_RESOLUTION, GAN_DEVICE,
 # GAN_PRECISION, GAN_COMPILE, and GAN_COMPILE_MODE.
 stylegan_early_output_resolution: 128
-stylegan_early_output_128_path: "./models/preview-stylegan2-ffhq-config-f-early-output-128.pt"
-stylegan_early_output_256_path: "./models/stylegan2-ffhq-config-f-early-output.pt"
+stylegan_early_output_128_path: "./models/sg128_pointwise_style32.pt"
 gan_device: "auto"
 early_output_precision: "auto"
 early_output_compile: true

@@ -1,56 +1,79 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+Color previewCanvasButtonBackground(bool isDark) =>
+    isDark ? Colors.white : const Color(0xFF111214);
+
+Color previewCanvasButtonForeground(bool isDark) =>
+    isDark ? Colors.black : Colors.white;
+
+ButtonStyle previewCanvasPillStyle(bool isDark) => FilledButton.styleFrom(
+      elevation: 2,
+      backgroundColor: previewCanvasButtonBackground(isDark),
+      foregroundColor: previewCanvasButtonForeground(isDark),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      shape: const StadiumBorder(),
+    );
+
 class PreviewHeaderBar extends StatelessWidget {
   final VoidCallback onChangeFacePressed;
+  final bool isDark;
+  final ValueChanged<bool>? onThemeModeChanged;
 
-  const PreviewHeaderBar({super.key, required this.onChangeFacePressed});
+  const PreviewHeaderBar({
+    super.key,
+    required this.onChangeFacePressed,
+    required this.isDark,
+    this.onThemeModeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
-        child: Text(
-          'preview.title'.tr(),
-          style: const TextStyle(
-              fontFamily: 'WorkSans', fontSize: 28, color: Color(0xFF4A5568)),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 0, 0),
-        child: Text(
-          'nav.breadcrumb'.tr(),
-          style: const TextStyle(
-              fontFamily: 'WorkSans', fontSize: 11, color: Color(0xFF4A5568)),
-        ),
-      ),
-      Row(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(0, 8, 8, 0),
-          child: SizedBox(
-            width: 140,
-            child: Tooltip(
-              message: 'tooltip.change_face'.tr(),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor: const Color(0xFF2B3A55),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-                onPressed: onChangeFacePressed,
-                child: Text('button.change_face'.tr(),
-                    style: const TextStyle(color: Colors.white)),
+    final controlBackground = previewCanvasButtonBackground(isDark);
+
+    return SizedBox(
+      height: 48,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              'preview.title'.tr(),
+              style: TextStyle(
+                fontFamily: 'WorkSans',
+                fontSize: 28,
+                color: controlBackground,
               ),
             ),
           ),
-        ),
-      ])
-    ]);
+          const Spacer(),
+          if (onThemeModeChanged != null)
+            Tooltip(
+              message: isDark ? 'Use light mode' : 'Use dark mode',
+              child: IconButton(
+                key: const ValueKey('theme-mode-toggle'),
+                color: controlBackground,
+                iconSize: 22,
+                onPressed: () => onThemeModeChanged!(!isDark),
+                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+              ),
+            ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 140,
+            child: Tooltip(
+              message: 'tooltip.change_face'.tr(),
+              child: FilledButton(
+                style: previewCanvasPillStyle(isDark),
+                onPressed: onChangeFacePressed,
+                child: Text('button.change_face'.tr()),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
   }
 }
-
-

@@ -2,17 +2,9 @@ from sklearn.linear_model import Ridge, LinearRegression
 import torch
 import pickle
 import numpy as np
-import sys
 import os
 from typing import Optional
 import torch.nn as nn
-from stylgan_distilled import *
-# Ensure local StyleGAN3 utilities (torch_utils, dnnlib, legacy, etc.) are importable
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-STYLEGAN3_DIR = os.path.join(PROJECT_ROOT, "content", "psychGAN", "stylegan3")
-if STYLEGAN3_DIR not in sys.path:
-    sys.path.append(STYLEGAN3_DIR)
-sys.path.append(os.path.join(PROJECT_ROOT, "stylegan3"))
 
 dtype = torch.float32
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -217,9 +209,10 @@ from sklearn.linear_model import Ridge
 def ridge_coefs(dim: str, alpha: float, *, fit_intercept: bool = True, backend=None) -> torch.Tensor:
     """
     Fit Ridge on the full dataset for `dim` and return the coefficient vector as a torch tensor.
-    
-    Trains on -y (as in your search loop), then returns -coef_ so that X @ returned_coefs (+ intercept)
-    predicts the original y.
+
+    The model is fit directly to the (logit-transformed) mean rating. Therefore
+    adding a positive multiple of the returned coefficient vector performs
+    ascent of the fitted attribute score.
 
     Args:
         dim: attribute dimension name, e.g. "attractive"
@@ -243,11 +236,13 @@ def ridge_coefs(dim: str, alpha: float, *, fit_intercept: bool = True, backend=N
     # To NumPy (fast path using your helpers)
     X_np, y_np = cpu_numpy(X, y)
 
-    # Fit Ridge on -y (to match your correlation code’s convention)
+    # Fit the original target. Its coefficient is the gradient of the fitted
+    # linear attribute score with respect to the latent coordinates.
     model = Ridge(alpha=alpha, fit_intercept=fit_intercept)
     model.fit(X_np, y_np)
 
-    # Coefficients for predicting original y (negate back), as float32 tensor on desired device
+    # Exclude the appended control-variable coefficient. Do not negate this:
+    # positive manipulation strengths must move in the score-ascent direction.
     coefs_np = (model.coef_[:-1]).astype(np.float32, copy=False)
     coefs_t = torch.from_numpy(coefs_np).to(device)
     # print(f"Pearson correlation: {pearsonr(y_np, X_np @ coefs_np)[0]}")

@@ -218,7 +218,7 @@ class _ValueBubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color, width: 1),
       ),

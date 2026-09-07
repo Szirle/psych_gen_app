@@ -18,13 +18,15 @@ class ThreeDLevelSlider extends StatelessWidget {
     if (sliderDim == null) {
       return const SizedBox.shrink();
     }
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16.0),
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!, width: 1),
+        border: Border.all(color: scheme.outlineVariant, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +35,7 @@ class ThreeDLevelSlider extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "${sliderDim!.name.name} Level",
+                "${sliderDim!.displayName} Level",
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -44,13 +46,13 @@ class ThreeDLevelSlider extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2B3A55),
+                  color: isDark ? Colors.white : const Color(0xFF2B3A55),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   "Level $sliderValue",
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.black : Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -61,9 +63,9 @@ class ThreeDLevelSlider extends StatelessWidget {
           const SizedBox(height: 12),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: const Color(0xFF2B3A55),
-              inactiveTrackColor: Colors.grey[300],
-              thumbColor: const Color(0xFF2B3A55),
+              activeTrackColor: isDark ? Colors.white : const Color(0xFF2B3A55),
+              inactiveTrackColor: scheme.surfaceContainerHighest,
+              thumbColor: isDark ? Colors.white : const Color(0xFF2B3A55),
               overlayColor: const Color(0xFF2B3A55).withOpacity(0.2),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
               trackHeight: 4.0,
@@ -90,14 +92,14 @@ class ThreeDLevelSlider extends StatelessWidget {
                 "Level 1",
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey[600],
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
               Text(
                 "Level ${sliderDim!.nLevels}",
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey[600],
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],

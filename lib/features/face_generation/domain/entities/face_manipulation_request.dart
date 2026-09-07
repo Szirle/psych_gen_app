@@ -8,6 +8,7 @@ class FaceManipulationRequest {
   bool preserveIdentity;
   bool changeFace;
   String mode;
+  int? previewRevision;
   Map<ManipulatedDimensionName, List<double>>? filters;
   // Variables the user wants to hold constant/mark as controlled
   List<ManipulatedDimensionName>? controlledVariables;
@@ -19,6 +20,7 @@ class FaceManipulationRequest {
     required this.preserveIdentity,
     this.changeFace = false,
     required this.mode,
+    this.previewRevision,
     this.filters,
     this.controlledVariables,
   });
@@ -31,6 +33,7 @@ class FaceManipulationRequest {
         'preserve_identity': preserveIdentity,
         'change_face': changeFace,
         'mode': mode,
+        if (previewRevision != null) 'preview_revision': previewRevision,
         if (filters != null && filters!.isNotEmpty)
           'filters': filters!.map((k, v) => MapEntry(k.name, v)),
         if (controlledVariables != null && controlledVariables!.isNotEmpty)

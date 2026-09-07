@@ -8,6 +8,7 @@ import 'package:psych_gen_app/features/face_generation/data/repositories/face_ma
 import 'package:psych_gen_app/features/face_generation/presentation/bloc/filters_bloc.dart';
 import 'package:psych_gen_app/features/face_generation/domain/usecases/fetch_distributions.dart';
 import 'package:psych_gen_app/features/face_generation/data/repositories/distributions_repository_impl.dart';
+import 'package:psych_gen_app/core/designsystem/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +24,15 @@ void main() {
   });
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   Widget build(BuildContext context) {
@@ -34,12 +42,9 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
-      theme: ThemeData(
-        fontFamily: 'WorkSans',
-        scaffoldBackgroundColor: Colors.grey.shade50,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: _themeMode,
       home: MultiBlocProvider(
         providers: [
           BlocProvider(
@@ -57,7 +62,14 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ],
-        child: FaceGenerationPage(title: 'app.title'.tr()),
+        child: FaceGenerationPage(
+          title: 'app.title'.tr(),
+          onThemeModeChanged: (isDark) {
+            setState(() {
+              _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+            });
+          },
+        ),
       ),
     );
   }

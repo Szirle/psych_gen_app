@@ -7,6 +7,8 @@ import 'package:psych_gen_app/features/face_generation/presentation/widgets/face
 typedef AxisValueSetter = void Function(String axis, ManipulatedDimension? dim);
 
 class AxisAssignment extends StatelessWidget {
+  final bool traversalMode;
+  final int numTraversals;
   final List<ManipulatedDimension> manipulatedDimensions;
   final Map<ManipulatedDimension, Color> dimensionColors;
   final ManipulatedDimension? xAxisDim;
@@ -24,6 +26,8 @@ class AxisAssignment extends StatelessWidget {
     required this.sliderDim,
     required this.onAxisSet,
     required this.onDimsChanged,
+    this.traversalMode = false,
+    this.numTraversals = 512,
   });
 
   @override
@@ -48,7 +52,11 @@ class AxisAssignment extends StatelessWidget {
               return Container(
                 height: 220,
                 margin: const EdgeInsets.symmetric(vertical: 4),
-                child: _buildAxisOutline(label: label, color: Colors.grey),
+                child: _buildAxisOutline(
+                  context: context,
+                  label: label,
+                  color: Colors.grey,
+                ),
               );
             }),
           ),
@@ -74,6 +82,8 @@ class AxisAssignment extends StatelessWidget {
               child: Stack(
                 children: [
                   CharacteristicSelector(
+                    traversalMode: traversalMode,
+                    numTraversals: numTraversals,
                     manipulatedDimension: dim,
                     allManipulatedDimensions: manipulatedDimensions,
                     canClose: manipulatedDimensions.length > 1,
@@ -84,13 +94,17 @@ class AxisAssignment extends StatelessWidget {
                       onDimsChanged();
                     },
                     onCharacteristicSelected: (characteristicName) {
-                      final isAlreadySelected = manipulatedDimensions
-                          .any((d) => d != dim && d.name == characteristicName);
+                      final isAlreadySelected = traversalMode
+                          ? manipulatedDimensions.any((d) =>
+                              d != dim &&
+                              d.traversalIndex == dim.traversalIndex)
+                          : manipulatedDimensions.any(
+                              (d) => d != dim && d.name == characteristicName);
                       if (isAlreadySelected) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content:
-                                Text('${characteristicName.name} is already selected.'),
+                                Text('${dim.displayName} is already selected.'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -122,7 +136,9 @@ class AxisAssignment extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: [
                               BoxShadow(
@@ -158,7 +174,11 @@ class AxisAssignment extends StatelessWidget {
     );
   }
 
-  Widget _buildAxisOutline({required String label, required Color color}) {
+  Widget _buildAxisOutline({
+    required BuildContext context,
+    required String label,
+    required Color color,
+  }) {
     final labelStyle = TextStyle(
       color: color,
       fontSize: 14,
@@ -190,7 +210,7 @@ class AxisAssignment extends StatelessWidget {
         Transform.translate(
           offset: const Offset(0, -9),
           child: Container(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Tooltip(
               message: 'tooltip.axis_assignment'.tr(),
@@ -205,4 +225,3 @@ class AxisAssignment extends StatelessWidget {
     );
   }
 }
-

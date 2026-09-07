@@ -10,6 +10,7 @@ import 'package:psych_gen_app/features/face_generation/data/datasources/face_man
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension_name.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/bloc/face_manipulation_state.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_grid_coordinates.dart';
 import 'package:shimmer/shimmer.dart';
 
 String _encoded(int value) => base64Encode(Uint8List.fromList([value]));
@@ -22,9 +23,13 @@ List<int> _firstBytes(List<Uint8List> images) =>
     images.map((image) => image.first).toList();
 
 void main() {
-  test('retains existing endpoint faces and leaves a new middle level empty', () {
+  test('retains existing endpoint faces and leaves a new middle level empty',
+      () {
     final grid = FaceImageGrid(
-      images: [Uint8List.fromList([1]), Uint8List.fromList([2])],
+      images: [
+        Uint8List.fromList([1]),
+        Uint8List.fromList([2])
+      ],
       dimensionNames: const ['dominant'],
       levelValues: const [
         [-25, 25],
@@ -60,7 +65,8 @@ void main() {
     expect(find.byType(Shimmer), findsOneWidget);
   });
 
-  testWidgets('replacement keeps outgoing and incoming images in one fixed tile',
+  testWidgets(
+      'replacement keeps outgoing and incoming images in one fixed tile',
       (tester) async {
     Widget tile(Uint8List bytes) => MaterialApp(
           home: Center(
@@ -86,7 +92,8 @@ void main() {
     );
   });
 
-  test('decodes an unequal 2D response with dimension zero changing fastest', () {
+  test('decodes an unequal 2D response with dimension zero changing fastest',
+      () {
     final grid = <dynamic>[
       <dynamic>[_encoded(0), _encoded(1), _encoded(2)],
       <dynamic>[_encoded(10), _encoded(11), _encoded(12)],
@@ -118,6 +125,40 @@ void main() {
       _firstBytes(decodeImageGridForDisplay(grid, [2, 3, 2])),
       [0, 1, 10, 11, 20, 21, 100, 101, 110, 111, 120, 121],
     );
+  });
+
+  test('vertical display rows map from high values at top to low at bottom',
+      () {
+    final grid = FaceImageGrid(
+      images: List.generate(12, (index) => Uint8List.fromList([index])),
+      dimensionNames: const ['dominant', 'well-groomed'],
+      levelValues: const [
+        [-1, 0, 1],
+        [-2, -0.67, 0.67, 2],
+      ],
+    );
+    final dimensions = [
+      ManipulatedDimension(
+        name: ManipulatedDimensionName.dominant,
+        strength: 1,
+        nLevels: 3,
+      ),
+      ManipulatedDimension(
+        name: ManipulatedDimensionName.wellGroomed,
+        strength: 2,
+        nLevels: 4,
+      ),
+    ];
+
+    final topLevel = verticalLevelForDisplayRow(0, 4);
+    final bottomLevel = verticalLevelForDisplayRow(3, 4);
+
+    expect(topLevel, 3);
+    expect(bottomLevel, 0);
+    expect(grid.imageFor(dimensions, [0, topLevel])?.first, 9);
+    expect(grid.imageFor(dimensions, [0, bottomLevel])?.first, 0);
+    // Horizontal coordinates remain low-to-high from left to right.
+    expect(grid.imageFor(dimensions, [2, topLevel])?.first, 11);
   });
 
   testWidgets('number field arrows notify listeners', (tester) async {

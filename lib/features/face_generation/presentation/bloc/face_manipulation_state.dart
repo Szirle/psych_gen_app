@@ -20,8 +20,9 @@ class FaceImageGrid extends Equatable {
   ) {
     return FaceImageGrid(
       images: images,
-      dimensionNames:
-          request.manipulatedDimensions.map((dimension) => dimension.name.name).toList(),
+      dimensionNames: request.manipulatedDimensions
+          .map((dimension) => dimension.apiName)
+          .toList(),
       levelValues: request.manipulatedDimensions
           .map((dimension) => _levelsForDimension(dimension))
           .toList(),
@@ -36,7 +37,8 @@ class FaceImageGrid extends Equatable {
       return null;
     }
 
-    final targetNames = targetDimensions.map((dimension) => dimension.name.name).toList();
+    final targetNames =
+        targetDimensions.map((dimension) => dimension.apiName).toList();
     if (dimensionNames.length == targetNames.length &&
         dimensionNames.every(targetNames.contains)) {
       final oldCoordinates = <int>[];
@@ -60,11 +62,13 @@ class FaceImageGrid extends Equatable {
         }
         oldCoordinates.add(oldCoordinate);
       }
-      final index = _flatIndex(oldCoordinates, levelValues.map((e) => e.length).toList());
+      final index =
+          _flatIndex(oldCoordinates, levelValues.map((e) => e.length).toList());
       return index < images.length ? images[index] : null;
     }
 
-    final targetCounts = targetDimensions.map((dimension) => dimension.nLevels).toList();
+    final targetCounts =
+        targetDimensions.map((dimension) => dimension.nLevels).toList();
     final fallbackIndex = _flatIndex(targetCoordinates, targetCounts);
     return fallbackIndex < images.length ? images[fallbackIndex] : null;
   }
