@@ -26,17 +26,21 @@ String _humanizeRaw(String s) {
 String _labelForEnum(ManipulatedDimensionName name) => _humanizeRaw(name.name);
 
 class FiltersPanel extends StatelessWidget {
+  final bool initiallyExpanded;
   final List<ManipulatedDimension> currentDims;
   final void Function(Map<ManipulatedDimensionName, List<double>> filters)
       onFiltersCommitted;
   const FiltersPanel(
-      {super.key, required this.currentDims, required this.onFiltersCommitted});
+      {super.key,
+      this.currentDims = const [],
+      this.initiallyExpanded = false,
+      required this.onFiltersCommitted});
 
   @override
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     return ExpansionTile(
-      initiallyExpanded: false,
+      initiallyExpanded: initiallyExpanded,
       maintainState: true,
       title: Text(
         'section.filters'.tr(),

@@ -25,7 +25,6 @@
   "grid.no_images": "No images to display",
   "grid.adjust_settings": "Adjust your settings and try again",
   "error.loading_images": "Error Loading Images",
-
   "tooltip.logo": "App logo",
   "tooltip.add_variable": "Add another variable to manipulate",
   "tooltip.preserve_identity": "Preserve the identity of generated faces across manipulations",
@@ -46,7 +45,6 @@
   "characteristic.variable_strength": "Variable strength",
   "characteristic.number_of_levels": "Number of levels",
   "section.filters": "Filters",
-
   "filters.must_have": "Must have:",
   "filters.cant_have": "Can't have:",
   "filters.add_filter": "Add filter",
@@ -56,7 +54,17 @@
   "filters.color.red": "Red",
   "filters.color.green": "Green",
   "filters.color.blue": "Blue",
-
   "common.cancel": "Cancel",
-  "common.add": "Add"
+  "common.add": "Add",
+  "selection.tab": "Stimuli selection",
+  "manipulation.tab": "Experimental manipulation",
+  "selection.description": "Define the distribution of control-condition faces. The preview shows nine unmanipulated draws from that distribution.",
+  "selection.preview_title": "Sample preview",
+  "selection.resample": "Resample 9",
+  "selection.resample_tooltip": "Draw nine new control-condition faces using the current filters",
+  "selection.updating": "Sampling nine faces… Previous tiles remain visible while the sample updates.",
+  "selection.empty": "Adjust the filters or resample to preview the distribution.",
+  "selection.generator_sample": "9 independent draws from the generator prior.",
+  "selection.ratings_sample": "9 draws from {count} eligible stored faces.",
+  "selection.repeats": " Faces may repeat because fewer than nine are eligible."
 }

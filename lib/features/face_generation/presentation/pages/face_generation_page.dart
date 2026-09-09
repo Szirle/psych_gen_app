@@ -19,7 +19,10 @@ import 'package:psych_gen_app/features/face_generation/domain/entities/manipulat
 import 'package:psych_gen_app/features/face_generation/domain/entities/full_resolution_face.dart';
 import 'package:psych_gen_app/core/designsystem/widgets/shimmer_image_placeholder.dart'
     as shimmer;
-import 'package:psych_gen_app/features/face_generation/presentation/widgets/filters_panel.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/stimuli_selection_panel.dart';
+import 'package:psych_gen_app/features/face_generation/presentation/bloc/stimuli_selection_cubit.dart';
+import 'package:psych_gen_app/features/face_generation/domain/entities/stimuli_selection_request.dart';
+import 'package:psych_gen_app/features/face_generation/data/datasources/stimuli_selection_api_datasource.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_header_bar.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/preview_painters.dart';
 import 'package:psych_gen_app/features/face_generation/presentation/widgets/face_generation/axis_assignment.dart';
@@ -39,18 +42,29 @@ class FaceGenerationPage extends StatefulWidget {
     this.traversalMode = false,
     this.numTraversals = 512,
     this.onThemeModeChanged,
+    this.selectionApi,
+    this.faceApi,
   });
 
   final String title;
   final bool traversalMode;
   final int numTraversals;
   final ValueChanged<bool>? onThemeModeChanged;
+  final StimuliSelectionApiDataSource? selectionApi;
+  final FaceManipulationApiDataSource? faceApi;
 
   @override
   State<FaceGenerationPage> createState() => _FaceGenerationPageState();
 }
 
-class _FaceGenerationPageState extends State<FaceGenerationPage> {
+class _FaceGenerationPageState extends State<FaceGenerationPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _workflowTabs;
+  late final StimuliSelectionApiDataSource _selectionApi;
+  late final StimuliSelectionCubit _selectionCubit;
+  bool _selectionActive = true;
+  Map<ManipulatedDimensionName, List<double>> _committedFilters = {};
+
   int _sliderValue = 1;
   ManipulatedDimension? _xAxisDim;
   ManipulatedDimension? _yAxisDim;
@@ -59,8 +73,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   // bool _showChartsPanel = true;
   // int _chartsReloadToken = 0;
   final Set<ManipulatedDimensionName> _selectedControlledVars = {};
-  final FaceManipulationApiDataSource _faceApi =
-      FaceManipulationApiDataSource();
+  late final FaceManipulationApiDataSource _faceApi;
   final Map<String, FullResolutionFace> _fullResolutionCache = {};
   final Map<String, Future<FullResolutionResponse>>
       _fullResolutionSessionStarts = {};
@@ -86,6 +99,18 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   @override
   void initState() {
     super.initState();
+    _selectionApi = widget.selectionApi ?? StimuliSelectionApiDataSource();
+    _faceApi = widget.faceApi ?? FaceManipulationApiDataSource();
+    _workflowTabs = TabController(length: 2, vsync: this);
+    _selectionActive = !widget.traversalMode;
+    _selectionCubit =
+        StimuliSelectionCubit(fetchPreview: _selectionApi.fetchPreview);
+    if (!widget.traversalMode) {
+      final filters = context.read<FiltersBloc>().state;
+      if (filters is FiltersLoaded) {
+        _committedFilters = _nonDefaultFilters(filters.appliedFilters);
+      }
+    }
     faceManipulationRequest = FaceManipulationRequest(
       manipulatedDimensions: [
         ManipulatedDimension(
@@ -104,7 +129,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     _previewTransformController.addListener(_handlePreviewTransformChanged);
     _updateDimensionColors();
     _initOrUpdate3dState();
-    _loadImages();
+    if (_selectionActive) {
+      _loadSelection();
+    } else {
+      _loadImages();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _resetPreviewTransform();
     });
@@ -127,14 +156,10 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     context.read<FaceManipulationBloc>().add(LoadFaceImages(immediateRequest));
   }
 
-  void _loadImages({
-    Map<ManipulatedDimensionName, List<double>>? filtersOverride,
-  }) {
+  void _loadImages() {
     _invalidateQuickLookCache();
     faceManipulationRequest.changeFace = false;
-    final filtersPayload = filtersOverride == null
-        ? _buildFiltersPayload()
-        : _nonDefaultFilters(filtersOverride);
+    final filtersPayload = _buildFiltersPayload();
     faceManipulationRequest.filters =
         filtersPayload.isEmpty ? null : filtersPayload;
     faceManipulationRequest.controlledVariables =
@@ -148,15 +173,33 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
     _initOrUpdate3dState();
   }
 
-  Map<ManipulatedDimensionName, List<double>> _buildFiltersPayload() {
-    try {
-      final fbState = context.read<FiltersBloc>().state;
-      if (fbState is FiltersLoaded) {
-        return _nonDefaultFilters(fbState.appliedFilters);
-      }
-    } catch (_) {}
-    return {};
+  void _switchWorkflow(int index) {
+    final selection = index == 0;
+    if (selection == _selectionActive) return;
+    setState(() => _selectionActive = selection);
+    if (selection) {
+      context.read<FaceManipulationBloc>().cancelPendingPreview();
+      _loadSelection();
+    } else {
+      _selectionCubit.cancelPending();
+      _loadImages();
+    }
   }
+
+  void _loadSelection({Map<ManipulatedDimensionName, List<double>>? filters}) {
+    if (filters != null) _committedFilters = _nonDefaultFilters(filters);
+    _invalidateQuickLookCache();
+    _selectionCubit.load(StimuliSelectionRequest(
+      previewRevision: _previewRevision,
+      truncationPsi: faceManipulationRequest.truncationPsi,
+      selection: StimuliSelectionCriteria(filters: _committedFilters),
+    ));
+  }
+
+  // The sampling definition is committed page state, not the histogram bloc's
+  // transient Loading state (which used to drop filters while fetching charts).
+  Map<ManipulatedDimensionName, List<double>> _buildFiltersPayload() =>
+      _nonDefaultFilters(_committedFilters);
 
   Map<ManipulatedDimensionName, List<double>> _nonDefaultFilters(
     Map<ManipulatedDimensionName, List<double>> filters,
@@ -545,6 +588,9 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   @override
   void dispose() {
     _fullResolutionPollGeneration++;
+    _workflowTabs.dispose();
+    unawaited(_selectionCubit.close());
+    _selectionApi.close();
     _previewTransformController.removeListener(_handlePreviewTransformChanged);
     _previewTransformController.dispose();
     super.dispose();
@@ -602,13 +648,27 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    final double viewportHeight = mediaQuery.size.height;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      appBar: widget.traversalMode
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Material(
+                  color: theme.colorScheme.surface,
+                  child: TabBar(
+                      controller: _workflowTabs,
+                      onTap: _switchWorkflow,
+                      tabs: [
+                        Tab(text: 'selection.tab'.tr()),
+                        Tab(text: 'manipulation.tab'.tr())
+                      ])),
+            ),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          final viewportHeight = constraints.maxHeight;
           final double viewportWidth =
               constraints.maxWidth.isFinite && constraints.maxWidth > 0
                   ? constraints.maxWidth
@@ -636,12 +696,15 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                   children: <Widget>[
                     Material(
                       elevation: 10.0,
+                      color: theme.colorScheme.surface,
                       child: SizedBox(
                         width: sidePanelWidth,
                         child: Container(
                           padding: const EdgeInsets.all(10),
-                          color: theme.colorScheme.surface,
                           child: ListView(
+                            key: PageStorageKey(_selectionActive
+                                ? 'selection-settings'
+                                : 'manipulation-settings'),
                             children: [
                               Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -684,202 +747,233 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                     )
                                   ]),
                               const SizedBox(height: 32),
-                              Theme(
-                                data: theme.copyWith(
-                                    dividerColor: Colors.transparent),
-                                child: ExpansionTile(
-                                  initiallyExpanded: true,
-                                  maintainState: true,
-                                  title: Text(
-                                    'section.experimental_design'.tr(),
-                                    style: const TextStyle(
-                                      fontFamily: 'WorkSans',
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  children: <Widget>[
-                                    Column(children: [
-                                      AxisAssignment(
-                                        traversalMode: widget.traversalMode,
-                                        numTraversals: widget.numTraversals,
-                                        manipulatedDimensions:
-                                            faceManipulationRequest
-                                                .manipulatedDimensions,
-                                        dimensionColors: _dimensionColors,
-                                        xAxisDim: _xAxisDim,
-                                        yAxisDim: _yAxisDim,
-                                        sliderDim: _sliderDim,
-                                        onAxisSet: (axis, dim) {
-                                          setState(() {
-                                            _setAxisValue(axis, dim);
-                                          });
-                                        },
-                                        onDimsChanged: () {
-                                          setState(() {});
-                                          _loadImages();
-                                        },
-                                      ),
-                                      const SizedBox(height: 12),
-                                      _buildAddVariableButton(),
-                                      const SizedBox(height: 12),
-                                      if (!widget.traversalMode)
-                                        ControlledVariablesSection(
-                                          selectedControlledVars:
-                                              _selectedControlledVars,
-                                          onChanged: (name, checked) {
-                                            setState(() {
-                                              if (checked) {
-                                                _selectedControlledVars
-                                                    .add(name);
-                                              } else {
-                                                _selectedControlledVars
-                                                    .remove(name);
-                                              }
-                                              faceManipulationRequest
-                                                      .controlledVariables =
-                                                  _selectedControlledVars
-                                                          .isEmpty
-                                                      ? null
-                                                      : _selectedControlledVars
-                                                          .toList();
-                                            });
-                                            _loadImages();
-                                          },
-                                        ),
-                                    ]),
-                                  ],
+                              if (_selectionActive)
+                                StimuliSelectionSettings(
+                                  truncationPsi:
+                                      faceManipulationRequest.truncationPsi,
+                                  onTruncationChanged: (value) {
+                                    setState(() => faceManipulationRequest
+                                        .truncationPsi = value);
+                                    _loadSelection();
+                                  },
+                                  onFiltersCommitted: (filters) =>
+                                      _loadSelection(filters: filters),
                                 ),
-                              ),
-                              // Filters section (closed by default)
-                              if (!widget.traversalMode)
+                              if (!_selectionActive) ...[
                                 Theme(
                                   data: theme.copyWith(
                                       dividerColor: Colors.transparent),
-                                  child: FiltersPanel(
-                                    currentDims: faceManipulationRequest
-                                        .manipulatedDimensions,
-                                    onFiltersCommitted: (filters) {
-                                      _loadImages(filtersOverride: filters);
-                                    },
+                                  child: ExpansionTile(
+                                    initiallyExpanded: true,
+                                    maintainState: true,
+                                    title: Text(
+                                      'section.experimental_design'.tr(),
+                                      style: const TextStyle(
+                                        fontFamily: 'WorkSans',
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    children: <Widget>[
+                                      Column(children: [
+                                        AxisAssignment(
+                                          traversalMode: widget.traversalMode,
+                                          numTraversals: widget.numTraversals,
+                                          manipulatedDimensions:
+                                              faceManipulationRequest
+                                                  .manipulatedDimensions,
+                                          dimensionColors: _dimensionColors,
+                                          xAxisDim: _xAxisDim,
+                                          yAxisDim: _yAxisDim,
+                                          sliderDim: _sliderDim,
+                                          onAxisSet: (axis, dim) {
+                                            setState(() {
+                                              _setAxisValue(axis, dim);
+                                            });
+                                          },
+                                          onDimsChanged: () {
+                                            setState(() {});
+                                            _loadImages();
+                                          },
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _buildAddVariableButton(),
+                                        const SizedBox(height: 12),
+                                        if (!widget.traversalMode)
+                                          ControlledVariablesSection(
+                                            selectedControlledVars:
+                                                _selectedControlledVars,
+                                            onChanged: (name, checked) {
+                                              setState(() {
+                                                if (checked) {
+                                                  _selectedControlledVars
+                                                      .add(name);
+                                                } else {
+                                                  _selectedControlledVars
+                                                      .remove(name);
+                                                }
+                                                faceManipulationRequest
+                                                        .controlledVariables =
+                                                    _selectedControlledVars
+                                                            .isEmpty
+                                                        ? null
+                                                        : _selectedControlledVars
+                                                            .toList();
+                                              });
+                                              _loadImages();
+                                            },
+                                          ),
+                                      ]),
+                                    ],
                                   ),
                                 ),
-                              Theme(
-                                data: theme.copyWith(
-                                    dividerColor: Colors.transparent),
-                                child: SettingsPanel(
-                                  preserveIdentity:
-                                      faceManipulationRequest.preserveIdentity,
-                                  truncationPsi:
-                                      faceManipulationRequest.truncationPsi,
-                                  mode: faceManipulationRequest.mode,
-                                  onPreserveIdentityChanged: (value) {
-                                    setState(() {
-                                      faceManipulationRequest.preserveIdentity =
-                                          value;
-                                    });
-                                    _loadImages();
-                                  },
-                                  onTruncationPsiChanged: (value) {
-                                    setState(() {
-                                      faceManipulationRequest.truncationPsi =
-                                          value;
-                                    });
-                                    _loadImages();
-                                  },
-                                  onModeChanged: (newValue) {
-                                    setState(() {
-                                      faceManipulationRequest.mode = newValue;
-                                    });
-                                    _loadImages();
-                                  },
-                                  onNumFacesChanged: (numberOfFaces) {
-                                    setState(() {
-                                      faceManipulationRequest.numFaces =
-                                          numberOfFaces;
-                                    });
-                                  },
-                                  onGenerateDatasetPressed: () {},
+                                Theme(
+                                  data: theme.copyWith(
+                                      dividerColor: Colors.transparent),
+                                  child: SettingsPanel(
+                                    showTruncation: widget.traversalMode,
+                                    preserveIdentity: faceManipulationRequest
+                                        .preserveIdentity,
+                                    truncationPsi:
+                                        faceManipulationRequest.truncationPsi,
+                                    mode: faceManipulationRequest.mode,
+                                    onPreserveIdentityChanged: (value) {
+                                      setState(() {
+                                        faceManipulationRequest
+                                            .preserveIdentity = value;
+                                      });
+                                      _loadImages();
+                                    },
+                                    onTruncationPsiChanged: (value) {
+                                      setState(() {
+                                        faceManipulationRequest.truncationPsi =
+                                            value;
+                                      });
+                                      _loadImages();
+                                    },
+                                    onModeChanged: (newValue) {
+                                      setState(() {
+                                        faceManipulationRequest.mode = newValue;
+                                      });
+                                      _loadImages();
+                                    },
+                                    onNumFacesChanged: (numberOfFaces) {
+                                      setState(() {
+                                        faceManipulationRequest.numFaces =
+                                            numberOfFaces;
+                                      });
+                                    },
+                                    onGenerateDatasetPressed: () {},
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
                       ),
                     ),
                     Expanded(
-                      child: SizedBox(
-                        height: viewportHeight,
-                        child: ColoredBox(
-                          color: isDark
-                              ? AppTheme.darkCanvas
-                              : AppTheme.lightCanvas,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: BlocConsumer<FaceManipulationBloc,
-                                    FaceManipulationState>(
-                                  listener: (context, state) {
-                                    if (state is FaceManipulationError &&
-                                        state.previousGrid != null) {
-                                      ScaffoldMessenger.of(context)
-                                        ..hideCurrentSnackBar()
-                                        ..showSnackBar(
-                                          SnackBar(
-                                            content: Text(state.message),
-                                            backgroundColor: Colors.red[700],
-                                          ),
-                                        );
-                                    }
-                                  },
-                                  builder: (context, state) {
-                                    final dimensions = faceManipulationRequest
-                                        .manipulatedDimensions;
-                                    final is3dMode = dimensions.length == 3 &&
-                                        _xAxisDim != null &&
-                                        _yAxisDim != null &&
-                                        _sliderDim != null;
-                                    final is2dMode = dimensions.length == 2;
-                                    final FaceImageGrid? grid = switch (state) {
-                                      FaceManipulationLoaded(:final grid) =>
-                                        grid,
-                                      FaceManipulationLoading(
-                                        :final previousGrid
-                                      ) =>
-                                        previousGrid,
-                                      FaceManipulationError(
-                                        :final previousGrid
-                                      ) =>
-                                        previousGrid,
-                                      _ => null,
-                                    };
-                                    final isLoading =
-                                        state is FaceManipulationLoading;
+                      child: _selectionActive
+                          ? StimuliSelectionCanvas(
+                              cubit: _selectionCubit,
+                              onResample: _loadSelection,
+                              onThemeModeChanged: widget.onThemeModeChanged)
+                          : SizedBox(
+                              height: viewportHeight,
+                              child: ColoredBox(
+                                color: isDark
+                                    ? AppTheme.darkCanvas
+                                    : AppTheme.lightCanvas,
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: BlocConsumer<FaceManipulationBloc,
+                                          FaceManipulationState>(
+                                        listener: (context, state) {
+                                          if (state is FaceManipulationError &&
+                                              state.previousGrid != null) {
+                                            ScaffoldMessenger.of(context)
+                                              ..hideCurrentSnackBar()
+                                              ..showSnackBar(
+                                                SnackBar(
+                                                  content: Text(state.message),
+                                                  backgroundColor:
+                                                      Colors.red[700],
+                                                ),
+                                              );
+                                          }
+                                        },
+                                        builder: (context, state) {
+                                          final dimensions =
+                                              faceManipulationRequest
+                                                  .manipulatedDimensions;
+                                          final is3dMode =
+                                              dimensions.length == 3 &&
+                                                  _xAxisDim != null &&
+                                                  _yAxisDim != null &&
+                                                  _sliderDim != null;
+                                          final is2dMode =
+                                              dimensions.length == 2;
+                                          final FaceImageGrid? grid =
+                                              switch (state) {
+                                            FaceManipulationLoaded(
+                                              :final grid
+                                            ) =>
+                                              grid,
+                                            FaceManipulationLoading(
+                                              :final previousGrid
+                                            ) =>
+                                              previousGrid,
+                                            FaceManipulationError(
+                                              :final previousGrid
+                                            ) =>
+                                              previousGrid,
+                                            _ => null,
+                                          };
+                                          final isLoading =
+                                              state is FaceManipulationLoading;
 
-                                    if (grid != null || isLoading) {
-                                      if (is3dMode) {
-                                        return Column(
-                                          children: [
-                                            ThreeDLevelSlider(
-                                              sliderDim: _sliderDim,
-                                              sliderValue: _sliderValue
-                                                  .clamp(
-                                                    1,
-                                                    _sliderDim!.nLevels,
-                                                  )
-                                                  .toInt(),
-                                              onChanged: (val) {
-                                                setState(() {
-                                                  _sliderValue = val;
-                                                });
-                                              },
-                                            ),
-                                            Expanded(
-                                              child:
-                                                  _buildInteractivePreviewCanvas(
+                                          if (grid != null || isLoading) {
+                                            if (is3dMode) {
+                                              return Column(
+                                                children: [
+                                                  ThreeDLevelSlider(
+                                                    sliderDim: _sliderDim,
+                                                    sliderValue: _sliderValue
+                                                        .clamp(
+                                                          1,
+                                                          _sliderDim!.nLevels,
+                                                        )
+                                                        .toInt(),
+                                                    onChanged: (val) {
+                                                      setState(() {
+                                                        _sliderValue = val;
+                                                      });
+                                                    },
+                                                  ),
+                                                  Expanded(
+                                                    child:
+                                                        _buildInteractivePreviewCanvas(
+                                                      child: LayoutBuilder(
+                                                        builder: (context,
+                                                            constraints) {
+                                                          return _build3dGridView(
+                                                            grid,
+                                                            isLoading,
+                                                            constraints,
+                                                            dimensions,
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            } else if (is2dMode) {
+                                              return _buildInteractivePreviewCanvas(
                                                 child: LayoutBuilder(
                                                   builder:
                                                       (context, constraints) {
-                                                    return _build3dGridView(
+                                                    return _build2dGridView(
                                                       grid,
                                                       isLoading,
                                                       constraints,
@@ -887,166 +981,165 @@ class _FaceGenerationPageState extends State<FaceGenerationPage> {
                                                     );
                                                   },
                                                 ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      } else if (is2dMode) {
-                                        return _buildInteractivePreviewCanvas(
-                                          child: LayoutBuilder(
-                                            builder: (context, constraints) {
-                                              return _build2dGridView(
-                                                grid,
-                                                isLoading,
-                                                constraints,
-                                                dimensions,
                                               );
-                                            },
-                                          ),
-                                        );
-                                      } else {
-                                        return _buildInteractivePreviewCanvas(
-                                          child: LayoutBuilder(
-                                            builder: (context, constraints) {
-                                              return _build1dRowView(
-                                                grid,
-                                                isLoading,
-                                                constraints,
-                                                dimensions,
+                                            } else {
+                                              return _buildInteractivePreviewCanvas(
+                                                child: LayoutBuilder(
+                                                  builder:
+                                                      (context, constraints) {
+                                                    return _build1dRowView(
+                                                      grid,
+                                                      isLoading,
+                                                      constraints,
+                                                      dimensions,
+                                                    );
+                                                  },
+                                                ),
                                               );
-                                            },
-                                          ),
-                                        );
-                                      }
-                                    } else if (state is FaceManipulationError &&
-                                        state.previousGrid == null) {
-                                      return Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Container(
+                                            }
+                                          } else if (state
+                                                  is FaceManipulationError &&
+                                              state.previousGrid == null) {
+                                            return Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(20),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme
+                                                        .errorContainer,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                    border: Border.all(
+                                                      color: theme
+                                                          .colorScheme.error,
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: Column(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.error_outline,
+                                                        color: theme
+                                                            .colorScheme.error,
+                                                        size: 48,
+                                                      ),
+                                                      const SizedBox(
+                                                          height: 16),
+                                                      Text(
+                                                        'error.loading_images'
+                                                            .tr(),
+                                                        style: TextStyle(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onErrorContainer,
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        state.message,
+                                                        style: TextStyle(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onErrorContainer,
+                                                          fontSize: 14,
+                                                        ),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }
+                                          return Container(
                                             padding: const EdgeInsets.all(20),
                                             decoration: BoxDecoration(
                                               color: theme
-                                                  .colorScheme.errorContainer,
+                                                  .colorScheme.surfaceContainer,
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                               border: Border.all(
-                                                color: theme.colorScheme.error,
+                                                color: theme
+                                                    .colorScheme.outlineVariant,
                                                 width: 1,
                                               ),
                                             ),
                                             child: Column(
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Icon(
-                                                  Icons.error_outline,
-                                                  color:
-                                                      theme.colorScheme.error,
+                                                  Icons
+                                                      .image_not_supported_outlined,
+                                                  color: theme.colorScheme
+                                                      .onSurfaceVariant,
                                                   size: 48,
                                                 ),
                                                 const SizedBox(height: 16),
                                                 Text(
-                                                  'error.loading_images'.tr(),
+                                                  'grid.no_images'.tr(),
                                                   style: TextStyle(
-                                                    color: theme.colorScheme
-                                                        .onErrorContainer,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
+                                                    color: theme
+                                                        .colorScheme.onSurface,
+                                                    fontSize: 16,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 Text(
-                                                  state.message,
+                                                  'grid.adjust_settings'.tr(),
                                                   style: TextStyle(
                                                     color: theme.colorScheme
-                                                        .onErrorContainer,
-                                                    fontSize: 14,
+                                                        .onSurfaceVariant,
+                                                    fontSize: 12,
                                                   ),
-                                                  textAlign: TextAlign.center,
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                        ],
-                                      );
-                                    }
-                                    return Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            theme.colorScheme.surfaceContainer,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color:
-                                              theme.colorScheme.outlineVariant,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.image_not_supported_outlined,
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant,
-                                            size: 48,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'grid.no_images'.tr(),
-                                            style: TextStyle(
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'grid.adjust_settings'.tr(),
-                                            style: TextStyle(
-                                              color: theme
-                                                  .colorScheme.onSurfaceVariant,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              if (!_isPreviewCentered)
-                                Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 24,
-                                  child: Center(
-                                    child: FilledButton(
-                                      key: const ValueKey(
-                                        'recenter-preview-button',
-                                      ),
-                                      style: previewCanvasPillStyle(isDark),
-                                      onPressed: _resetPreviewTransform,
-                                      child: Text(
-                                        'tooltip.recenter_preview'.tr(),
+                                          );
+                                        },
                                       ),
                                     ),
-                                  ),
-                                ),
-                              Positioned(
-                                left: 0,
-                                top: 0,
-                                right: 0,
-                                child: PreviewHeaderBar(
-                                  isDark: isDark,
-                                  onThemeModeChanged: widget.onThemeModeChanged,
-                                  onChangeFacePressed: _changeFace,
+                                    if (!_isPreviewCentered)
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 24,
+                                        child: Center(
+                                          child: FilledButton(
+                                            key: const ValueKey(
+                                              'recenter-preview-button',
+                                            ),
+                                            style:
+                                                previewCanvasPillStyle(isDark),
+                                            onPressed: _resetPreviewTransform,
+                                            child: Text(
+                                              'tooltip.recenter_preview'.tr(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      right: 0,
+                                      child: PreviewHeaderBar(
+                                        isDark: isDark,
+                                        onThemeModeChanged:
+                                            widget.onThemeModeChanged,
+                                        onChangeFacePressed: _changeFace,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
+                            ),
                     ),
                     // Charts panel temporarily disabled.
                     // SizedBox(

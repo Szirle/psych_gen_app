@@ -1,0 +1,3290 @@
+"""Reusable FG-CLIP 2 pipelines for face datasets and impression ratings.
+
+This module has no Gradio dependency; research/plotting imports are lazy. It owns the
+reusable workflow that future applications need:
+
+* discover and naturally sort a folder of face images;
+* batch-encode and persist normalized FG-CLIP image features;
+* cache phrase ratings derived from those features;
+* load per-photo human ratings and aggregate them to means;
+* align complete cases for regression or correlation analysis.
+
+Pickle files must be trusted local inputs.
+
+Research CLI (run from the project root in the configured Python environment):
+    python -m CLIP.fgclip2_face_impressions encode --models base
+    python -m CLIP.fgclip2_face_impressions evaluate --models base
+    python -m CLIP.fgclip2_face_impressions report --models base
+The research functions additionally use scikit-learn, threadpoolctl, matplotlib
+and markdown. Encoding uses MPS; evaluation operates on cached score matrices.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import pickle
+import re
+import tempfile
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+
+try:
+    from .fgclip2_core import DEFAULT_CACHE_DIR, FGCLIP2
+except ImportError:
+    from fgclip2_core import DEFAULT_CACHE_DIR, FGCLIP2
+
+
+DEFAULT_IMAGE_SUFFIXES = frozenset(
+    {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+)
+CACHE_VERSION = 1
+
+
+@dataclass(frozen=True)
+class FaceDatasetConfig:
+    directory: Path
+    cache_dir: Path = DEFAULT_CACHE_DIR / "dataset-rankings"
+    limit: int | None = 1000
+    batch_size: int = 64
+    image_suffixes: frozenset[str] = DEFAULT_IMAGE_SUFFIXES
+
+    def __post_init__(self):
+        object.__setattr__(self, "directory", Path(self.directory).expanduser())
+        object.__setattr__(self, "cache_dir", Path(self.cache_dir).expanduser())
+        if self.limit is not None and (isinstance(self.limit, bool) or self.limit < 1):
+            raise ValueError("Dataset limit must be a positive integer or None.")
+        if isinstance(self.batch_size, bool) or self.batch_size < 1:
+            raise ValueError("Dataset batch size must be a positive integer.")
+
+
+@dataclass(frozen=True)
+class FaceFeatureSet:
+    paths: tuple[Path, ...]
+    features: torch.Tensor
+    cache_key: str
+    cache_hit: bool
+    elapsed_seconds: float
+    effective_batch_size: int | None
+    encoded_images: int = 0
+
+
+@dataclass(frozen=True)
+class DatasetScores:
+    paths: tuple[Path, ...]
+    texts: tuple[str, ...]
+    scores: np.ndarray  # [images, texts], float32 agreement logits
+    text_mode: str
+    rating_cache_hits: tuple[bool, ...]
+    runtime: dict[str, Any]
+
+    def details(self) -> dict[str, Any]:
+        return dict(self.runtime)
+
+
+@dataclass(frozen=True)
+class HumanRatingVector:
+    variable: str
+    means: np.ndarray
+    rater_counts: np.ndarray
+
+    @property
+    def valid_mask(self) -> np.ndarray:
+        return np.isfinite(self.means)
+
+
+@dataclass(frozen=True)
+class RegressionDataset:
+    variable: str
+    paths: tuple[Path, ...]
+    texts: tuple[str, ...]
+    human_means: np.ndarray
+    rater_counts: np.ndarray
+    predicted_scores: np.ndarray
+
+    def standardized(self) -> tuple[np.ndarray, np.ndarray]:
+        """Return z-scored target and predictor columns for regression."""
+        target_scale = self.human_means.std()
+        predictor_scales = self.predicted_scores.std(axis=0)
+        if target_scale == 0 or np.any(predictor_scales == 0):
+            raise ValueError("Cannot standardize a constant target or predictor.")
+        target = (self.human_means - self.human_means.mean()) / target_scale
+        predictors = (
+            self.predicted_scores - self.predicted_scores.mean(axis=0)
+        ) / predictor_scales
+        return target, predictors
+
+
+@dataclass(frozen=True)
+class CorrelationMetrics:
+    phrase: str
+    images: int
+    pearson: float
+    spearman: float
+    distance_correlation: float
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "phrase": self.phrase,
+            "images": self.images,
+            "pearson": self.pearson,
+            "spearman": self.spearman,
+            "distance_correlation": self.distance_correlation,
+        }
+
+
+def _natural_path_key(path: Path):
+    return [
+        (0, int(part)) if part.isdigit() else (1, part.casefold())
+        for part in re.split(r"(\d+)", path.name)
+    ]
+
+
+def discover_face_images(config: FaceDatasetConfig) -> tuple[Path, ...]:
+    directory = config.directory.resolve()
+    if not directory.is_dir():
+        raise ValueError(f"Dataset directory does not exist: {directory}")
+    paths = sorted(
+        (
+            path
+            for path in directory.iterdir()
+            if path.is_file() and path.suffix.casefold() in config.image_suffixes
+        ),
+        key=_natural_path_key,
+    )
+    if config.limit is not None:
+        paths = paths[: config.limit]
+    if not paths:
+        raise ValueError(f"No supported face images found in: {directory}")
+    return tuple(paths)
+
+
+def _atomic_save_npz(path: Path, **arrays) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{path.stem}-", suffix=".npz", dir=path.parent
+    )
+    os.close(descriptor)
+    try:
+        with open(temporary, "wb") as output:
+            np.savez_compressed(output, **arrays)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def _is_accelerator_oom(exc: BaseException) -> bool:
+    return "out of memory" in str(exc).casefold()
+
+
+class FaceImpressionPipeline:
+    """Efficiently rate one configured face dataset with a shared FG-CLIP model."""
+
+    def __init__(self, engine: FGCLIP2, config: FaceDatasetConfig):
+        self.engine = engine
+        self.config = config
+        self._feature_memory: dict[str, tuple[tuple[Path, ...], torch.Tensor]] = {}
+
+    def image_paths(self) -> tuple[Path, ...]:
+        return discover_face_images(self.config)
+
+    def _feature_identity(
+        self, paths: tuple[Path, ...], max_num_patches: int
+    ) -> tuple[str, dict[str, Any]]:
+        directory = paths[0].parent
+        files = []
+        for path in paths:
+            stat = path.stat()
+            files.append(
+                [str(path.relative_to(directory)), stat.st_size, stat.st_mtime_ns]
+            )
+        manifest = {
+            "version": CACHE_VERSION,
+            "directory": str(directory),
+            "model": self.engine.model_id,
+            "revision": self.engine.revision,
+            "dtype": str(self.engine.dtype),
+            "patches": int(max_num_patches),
+            "files": files,
+        }
+        encoded = json.dumps(
+            manifest, ensure_ascii=False, separators=(",", ":")
+        ).encode()
+        return hashlib.sha256(encoded).hexdigest()[:24], manifest
+
+    @torch.inference_mode()
+    def _encode_features(
+        self, paths: tuple[Path, ...], max_num_patches: int
+    ) -> tuple[torch.Tensor, int]:
+        chunks = []
+        offset = 0
+        effective_batch_size = self.config.batch_size
+        while offset < len(paths):
+            current = min(effective_batch_size, len(paths) - offset)
+            inputs = None
+            try:
+                inputs = self.engine.prepare_images(
+                    paths[offset : offset + current],
+                    max_num_patches=int(max_num_patches),
+                )
+                features = self.engine.encode_image_preprocessed(inputs).cpu()
+            except (MemoryError, RuntimeError) as exc:
+                if current == 1 or not (
+                    isinstance(exc, MemoryError) or _is_accelerator_oom(exc)
+                ):
+                    raise
+                effective_batch_size = max(1, current // 2)
+                del inputs
+                if self.engine.device.type == "mps":
+                    torch.mps.empty_cache()
+                elif self.engine.device.type == "cuda":
+                    torch.cuda.empty_cache()
+                continue
+            chunks.append(features)
+            offset += current
+            del inputs, features
+        return torch.cat(chunks), effective_batch_size
+
+    def features(self, max_num_patches: int = 128) -> FaceFeatureSet:
+        started = time.perf_counter()
+        paths = self.image_paths()
+        key, manifest = self._feature_identity(paths, max_num_patches)
+        memory_entry = self._feature_memory.get(key)
+        if memory_entry is not None and memory_entry[0] == paths:
+            return FaceFeatureSet(
+                paths,
+                memory_entry[1],
+                key,
+                True,
+                time.perf_counter() - started,
+                None,
+            )
+
+        cache_path = self.config.cache_dir / f"features-{key}.npz"
+        try:
+            with np.load(cache_path, allow_pickle=False) as cache:
+                metadata = json.loads(str(cache["metadata"]))
+                relative_paths = cache["paths"].tolist()
+                features_array = cache["features"]
+            expected_paths = [str(path.relative_to(paths[0].parent)) for path in paths]
+            if metadata != manifest or relative_paths != expected_paths:
+                raise ValueError("Dataset feature cache identity mismatch.")
+            features = torch.from_numpy(features_array.copy()).float()
+            if features.ndim != 2 or features.shape[0] != len(paths):
+                raise ValueError("Dataset feature cache has an invalid shape.")
+            self._feature_memory[key] = (paths, features)
+            return FaceFeatureSet(
+                paths,
+                features,
+                key,
+                True,
+                time.perf_counter() - started,
+                None,
+            )
+        except (FileNotFoundError, KeyError, OSError, ValueError, json.JSONDecodeError):
+            cache_path.unlink(missing_ok=True)
+
+        # Reuse an exact, manifest-verified prefix when expanding a dataset.
+        # Labels never participate in this cache or in frozen image encoding.
+        prefix = None
+        prefix_length = 0
+        for candidate in sorted(self.config.cache_dir.glob("features-*.npz")):
+            try:
+                with np.load(candidate, allow_pickle=False) as cache:
+                    previous = json.loads(str(cache["metadata"]))
+                    count = len(previous["files"])
+                    if not prefix_length < count < len(paths):
+                        continue
+                    if any(previous.get(k) != v for k, v in manifest.items() if k != "files"):
+                        continue
+                    if previous["files"] != manifest["files"][:count]:
+                        continue
+                    if cache["paths"].tolist() != [p.name for p in paths[:count]]:
+                        continue
+                    array = cache["features"]
+                    if array.ndim != 2 or len(array) != count or not np.isfinite(array).all():
+                        continue
+                    prefix, prefix_length = torch.from_numpy(array.copy()).float(), count
+            except (KeyError, OSError, ValueError):
+                continue
+        features, effective_batch_size = self._encode_features(paths[prefix_length:], max_num_patches)
+        if prefix is not None:
+            features = torch.cat((prefix, features))
+        relative_paths = [str(path.relative_to(paths[0].parent)) for path in paths]
+        _atomic_save_npz(
+            cache_path,
+            features=features.numpy(),
+            paths=np.asarray(relative_paths),
+            metadata=np.asarray(json.dumps(manifest, ensure_ascii=False)),
+        )
+        self._feature_memory[key] = (paths, features)
+        return FaceFeatureSet(
+            paths,
+            features,
+            key,
+            False,
+            time.perf_counter() - started,
+            effective_batch_size,
+            len(paths) - prefix_length,
+        )
+
+    @staticmethod
+    def _rating_cache_key(feature_key: str, text: str, text_mode: str) -> str:
+        encoded = json.dumps(
+            [feature_key, text.lower().strip(), text_mode],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode()
+        return hashlib.sha256(encoded).hexdigest()[:24]
+
+    def rate(
+        self,
+        texts: list[str] | tuple[str, ...],
+        *,
+        text_mode: str = "auto",
+        max_num_patches: int = 128,
+    ) -> DatasetScores:
+        texts = tuple(texts)
+        text_details = self.engine.text_info(texts, mode=text_mode)
+        resolved_mode = text_details["mode"]
+        started = time.perf_counter()
+        feature_set = self.features(max_num_patches)
+        scores = np.empty((len(feature_set.paths), len(texts)), dtype=np.float32)
+        cache_hits = [False] * len(texts)
+        missing = []
+        rating_paths = []
+
+        for index, text in enumerate(texts):
+            rating_key = self._rating_cache_key(
+                feature_set.cache_key, text, resolved_mode
+            )
+            rating_path = self.config.cache_dir / f"ratings-{rating_key}.npz"
+            rating_paths.append(rating_path)
+            try:
+                with np.load(rating_path, allow_pickle=False) as cache:
+                    cached_scores = cache["scores"].astype(np.float32, copy=True)
+                if (
+                    cached_scores.shape != (len(feature_set.paths),)
+                    or not np.isfinite(cached_scores).all()
+                ):
+                    raise ValueError("Dataset rating cache has invalid scores.")
+                scores[:, index] = cached_scores
+                cache_hits[index] = True
+            except (FileNotFoundError, KeyError, OSError, ValueError):
+                rating_path.unlink(missing_ok=True)
+                missing.append(index)
+
+        if missing:
+            with torch.inference_mode():
+                text_features = torch.cat([
+                    self.engine.encode_text([texts[index] for index in missing[start:start+32]],
+                                            mode=resolved_mode).cpu()
+                    for start in range(0, len(missing), 32)
+                ])
+                scale = self.engine.model.logit_scale.float().exp().item()
+                bias = self.engine.model.logit_bias.float().item()
+                new_scores = feature_set.features @ text_features.T
+                new_scores = new_scores * scale + bias
+            scores[:, missing] = new_scores.numpy()
+            for index in missing:
+                _atomic_save_npz(rating_paths[index], scores=scores[:, index])
+
+        if not np.isfinite(scores).all():
+            raise RuntimeError("FGCLIP produced non-finite dataset scores.")
+        runtime = {
+            "images_rated": len(feature_set.paths),
+            "dataset": str(feature_set.paths[0].parent),
+            "feature_cache_hit": feature_set.cache_hit,
+            "images_encoded": feature_set.encoded_images,
+            "rating_cache_hits": sum(cache_hits),
+            "phrases_rated": len(texts),
+            "feature_seconds": round(feature_set.elapsed_seconds, 3),
+            "total_seconds": round(time.perf_counter() - started, 3),
+            "images_per_second": round(
+                feature_set.encoded_images / max(feature_set.elapsed_seconds, 1e-9), 2
+            )
+            if not feature_set.cache_hit
+            else None,
+            "requested_batch_size": self.config.batch_size,
+            "effective_batch_size": feature_set.effective_batch_size or "cached",
+            "model": self.engine.model_id,
+            "revision": self.engine.revision,
+            "device": str(self.engine.device),
+            "dtype": str(self.engine.dtype),
+            "text": text_details,
+        }
+        return DatasetScores(
+            feature_set.paths,
+            texts,
+            scores,
+            resolved_mode,
+            tuple(cache_hits),
+            runtime,
+        )
+
+
+class HumanRatingsStore:
+    """Load and aggregate dimension -> photo -> individual ratings mappings."""
+
+    def __init__(self, path: str | Path):
+        self.path = Path(path).expanduser().resolve()
+        self._data: dict[str, dict[str, Any]] | None = None
+
+    def _load(self) -> dict[str, dict[str, Any]]:
+        if self._data is not None:
+            return self._data
+        if not self.path.is_file():
+            raise ValueError(f"Human ratings file does not exist: {self.path}")
+        with self.path.open("rb") as source:
+            data = pickle.load(source)
+        if not isinstance(data, dict) or not data:
+            raise ValueError("Human ratings file must contain a nonempty dictionary.")
+        self._data = data
+        return data
+
+    @property
+    def variables(self) -> tuple[str, ...]:
+        return tuple(
+            sorted(
+                key
+                for key, value in self._load().items()
+                if isinstance(key, str) and isinstance(value, dict) and value
+            )
+        )
+
+    def means(
+        self, variable: str, paths: tuple[Path, ...] | list[Path]
+    ) -> HumanRatingVector:
+        data = self._load()
+        if variable not in data or not isinstance(data[variable], dict):
+            raise ValueError(f"Unknown human ratings variable: {variable}")
+        ratings_by_photo = data[variable]
+        means = np.full(len(paths), np.nan, dtype=np.float64)
+        counts = np.zeros(len(paths), dtype=np.int32)
+        for index, path in enumerate(paths):
+            ratings = ratings_by_photo.get(path.name)
+            if ratings is None:
+                continue
+            try:
+                values = np.asarray(ratings, dtype=np.float64).reshape(-1)
+            except (TypeError, ValueError):
+                continue
+            values = values[np.isfinite(values)]
+            if values.size:
+                means[index] = values.mean()
+                counts[index] = values.size
+        return HumanRatingVector(variable, means, counts)
+
+    def align(self, variable: str, dataset_scores: DatasetScores) -> RegressionDataset:
+        ratings = self.means(variable, dataset_scores.paths)
+        valid = ratings.valid_mask & np.isfinite(dataset_scores.scores).all(axis=1)
+        if valid.sum() < 3:
+            raise ValueError(
+                f"Only {int(valid.sum())} dataset images have complete {variable} data."
+            )
+        valid_indices = np.flatnonzero(valid)
+        return RegressionDataset(
+            variable,
+            tuple(dataset_scores.paths[index] for index in valid_indices),
+            dataset_scores.texts,
+            ratings.means[valid],
+            ratings.rater_counts[valid],
+            dataset_scores.scores[valid],
+        )
+
+
+def pearson_correlation(x, y) -> float:
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    x = x - x.mean()
+    y = y - y.mean()
+    denominator = np.sqrt(np.dot(x, x) * np.dot(y, y))
+    return float(np.dot(x, y) / denominator) if denominator else float("nan")
+
+
+def average_ranks(values) -> np.ndarray:
+    values = np.asarray(values)
+    order = np.argsort(values, kind="mergesort")
+    sorted_values = values[order]
+    ranks = np.empty(len(values), dtype=np.float64)
+    start = 0
+    while start < len(values):
+        end = start + 1
+        while end < len(values) and sorted_values[end] == sorted_values[start]:
+            end += 1
+        ranks[order[start:end]] = (start + end - 1) / 2 + 1
+        start = end
+    return ranks
+
+
+def centered_distances(values) -> np.ndarray:
+    values = np.asarray(values, dtype=np.float32)
+    distances = np.abs(values[:, None] - values[None, :])
+    row_means = distances.mean(axis=1, keepdims=True)
+    column_means = distances.mean(axis=0, keepdims=True)
+    return distances - row_means - column_means + distances.mean()
+
+
+def distance_correlation(x, y) -> float:
+    return _distance_correlation_from_centered(centered_distances(x), y)
+
+
+def _distance_correlation_from_centered(centered_x, y) -> float:
+    centered_y = centered_distances(y)
+    covariance_squared = float(np.mean(centered_x * centered_y))
+    variance_x_squared = float(np.mean(centered_x * centered_x))
+    variance_y_squared = float(np.mean(centered_y * centered_y))
+    denominator = np.sqrt(variance_x_squared * variance_y_squared)
+    if denominator <= 0:
+        return float("nan")
+    return float(np.sqrt(max(0.0, covariance_squared / denominator)))
+
+
+def correlate_regression_data(
+    regression: RegressionDataset,
+) -> tuple[CorrelationMetrics, ...]:
+    centered_human = centered_distances(regression.human_means)
+    human_ranks = average_ranks(regression.human_means)
+    results = []
+    for index, phrase in enumerate(regression.texts):
+        predicted = regression.predicted_scores[:, index]
+        results.append(
+            CorrelationMetrics(
+                phrase=phrase,
+                images=len(regression.paths),
+                pearson=pearson_correlation(regression.human_means, predicted),
+                spearman=pearson_correlation(human_ranks, average_ranks(predicted)),
+                distance_correlation=_distance_correlation_from_centered(
+                    centered_human, predicted
+                ),
+            )
+        )
+    return tuple(results)
+
+
+__all__ = [
+    "CorrelationMetrics",
+    "DatasetScores",
+    "FaceDatasetConfig",
+    "FaceFeatureSet",
+    "FaceImpressionPipeline",
+    "HumanRatingVector",
+    "HumanRatingsStore",
+    "RegressionDataset",
+    "average_ranks",
+    "centered_distances",
+    "correlate_regression_data",
+    "discover_face_images",
+    "distance_correlation",
+    "pearson_correlation",
+]
+
+
+# Fixed before evaluating ratings. Opposite/neutral descriptions are independent
+# predictors, not assertions about the pictured people's actual identities/states.
+IMPRESSION_PROMPTS = {
+    "asian": (
+        "an asian person's face",
+        "a face that appears asian",
+        "a portrait of a person perceived as asian",
+        "a face with an east asian appearance",
+        "an east asian person's face",
+        "a southeast asian person's face",
+        "a south asian person's face",
+        "a central asian person's face",
+        "a chinese person's face",
+        "a japanese person's face",
+        "a korean person's face",
+        "a person with mixed asian ancestry",
+        "a white person's face",
+        "a black person's face",
+        "a middle eastern person's face",
+        "a hispanic person's face",
+    ),
+    "happy": (
+        "a happy face",
+        "a face with a happy expression",
+        "a person who looks cheerful",
+        "a joyful face",
+        "a delighted person's face",
+        "a contented person's face",
+        "a smiling face",
+        "a face with a broad smile",
+        "a face with a subtle smile",
+        "a person smiling with their mouth closed",
+        "a person smiling with their teeth showing",
+        "a face with smiling eyes",
+        "a sad face",
+        "an unhappy face",
+        "a neutral facial expression",
+        "a serious face",
+    ),
+}
+# Only used for the fixed, equal-weight contrast ensemble control.
+IMPRESSION_DIRECTIONS = {name: (1,) * 12 + (-1,) * 4 for name in IMPRESSION_PROMPTS}
+METHOD_LABELS = {
+    "reference_linear": "Reference phrase · linear",
+    "reference_isotonic": "Reference phrase · isotonic",
+    "mean_ensemble": "Fixed signed mean · linear",
+    "best_single": "Inner-selected single phrase",
+    "ridge": "All 16 · ridge",
+    "lasso": "All 16 · lasso",
+    "evolved_ridge": "Evolved subset · ridge",
+}
+
+
+@dataclass(frozen=True)
+class CVConfig:
+    """Predeclared search budget. Every outer face is held out exactly once."""
+
+    outer_folds: int = 10
+    inner_folds: int = 5
+    seed: int = 20260908
+    ridge_alphas: tuple[float, ...] = tuple(np.logspace(-3, 4, 15))
+    lasso_fractions: tuple[float, ...] = tuple(np.logspace(0, -4, 17))
+    population: int = 32
+    generations: int = 6
+    elite: int = 8
+    bootstrap_samples: int = 2000
+
+    def __post_init__(self):
+        if self.outer_folds < 2 or self.inner_folds < 2:
+            raise ValueError("Both CV levels need at least two folds.")
+        if not 2 <= self.elite < self.population or self.generations < 1:
+            raise ValueError("Require 2 <= elite < population and generations >= 1.")
+        if not self.ridge_alphas or not all(np.isfinite(a) and a > 0 for a in self.ridge_alphas):
+            raise ValueError("Ridge alphas must be finite and positive.")
+        if not self.lasso_fractions or not all(0 < a <= 1 for a in self.lasso_fractions):
+            raise ValueError("Lasso fractions must be in (0, 1].")
+        if self.bootstrap_samples < 1:
+            raise ValueError("bootstrap_samples must be positive.")
+
+
+def regression_metrics(y, prediction) -> dict[str, float]:
+    """Metrics on pooled held-out predictions, in the original slider units."""
+    y, prediction = np.asarray(y), np.asarray(prediction)
+    error = y - prediction
+    return {
+        "pearson": pearson_correlation(y, prediction),
+        "spearman": pearson_correlation(average_ranks(y), average_ranks(prediction)),
+        "r2": float(1 - error @ error / np.sum((y - y.mean()) ** 2)),
+        "rmse": float(np.sqrt(np.mean(error ** 2))),
+        "mae": float(np.mean(np.abs(error))),
+    }
+
+
+def make_cv_splits(n: int, folds: int, seed: int, groups=None):
+    """Use groups for related faces/latent traversals; defaults to shuffled faces."""
+    from sklearn.model_selection import GroupKFold, KFold
+
+    if groups is None:
+        return list(KFold(folds, shuffle=True, random_state=seed).split(np.arange(n)))
+    groups = np.asarray(groups)
+    if groups.shape != (n,):
+        raise ValueError("groups must have one entry per face.")
+    return list(GroupKFold(folds, shuffle=True, random_state=seed).split(np.arange(n), groups=groups))
+
+
+def cross_validate_predictor(x, y, fit_predict, *, splits=None, folds=10, seed=20260908):
+    """Small architecture-independent full-CV runner; no approximated CV scores.
+
+    fit_predict(X_train, y_train, X_test, fold) must do ALL supervised fitting
+    and preprocessing using its training arguments. It may return [test, methods].
+    Supplied splits can also be LeaveOneOut/GroupKFold. Each face must be tested
+    exactly once; repeated CV is performed with separate calls/seeds.
+    """
+    x, y = np.asarray(x, dtype=np.float64), np.asarray(y, dtype=np.float64)
+    if x.ndim != 2 or y.shape != (len(x),) or not np.isfinite(x).all() or not np.isfinite(y).all():
+        raise ValueError("Expected finite X[n,p] and y[n].")
+    splits = list(splits) if splits is not None else make_cv_splits(len(y), folds, seed)
+    coverage = np.zeros(len(y), dtype=int)
+    for train, test in splits:
+        train, test = np.asarray(train), np.asarray(test)
+        if len(train) == 0 or len(test) == 0 or np.intersect1d(train, test).size:
+            raise ValueError("CV train/test sets must be nonempty and disjoint.")
+        if min(train.min(), test.min()) < 0 or max(train.max(), test.max()) >= len(y):
+            raise ValueError("CV index outside dataset.")
+        if len(np.unique(train)) != len(train) or len(np.unique(test)) != len(test):
+            raise ValueError("Duplicate indices in a CV fold.")
+        coverage[test] += 1
+    if not np.all(coverage == 1):
+        raise ValueError("Every face must have exactly one held-out prediction.")
+    prediction, fold_ids = None, np.empty(len(y), dtype=int)
+    for fold, (train, test) in enumerate(splits):
+        values = np.asarray(fit_predict(x[train], y[train], x[test], fold))
+        if values.ndim not in (1, 2) or len(values) != len(test) or not np.isfinite(values).all():
+            raise ValueError("Predictor returned invalid held-out values.")
+        if prediction is None:
+            prediction = np.empty((len(y),) + values.shape[1:], dtype=float)
+        prediction[test], fold_ids[test] = values, fold
+    return prediction, fold_ids
+
+
+def _scale_training(x):
+    x = np.asarray(x, dtype=np.float64)
+    mean, scale = x.mean(axis=0), x.std(axis=0)
+    scale = np.where(scale > 1e-12, scale, 1.0)
+    return (x - mean) / scale, mean, scale
+
+
+def _ridge_path(x, y, test, alphas):
+    """One small eigendecomposition gives exact predictions for every alpha."""
+    z, mean, scale = _scale_training(x)
+    eigenvalues, vectors = np.linalg.eigh(z.T @ z)
+    weights = vectors @ ((vectors.T @ (z.T @ (y - y.mean())))[:, None]
+                         / (np.maximum(eigenvalues, 0)[:, None] + np.asarray(alphas)))
+    return (test - mean) / scale @ weights + y.mean()
+
+
+class InnerCVSearch:
+    """Training-only search; cache standardized fold sufficient statistics.
+
+    Independent of FG-CLIP: any frozen architecture's score matrix is accepted.
+    Subset fitness is exact inner held-out MSE, with alpha selected jointly.
+    """
+
+    def __init__(self, x, y, config: CVConfig, seed: int, groups=None):
+        x, y = np.asarray(x, dtype=np.float64), np.asarray(y, dtype=np.float64)
+        self.x, self.y, self.config = x, y, config
+        self.splits = make_cv_splits(len(y), config.inner_folds, seed, groups)
+        self.folds = []
+        for train, test in self.splits:
+            z, mean, scale = _scale_training(x[train])
+            self.folds.append((z.T @ z, z.T @ (y[train] - y[train].mean()),
+                               (x[test] - mean) / scale, y[train].mean(), y[test]))
+        self.cache = {}
+
+    def ridge(self, columns):
+        columns = tuple(sorted(columns))
+        if columns not in self.cache:
+            losses = np.zeros(len(self.config.ridge_alphas))
+            for gram, cross, test, mean_y, target in self.folds:
+                eigenvalues, vectors = np.linalg.eigh(gram[np.ix_(columns, columns)])
+                weights = vectors @ ((vectors.T @ cross[list(columns)])[:, None] /
+                                     (np.maximum(eigenvalues, 0)[:, None] + self.config.ridge_alphas))
+                error = test[:, columns] @ weights + mean_y - target[:, None]
+                losses += np.sum(error ** 2, axis=0)
+            index = int(np.argmin(losses))
+            self.cache[columns] = (float(losses[index] / len(self.y)), float(self.config.ridge_alphas[index]))
+        return self.cache[columns]
+
+    def lasso(self):
+        from sklearn.linear_model import lasso_path
+
+        fractions = np.asarray(sorted(self.config.lasso_fractions, reverse=True))
+        losses = np.zeros(len(fractions))
+        for train, test in self.splits:
+            z, mean, scale = _scale_training(self.x[train])
+            centered = self.y[train] - self.y[train].mean()
+            alpha_max = max(np.max(np.abs(z.T @ centered)) / len(train), 1e-12)
+            _, weights, gaps = lasso_path(z, centered, alphas=fractions * alpha_max,
+                                          tol=1e-7, max_iter=50000)
+            error = (self.x[test] - mean) / scale @ weights + self.y[train].mean() - self.y[test, None]
+            losses += np.sum(error ** 2, axis=0)
+        best = int(np.argmin(losses))
+        return float(losses[best] / len(self.y)), float(fractions[best])
+
+    def best_single(self):
+        losses = []
+        for column in range(self.x.shape[1]):
+            loss = 0.0
+            for train, test in self.splits:
+                model = fit_score_model(self.x[train], self.y[train], "linear", [column])
+                loss += np.sum((predict_score_model(model, self.x[test]) - self.y[test]) ** 2)
+            losses.append(loss / len(self.y))
+        return int(np.argmin(losses))
+
+    def evolve(self, seed: int, initial_subsets=()):
+        """Elitism + crossover + bit-flip mutation; retain reference phrase 0.
+
+        Search is budgeted, not exhaustive over all 2**(p-1) subsets. Trace values
+        describe inner optimization only; outer labels are never available here.
+        """
+        rng = np.random.default_rng(seed)
+        p, cfg = self.x.shape[1], self.config
+        def repair(mask):
+            mask[0] = True
+            return tuple(np.flatnonzero(mask).tolist())
+        population = {tuple(range(p)), (0,)}
+        for subset in initial_subsets:
+            if not subset or min(subset) < 0 or max(subset) >= p:
+                raise ValueError("Initial evolutionary subset outside feature space.")
+            population.add(tuple(sorted(set(subset) | {0})))
+        capacity = min(cfg.population, 2 ** (p - 1))
+        while len(population) < capacity:
+            population.add(repair(rng.random(p) < rng.uniform(.2, .9)))
+        history = []
+        for generation in range(cfg.generations):
+            ranked = sorted(population, key=lambda c: (self.ridge(c)[0], len(c), c))
+            best = ranked[0]
+            history.append({"generation": generation, "inner_mse": self.ridge(best)[0],
+                            "features": len(best), "evaluated_subsets": len(self.cache)})
+            if generation == cfg.generations - 1:
+                break
+            elites = ranked[:min(cfg.elite, len(ranked))]
+            population = set(elites)
+            attempts = 0
+            while len(population) < capacity:
+                a, b = [elites[int(rng.integers(len(elites)))] for _ in range(2)]
+                first, second = np.isin(np.arange(p), a), np.isin(np.arange(p), b)
+                child = np.where(rng.random(p) < .5, first, second)
+                child ^= rng.random(p) < 1 / p
+                if attempts > capacity * 10:
+                    child = rng.random(p) < .5
+                population.add(repair(child))
+                attempts += 1
+        return best, self.ridge(best)[1], history
+
+
+def fit_score_model(x, y, kind="ridge", columns=None, alpha=1.0):
+    """Fit a portable score-space readout; coefficients apply to RAW scores.
+
+    For lasso, alpha is a fraction of training alpha_max, so tuning adapts to
+    slider scale. The returned JSON-compatible model requires no sklearn at
+    prediction time (including the isotonic control).
+    """
+    from sklearn.isotonic import IsotonicRegression
+    from sklearn.linear_model import Lasso
+
+    x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    columns = list(range(x.shape[1])) if columns is None else list(columns)
+    if kind == "isotonic":
+        model = IsotonicRegression(out_of_bounds="clip").fit(x[:, columns[0]], y)
+        return {"kind": kind, "columns": columns, "x": model.X_thresholds_.tolist(),
+                "y": model.y_thresholds_.tolist()}
+    z, mean, scale = _scale_training(x[:, columns])
+    centered = y - y.mean()
+    if kind == "ridge":
+        weights = np.linalg.solve(z.T @ z + alpha * np.eye(len(columns)), z.T @ centered)
+    elif kind == "linear":
+        weights = np.linalg.lstsq(z, centered, rcond=None)[0]
+    elif kind == "lasso":
+        alpha_max = max(np.max(np.abs(z.T @ centered)) / len(y), 1e-12)
+        weights = Lasso(alpha=alpha * alpha_max, fit_intercept=False,
+                        max_iter=50000, tol=1e-7).fit(z, centered).coef_
+    else:
+        raise ValueError(f"Unknown readout: {kind}")
+    raw = weights / scale
+    return {"kind": kind, "columns": columns, "alpha": float(alpha),
+            "weights": raw.tolist(), "intercept": float(y.mean() - mean @ raw),
+            "standardized_weights": weights.tolist()}
+
+
+def predict_score_model(model, x):
+    x = np.asarray(x, dtype=float)
+    if model["kind"] == "isotonic":
+        return np.interp(x[:, model["columns"][0]], model["x"], model["y"])
+    return x[:, model["columns"]] @ np.asarray(model["weights"]) + model["intercept"]
+
+
+def fit_impression_readouts(x, y, config: CVConfig, *, seed=None, groups=None, directions=None):
+    """Tune/final-fit all declared approaches on the supplied training data only."""
+    seed = config.seed if seed is None else seed
+    search = InnerCVSearch(x, y, config, seed, groups)
+    columns = tuple(range(x.shape[1]))
+    _, ridge_alpha = search.ridge(columns)
+    _, lasso_fraction = search.lasso()
+    best_single = search.best_single()
+    subset, evolved_alpha, trace = search.evolve(seed)
+    models = {
+        "reference_linear": fit_score_model(x, y, "linear", [0]),
+        "reference_isotonic": fit_score_model(x, y, "isotonic", [0]),
+        "best_single": fit_score_model(x, y, "linear", [best_single]),
+        "ridge": fit_score_model(x, y, "ridge", alpha=ridge_alpha),
+        "lasso": fit_score_model(x, y, "lasso", alpha=lasso_fraction),
+        "evolved_ridge": fit_score_model(x, y, "ridge", subset, evolved_alpha),
+    }
+    # Equal-weight signed mean of training-standardized score columns; calibrate
+    # its slope/intercept on training ratings, then collapse to raw coefficients.
+    z, mean, scale = _scale_training(x)
+    directions = np.ones(x.shape[1]) if directions is None else np.asarray(directions)
+    if directions.shape != (x.shape[1],):
+        raise ValueError("One fixed direction is required per phrase.")
+    pooled = (z @ directions / x.shape[1])[:, None]
+    pooled_model = fit_score_model(pooled, y, "linear")
+    raw = pooled_model["weights"][0] * directions / (x.shape[1] * scale)
+    models["mean_ensemble"] = {"kind": "linear", "columns": list(columns),
+                               "weights": raw.tolist(),
+                               "intercept": float(pooled_model["intercept"] - mean @ raw),
+                               "standardized_weights": (raw * scale).tolist()}
+    return models, trace
+
+
+def paired_prediction_bootstrap(y, baseline, prediction, *, samples=2000, seed=20260908):
+    """Paired face bootstrap of fixed OOF predictions, NOT a CV-refit CI.
+
+    Conditions on the fitted folds and assumes independent faces. Does not
+    capture training/search variability or repeated-rater/identity clustering.
+    """
+    rng = np.random.default_rng(seed)
+    values = np.empty((samples, 3))
+    for i in range(samples):
+        index = rng.integers(len(y), size=len(y))
+        target, base, pred = y[index], baseline[index], prediction[index]
+        base_mse, pred_mse = np.mean((target - base) ** 2), np.mean((target - pred) ** 2)
+        values[i] = (pearson_correlation(target, pred) - pearson_correlation(target, base),
+                     (base_mse - pred_mse) / np.var(target),
+                     np.sqrt(base_mse) - np.sqrt(pred_mse))
+    return {key: np.quantile(values[:, j], [.025, .975]).tolist()
+            for j, key in enumerate(("delta_pearson", "delta_r2", "rmse_reduction"))}
+
+
+def evaluate_impression(regression: RegressionDataset, config=CVConfig(), *, groups=None, directions=None):
+    """Leakage-safe nested CV of seven prespecified score-space approaches."""
+    started = time.perf_counter()
+    x, y = regression.predicted_scores.astype(float), regression.human_means.astype(float)
+    if np.var(y) == 0 or x.shape[1] < 1:
+        raise ValueError("A variable target and at least one predictor are required.")
+    splits = make_cv_splits(len(y), config.outer_folds, config.seed, groups)
+    details, methods = [], list(METHOD_LABELS)
+    def train_predict(train_x, train_y, test_x, fold):
+        train_groups = None if groups is None else np.asarray(groups)[splits[fold][0]]
+        models, trace = fit_impression_readouts(train_x, train_y, config,
+                                                seed=config.seed + 1009 * (fold + 1),
+                                                groups=train_groups, directions=directions)
+        details.append({"fold": fold, "models": models, "evolution": trace})
+        return np.column_stack([predict_score_model(models[m], test_x) for m in methods])
+    predictions, fold_ids = cross_validate_predictor(x, y, train_predict, splits=splits)
+    cv_seconds = time.perf_counter() - started
+    metrics = {m: regression_metrics(y, predictions[:, j]) for j, m in enumerate(methods)}
+    fold_metrics = {m: [regression_metrics(y[fold_ids == f], predictions[fold_ids == f, j])
+                       for f in range(config.outer_folds)] for j, m in enumerate(methods)}
+    bootstrap = {m: paired_prediction_bootstrap(y, predictions[:, 0], predictions[:, j],
+                                                 samples=config.bootstrap_samples, seed=config.seed)
+                 for j, m in enumerate(methods) if j > 0}
+    versus_isotonic = {m: paired_prediction_bootstrap(y, predictions[:, 1], predictions[:, methods.index(m)],
+                                                      samples=config.bootstrap_samples, seed=config.seed)
+                        for m in ("ridge", "lasso", "evolved_ridge")}
+    evolved_vs_ridge = paired_prediction_bootstrap(
+        y, predictions[:, methods.index("ridge")], predictions[:, methods.index("evolved_ridge")],
+        samples=config.bootstrap_samples, seed=config.seed)
+    return {"variable": regression.variable, "n": len(y), "texts": list(regression.texts),
+            "config": asdict(config), "metrics": metrics, "fold_metrics": fold_metrics,
+            "bootstrap_vs_reference": bootstrap, "bootstrap_vs_isotonic": versus_isotonic,
+            "evolved_vs_ridge": evolved_vs_ridge,
+            "fold_details": details, "methods": methods, "predictions": predictions,
+            "fold_ids": fold_ids, "cv_seconds": cv_seconds,
+            "raw_reference_pearson": pearson_correlation(y, x[:, 0])}
+
+
+def extract_impression_features(pipeline, ratings, prompt_bank, output_dir, *, text_mode="short", patches=128):
+    """Frozen encoding/cache stage, separate from cheap CPU-only research runs."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    all_texts = tuple(dict.fromkeys(t for phrases in prompt_bank.values() for t in phrases))
+    scores = pipeline.rate(all_texts, text_mode=text_mode, max_num_patches=patches)
+    for variable, phrases in prompt_bank.items():
+        indices = [all_texts.index(t) for t in phrases]
+        selected = DatasetScores(scores.paths, tuple(phrases), scores.scores[:, indices],
+                                 scores.text_mode, tuple(scores.rating_cache_hits[i] for i in indices), scores.runtime)
+        data = ratings.align(variable, selected)
+        metadata = {"variable": variable, "encoding": scores.runtime,
+                    "patches": patches, "ratings_path": str(ratings.path),
+                    "ratings_sha256": hashlib.sha256(ratings.path.read_bytes()).hexdigest(),
+                    "unmatched_faces": len(scores.paths) - len(data.paths),
+                    "feature_identity": pipeline.features(patches).cache_key}
+        _atomic_save_npz(output_dir / f"{variable}-features.npz", x=data.predicted_scores,
+                         y=data.human_means, counts=data.rater_counts,
+                         paths=np.asarray([str(p) for p in data.paths]), texts=np.asarray(data.texts),
+                         metadata=np.asarray(json.dumps(metadata)))
+    return scores.runtime
+
+
+def load_impression_features(path):
+    """Architecture-neutral exchange format: score matrix + aligned ratings."""
+    with np.load(path, allow_pickle=False) as data:
+        metadata = json.loads(str(data["metadata"]))
+        regression = RegressionDataset(metadata["variable"], tuple(Path(p) for p in data["paths"]),
+                                       tuple(data["texts"].tolist()), data["y"].copy(),
+                                       data["counts"].copy(), data["x"].copy())
+    return regression, metadata
+
+
+def audit_regression_dataset(data):
+    """Audit alignment and exact image duplication before face-level CV."""
+    if len(set(data.paths)) != len(data.paths):
+        raise ValueError("Duplicate image paths in aligned dataset.")
+    if data.predicted_scores.shape != (len(data.paths), len(data.texts)):
+        raise ValueError("Score matrix does not match image and phrase order.")
+    seen, duplicates = {}, []
+    for path in data.paths:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest in seen:
+            duplicates.append([seen[digest], path.name])
+        seen[digest] = path.name
+    return {"faces": len(data.paths), "exact_duplicate_image_pairs": duplicates,
+            "finite_scores": bool(np.isfinite(data.predicted_scores).all()),
+            "finite_targets": bool(np.isfinite(data.human_means).all()),
+            "rater_counts": {"min": int(data.rater_counts.min()),
+                             "median": float(np.median(data.rater_counts)),
+                             "max": int(data.rater_counts.max())}}
+
+
+def save_research_result(regression, result, metadata, directory, *, final_models=None):
+    """Export all OOF rows, fold assignments, search traces and portable fits."""
+    import csv
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    serializable = {k: v for k, v in result.items() if k not in ("predictions", "fold_ids")}
+    serializable["metadata"] = metadata
+    if final_models is not None:
+        serializable["final_models"] = final_models
+    (directory / "results.json").write_text(json.dumps(serializable, indent=2) + "\n")
+    with (directory / "oof_predictions.csv").open("w") as output:
+        writer = csv.writer(output)
+        writer.writerow(["face", "fold", "human_mean", "rater_count", *result["methods"]])
+        for i, path in enumerate(regression.paths):
+            writer.writerow([path.name, result["fold_ids"][i], regression.human_means[i],
+                             regression.rater_counts[i], *result["predictions"][i]])
+    with (directory / "metrics.csv").open("w") as output:
+        writer = csv.writer(output)
+        keys = list(next(iter(result["metrics"].values())))
+        writer.writerow(["method", *keys])
+        for method, metrics in result["metrics"].items():
+            writer.writerow([method, *(metrics[k] for k in keys)])
+
+
+def plot_research_results(records, directory):
+    """Publication-friendly PNG + vector SVG, without importing plots in the UI."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    directory = Path(directory)
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10,
+                         "axes.spines.top": False, "axes.spines.right": False,
+                         "figure.facecolor": "#fafbfe", "axes.facecolor": "#fafbfe",
+                         "axes.titleweight": "bold", "savefig.facecolor": "#fafbfe"})
+    colors = {"reference_linear": "#8b95a5", "reference_isotonic": "#536170",
+              "mean_ensemble": "#c6a15b", "best_single": "#b77ba8", "ridge": "#176bce",
+              "lasso": "#14a593", "evolved_ridge": "#ec7750"}
+    def save(fig, name):
+        fig.savefig(directory / f"{name}.png", dpi=180, bbox_inches="tight")
+        fig.savefig(directory / f"{name}.svg", bbox_inches="tight")
+        plt.close(fig)
+    columns = min(2, len(records))
+    rows = (len(records) + columns - 1) // columns
+    fig, axes = plt.subplots(rows, columns, figsize=(8 * columns, 4.7 * rows), squeeze=False)
+    for ax in axes.flat[len(records):]:
+        ax.set_visible(False)
+    for ax, (label, data, result) in zip(axes.flat, records):
+        methods = result["methods"]
+        for j, m in enumerate(methods):
+            ax.barh(j, result["metrics"][m]["r2"], color=colors[m], height=.64)
+            points = [v["r2"] for v in result["fold_metrics"][m]]
+            ax.scatter(points, np.full(len(points), j), s=10, color="#15253c", alpha=.4, zorder=3)
+            ax.text(1.015, j, f'{result["metrics"][m]["r2"]:.3f}', va="center", fontsize=9, clip_on=False)
+        ax.set(yticks=range(len(methods)), yticklabels=[METHOD_LABELS[m] for m in methods],
+               xlabel="Held-out R²  ·  dots = individual folds", title=label, xlim=(0, 1))
+        ax.invert_yaxis()
+    fig.suptitle("Do additional text directions improve subjective-rating prediction?", fontsize=17, fontweight="bold", y=1.02)
+    fig.tight_layout()
+    save(fig, "performance")
+    # Use the declared full ridge model, not the post-hoc winning method.
+    fig, axes = plt.subplots(len(records), 2, figsize=(10, 4 * len(records)), squeeze=False)
+    for row, (label, data, result) in enumerate(records):
+        y = data.human_means
+        comparison = result["predictions"][:, [result["methods"].index(m) for m in ("reference_linear", "ridge")]]
+        limits = (min(y.min(), comparison.min()) - .02, max(y.max(), comparison.max()) + .02)
+        for col, method in enumerate(("reference_linear", "ridge")):
+            ax = axes[row, col]
+            pred = result["predictions"][:, result["methods"].index(method)]
+            ax.hexbin(y, pred, gridsize=32, mincnt=1, cmap="Blues", linewidths=0)
+            ax.plot(limits, limits, "--", color="#ec7750", lw=1)
+            metrics = result["metrics"][method]
+            ax.set(xlabel="Mean subjective human rating", ylabel="Out-of-fold prediction", xlim=limits, ylim=limits,
+                   title=f'{label} · {METHOD_LABELS[method]}\nr = {metrics["pearson"]:.3f}   R² = {metrics["r2"]:.3f}   RMSE = {metrics["rmse"]:.3f}')
+    fig.tight_layout(h_pad=2)
+    save(fig, "predictions")
+    fig, axes = plt.subplots(len(records), 2, figsize=(12, 4.8 * len(records)), squeeze=False)
+    for row, (label, data, result) in enumerate(records):
+        ax = axes[row, 0]
+        corr = np.corrcoef(data.predicted_scores, rowvar=False)
+        im = ax.imshow(corr, cmap="RdBu_r", vmin=-1, vmax=1)
+        p = len(data.texts)
+        ax.set(title=f"{label} · score correlations", xticks=range(p), yticks=range(p),
+               xticklabels=range(1, p+1), yticklabels=range(1, p+1), xlabel="Phrase ID", ylabel="Phrase ID")
+        fig.colorbar(im, ax=ax, fraction=.045)
+        ax = axes[row, 1]
+        frequencies = np.zeros(len(data.texts))
+        for detail in result["fold_details"]:
+            frequencies[detail["models"]["evolved_ridge"]["columns"]] += 1
+        ax.barh(range(p), frequencies, color="#ec7750")
+        ax.set(yticks=range(p), yticklabels=[f"{i+1:02d}  {t}" for i, t in enumerate(data.texts)],
+               xlabel="Outer folds selecting phrase", title=f"{label} · evolutionary selection", xlim=(0, result["config"]["outer_folds"]))
+        ax.invert_yaxis()
+    fig.tight_layout(w_pad=3, h_pad=3)
+    save(fig, "feature_space")
+    fig, axes = plt.subplots(rows, columns, figsize=(6 * columns, 3.5 * rows), squeeze=False)
+    for ax in axes.flat[len(records):]:
+        ax.set_visible(False)
+    for ax, (label, data, result) in zip(axes.flat, records):
+        for detail in result["fold_details"]:
+            history = detail["evolution"]
+            values = np.asarray([h["inner_mse"] for h in history])
+            ax.plot(range(1, len(values)+1), 100 * (1-values/values[0]), alpha=.6, lw=1.6)
+        ax.set(title=label, xlabel="Generation", ylabel="Inner MSE reduction from generation 1 (%)")
+    fig.suptitle("Evolutionary optimization traces · training folds only", fontsize=15, y=1.02)
+    fig.tight_layout()
+    save(fig, "evolution")
+
+
+def write_research_report(records, directory):
+    """Generate the same report from any architecture's aligned score matrices."""
+    directory = Path(directory)
+    plot_research_results(records, directory)
+    lines = ["# FG-CLIP 2 prompt-space transfer of subjective face impressions", "",
+             "All numbers below predict the **mean participant slider rating**. The `asian` target is perceived Asian appearance; it is not verified ethnicity. `happy` is perceived expression, not a person's internal state.", "",
+             "## Design", "",
+             "Frozen image/text encoders; 16 fixed descriptions per impression, including the supplied reference as phrase 1. IDs 1–12 describe positive variants; 13–16 add contrasting or neutral directions. Prompt sets were written before viewing their correlations. Linear readouts operate on the 16 independent agreement logits; no softmax across phrases.", "",
+             "Ten shuffled outer folds produce exactly one held-out prediction for every face. Five inner folds tune ridge alpha, lasso alpha fraction, single-phrase choice and evolutionary subsets by mean squared error. Scaling and calibration are fitted separately within every training fold. Outer labels are unavailable to search. Full CV here means all folds/all faces, not leave-one-out CV or exact population accuracy. The same outer splits are used for every method and architecture.", "",
+             "Evolution starts with the reference-only and all-phrase subsets plus random subsets; each generation retains elites and creates crossover/bit-flip mutations. Phrase 1 is always retained. Subset and ridge alpha are selected jointly. This is a budgeted search, not exhaustive subset enumeration. The isotonic reference control tests whether nonlinear calibration of one phrase accounts for ensemble gains. The fixed signed mean control averages training-standardized scores, with signs +1 for IDs 1–12 and −1 for 13–16.", "",
+             "## Held-out performance", "", "![Performance](performance.png)", "",
+             "| Architecture / impression | Method | Pearson r | Spearman ρ | R² | RMSE | MAE |", "|---|---|---:|---:|---:|---:|---:|"]
+    for label, data, result in records:
+        for method, m in result["metrics"].items():
+            lines.append(f'| {label} | {METHOD_LABELS[method]} | {m["pearson"]:.4f} | {m["spearman"]:.4f} | {m["r2"]:.4f} | {m["rmse"]:.4f} | {m["mae"]:.4f} |')
+    lines += ["", "## Added value of the full ridge ensemble", "",
+              "Intervals are 95% paired face-bootstrap intervals of the fixed out-of-fold predictions. They condition on these fitted folds; they do not include variation from refitting/search, participant clustering or related generated identities. Treat them as descriptive uncertainty, not definitive significance tests.", ""]
+    for label, data, result in records:
+        base, ridge = result["metrics"]["reference_linear"], result["metrics"]["ridge"]
+        ci = result["bootstrap_vs_reference"]["ridge"]
+        iso = result["bootstrap_vs_isotonic"]["ridge"]["rmse_reduction"]
+        lines.append(f'- **{label}:** raw reference r={result["raw_reference_pearson"]:.4f}; OOF r {base["pearson"]:.4f} → {ridge["pearson"]:.4f}; ΔR²={ridge["r2"]-base["r2"]:+.4f} (CI {ci["delta_r2"][0]:+.4f}, {ci["delta_r2"][1]:+.4f}); RMSE reduction {100*(1-ridge["rmse"]/base["rmse"]):.1f}%. Ridge versus isotonic-reference RMSE reduction CI: [{iso[0]:+.4f}, {iso[1]:+.4f}] slider units. Full seven-method nested CV: {result["cv_seconds"]:.2f} s, excluding encoding/bootstrap/final refit.')
+        evolved = result["metrics"]["evolved_ridge"]
+        ci_evolved = result["evolved_vs_ridge"]["delta_r2"]
+        sizes = [len(d["models"]["evolved_ridge"]["columns"]) for d in result["fold_details"]]
+        lines.append(f'  Evolution versus full ridge: ΔR²={evolved["r2"]-ridge["r2"]:+.4f} (CI {ci_evolved[0]:+.4f}, {ci_evolved[1]:+.4f}); selected subsets contain {min(sizes)}–{max(sizes)} phrases (median {np.median(sizes):.0f}).')
+    lines += ["", "![Predictions](predictions.png)", "", "## Prompt geometry and selection", "",
+              "A ridge readout is a learned direction in the span of the text embeddings: ŷ = b + Σ wⱼ score(image, textⱼ). Thus multiple prompts learn an impression direction while keeping the vision encoder frozen. Highly correlated prompts can still supply useful residual directions; individual regression weights are not causal or unique feature importance.", "", "![Feature space](feature_space.png)", "", "![Evolution](evolution.png)", "",
+              "## Dataset and reproducibility", ""]
+    for label, data, result in records:
+        z, _, _ = _scale_training(data.predicted_scores)
+        eigenvalues = np.linalg.eigvalsh(z.T @ z / len(z))
+        effective_rank = eigenvalues.sum() ** 2 / np.sum(eigenvalues ** 2)
+        lines.append(f'- **{label}:** n={len(data.paths)}; ratings per face min/median/max={data.rater_counts.min()}/{np.median(data.rater_counts):.0f}/{data.rater_counts.max()}; target range={data.human_means.min():.4f}–{data.human_means.max():.4f}; score-space participation rank={effective_rank:.2f}/16 (descriptive full-data statistic).')
+    config = records[0][2]["config"]
+    lines += ["", f'Primary seed: {config["seed"]}. Ridge uses {len(config["ridge_alphas"])} log-spaced alphas from {min(config["ridge_alphas"]):g} to {max(config["ridge_alphas"]):g}. Lasso uses {len(config["lasso_fractions"])} log-spaced fractions from {min(config["lasso_fractions"]):g} to {max(config["lasso_fractions"]):g} of each training fold’s alpha_max. Evolution: {config["population"]} population, {config["elite"]} elites, {config["generations"]} generations, independent fold seeds; {config["bootstrap_samples"]:,} paired bootstrap draws. All regression arithmetic uses float64, including full-data tuning/refits.', ""]
+    notes = directory / "experiment_notes.json"
+    if notes.exists():
+        for note in json.loads(notes.read_text())["notes"]:
+            lines.extend([note, ""])
+    lines += ["", "The feature NPZ files contain face order, raw score columns, means, counts, exact prompts, model/revision/device/dtype, patch budget, feature-cache identity and ratings-file SHA-256. Per-impression folders contain every held-out prediction, fold assignments, exact metrics, fitted fold models, evolutionary traces and full-data final models. Final models are for subsequent prediction; reported accuracy never uses those all-data fits. Code and library versions are recorded in `run_manifest.json`.", "",
+              "## Interpretation and limits", "",
+              "Compare evolutionary subsets with full ridge, not only with the one-phrase baseline: a prompt ensemble can help even when subset evolution does not. Inspect the per-fold selection plot for instability. Search improvements within training folds are not evidence of improved generalization by themselves.", "",
+              "These are exploratory, face-level estimates on this generated-face distribution and participant sample. The user's reference phrases had already been explored on this dataset, so the whole project is not a pristine confirmatory test. No architecture winner or new phrase was fed back into this run based on outer performance. The report displays all prespecified approaches; choosing the best now needs a fresh test set for confirmation.", "",
+              "Participant IDs and latent/identity groupings are absent from the rating mapping, so folds group by face only. Related images or latent traversals require supplying group IDs; the API supports grouped outer and inner CV. These experiments do not establish generalization to real photographs, different raters, or different cultures. No reliability ceiling is estimated from anonymous rating lists. Linear outputs are intentionally not clipped to the slider bounds; isotonic predictions use bounded interpolation.", "",
+              "## Reuse", "", "```python", "from CLIP.fgclip2_face_impressions import (", "    CVConfig, load_impression_features, evaluate_impression,", "    fit_impression_readouts, predict_score_model, IMPRESSION_DIRECTIONS,", ")", "data, metadata = load_impression_features('asian-features.npz')", "directions = IMPRESSION_DIRECTIONS[data.variable]", "result = evaluate_impression(data, CVConfig(), directions=directions)", "models, trace = fit_impression_readouts(", "    data.predicted_scores, data.human_means, CVConfig(), directions=directions)", "# new_scores must use the same encoder, head, patches and phrase order", "predicted_means = predict_score_model(models['ridge'], new_scores)", "```", "",
+              "`cross_validate_predictor` is the compact generic full-CV entry point for new prediction approaches. `InnerCVSearch`, `fit_score_model`, `evaluate_impression`, feature extraction, artifact export, plotting and report generation are independent reusable functions in `fgclip2_face_impressions.py`. Supply another `RegressionDataset` or compatible NPZ to compare other frozen architectures.", "",
+              "## Method references", "", "- [FG-CLIP official repository](https://github.com/360CVGroup/FG-CLIP)", "- [scikit-learn: nested versus non-nested CV](https://scikit-learn.org/stable/auto_examples/model_selection/plot_nested_cross_validation_iris.html)", ""]
+    (directory / "report.md").write_text("\n".join(lines))
+    # Self-contained shareable HTML using the same source and embedded figures.
+    import base64
+    import markdown
+    html = markdown.markdown("\n".join(lines), extensions=["tables", "fenced_code"])
+    for name in ("performance", "predictions", "feature_space", "evolution"):
+        encoded = base64.b64encode((directory / f"{name}.png").read_bytes()).decode()
+        html = html.replace(f'src="{name}.png"', f'src="data:image/png;base64,{encoded}"')
+    (directory / "report.html").write_text('<!doctype html><meta charset="utf-8"><title>FG-CLIP impression research</title><style>body{max-width:1400px;margin:40px auto;padding:0 32px;font:16px/1.6 system-ui;color:#18304b;background:#fafbfe}h1,h2{line-height:1.2}img{max-width:100%}table{border-collapse:collapse;font-size:13px;width:100%}th,td{padding:7px;border-bottom:1px solid #dce3ed;text-align:left}pre{padding:20px;background:#edf1f7;overflow:auto}a{color:#176bce}</style>' + html)
+
+
+def research_main():
+    import argparse
+    import gc
+    import platform
+    from .fgclip2_core import BASE_MODEL_ID, DEFAULT_MODEL_ID
+
+    parser = argparse.ArgumentParser(description="Frozen FG-CLIP prompt ensemble research; no UI required.")
+    parser.add_argument("stage", choices=("encode", "evaluate", "report", "discover", "expand-encode", "compare", "iteration-report", "trust-encode", "trust-explore", "trust-evaluate", "trust-report", "trust-predict", "trust-validate"))
+    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parent / "research" / "impression_ensembles")
+    parser.add_argument("--images", type=Path, default=Path("/Users/adamsobieszek/PycharmProjects/psychGAN/omi/images"))
+    parser.add_argument("--ratings", type=Path, default=Path(__file__).resolve().parents[1] / "data" / "dim_to_photo_to_ratings.pkl")
+    parser.add_argument("--models", nargs="+", choices=("base", "so400m"), default=["base"])
+    parser.add_argument("--seed", type=int, default=20260908)
+    parser.add_argument("--patches", type=int, default=128)
+    parser.add_argument("--memory-reserve-gb", type=float, default=1.25)
+    parser.add_argument("--bundle", type=Path, help="Frozen trustworthiness model bundle for trust-predict.")
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    config = CVConfig(seed=args.seed)
+    if args.stage.startswith('trust-'):
+        trustworthiness_stage(args)
+        return
+    if args.stage in {"discover", "expand-encode", "compare", "iteration-report"}:
+        run_prompt_iteration_stage(args, config)
+        return
+    if args.stage == "encode":
+        for name in args.models:
+            print(f"Loading {name} on MPS", flush=True)
+            engine = FGCLIP2(BASE_MODEL_ID if name == "base" else DEFAULT_MODEL_ID,
+                            device="mps", local_files_only=True,
+                            memory_reserve_gb=args.memory_reserve_gb)
+            pipeline = FaceImpressionPipeline(engine, FaceDatasetConfig(args.images, limit=None))
+            runtime = extract_impression_features(pipeline, HumanRatingsStore(args.ratings), IMPRESSION_PROMPTS,
+                                                   args.output / name, patches=args.patches)
+            print(json.dumps(runtime), flush=True)
+            del pipeline, engine
+            gc.collect()
+            torch.mps.empty_cache()
+        return
+    records = []
+    from threadpoolctl import threadpool_limits
+    # Small 16x16 systems are faster without a large BLAS thread pool.
+    with threadpool_limits(limits=1):
+        for name in args.models:
+            for variable in IMPRESSION_PROMPTS:
+                data, metadata = load_impression_features(args.output / name / f"{variable}-features.npz")
+                directory = args.output / name / variable
+                if args.stage == "evaluate":
+                    metadata["audit"] = audit_regression_dataset(data)
+                    if metadata["audit"]["exact_duplicate_image_pairs"]:
+                        raise ValueError("Exact duplicate faces found; supply groups through the Python API.")
+                    print(f"Nested CV: {name}/{variable}, n={len(data.paths)}", flush=True)
+                    result = evaluate_impression(data, config, directions=IMPRESSION_DIRECTIONS[variable])
+                    models, _ = fit_impression_readouts(data.predicted_scores, data.human_means, config,
+                                                        directions=IMPRESSION_DIRECTIONS[variable])
+                    save_research_result(data, result, metadata, directory, final_models=models)
+                    print(json.dumps({"cv_seconds": result["cv_seconds"], "metrics": result["metrics"]}), flush=True)
+                else:
+                    result = json.loads((directory / "results.json").read_text())
+                    import csv
+                    rows = list(csv.DictReader((directory / "oof_predictions.csv").open()))
+                    result["predictions"] = np.asarray([[float(row[m]) for m in result["methods"]] for row in rows])
+                    result["fold_ids"] = np.asarray([int(row["fold"]) for row in rows])
+                records.append((f"{name.upper()} / {variable}", data, result))
+    if args.stage == "evaluate":
+        import sklearn, scipy
+        manifest = {"python": platform.python_version(), "numpy": np.__version__, "torch": torch.__version__,
+                    "sklearn": sklearn.__version__, "scipy": scipy.__version__, "config": asdict(config),
+                    "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                    "command": __import__("sys").argv, "created_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
+        (args.output / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    write_research_report(records, args.output)
+    print(f"Report: {args.output / 'report.html'}", flush=True)
+
+
+__all__ += ["CVConfig", "IMPRESSION_PROMPTS", "IMPRESSION_DIRECTIONS", "InnerCVSearch",
+            "cross_validate_predictor", "make_cv_splits", "regression_metrics",
+            "fit_score_model", "predict_score_model", "fit_impression_readouts",
+            "evaluate_impression", "paired_prediction_bootstrap", "extract_impression_features",
+            "load_impression_features", "audit_regression_dataset", "save_research_result", "plot_research_results", "write_research_report"]
+
+
+def slice_regression(data, indices, columns=None):
+    """Preserve face/text order when forming discovery or validation subsets."""
+    indices = np.asarray(indices, dtype=int)
+    columns = np.arange(len(data.texts)) if columns is None else np.asarray(columns, dtype=int)
+    return RegressionDataset(data.variable, tuple(data.paths[i] for i in indices),
+                             tuple(data.texts[j] for j in columns), data.human_means[indices],
+                             data.rater_counts[indices], data.predicted_scores[np.ix_(indices, columns)])
+
+
+def phrase_contributions(data, config=CVConfig()):
+    """Retuned drop-one CV contribution, single-phrase fit and add-to-reference.
+
+    Positive drop_delta_r2 means the phrase helps conditional on the remaining
+    bank. Retraining and alpha retuning let correlated alternatives substitute;
+    this is predictive utility, not causal importance. Call on discovery faces
+    ONLY if the results will guide wording evaluated on a separate set.
+    """
+    x, y = np.asarray(data.predicted_scores, dtype=float), data.human_means
+    p = x.shape[1]
+    details = []
+    def fit_predict(train_x, train_y, test_x, fold):
+        search = InnerCVSearch(train_x, train_y, config, config.seed + 1009 * (fold+1))
+        selections = [tuple(range(p))] + [tuple(k for k in range(p) if k != j) for j in range(p)]
+        selections += [tuple(sorted({0, j})) for j in range(p)]
+        predictions = []
+        for columns in selections:
+            _, alpha = search.ridge(columns)
+            model = fit_score_model(train_x, train_y, 'ridge', columns, alpha)
+            predictions.append(predict_score_model(model, test_x))
+        for j in range(p):
+            model = fit_score_model(train_x, train_y, 'linear', [j])
+            predictions.append(predict_score_model(model, test_x))
+        details.append({'fold': fold, 'full_ridge_alpha': search.ridge(tuple(range(p)))[1]})
+        return np.column_stack(predictions)
+    predictions, folds = cross_validate_predictor(x, y, fit_predict, folds=config.outer_folds, seed=config.seed)
+    full = regression_metrics(y, predictions[:, 0])
+    reference = regression_metrics(y, predictions[:, 1+p])
+    records = []
+    for j, phrase in enumerate(data.texts):
+        drop = regression_metrics(y, predictions[:, 1+j])
+        alone = regression_metrics(y, predictions[:, 1+2*p+j])
+        added = regression_metrics(y, predictions[:, 1+p+j])
+        # Sign convention is improvement from putting the dropped phrase back.
+        ci = paired_prediction_bootstrap(y, predictions[:, 1+j], predictions[:, 0],
+                                        samples=config.bootstrap_samples, seed=config.seed)
+        records.append({'id': j+1, 'phrase': phrase, 'drop_delta_r2': full['r2']-drop['r2'],
+                        'drop_delta_r2_ci': ci['delta_r2'], 'single_r': alone['pearson'],
+                        'single_r2': alone['r2'], 'added_to_reference_delta_r2': added['r2']-reference['r2']})
+    return {'full_metrics': full, 'rows': records, 'folds': folds.tolist(), 'n': len(y),
+            'face_names': [p.name for p in data.paths], 'config': asdict(config)}
+
+
+def development_protocol(paths, *, development_size=400, seed=20260909):
+    """Freeze a label-independent set for adaptive wording; remainder is evaluation."""
+    if not 2 <= development_size < len(paths)-10:
+        raise ValueError('Development split leaves too few evaluation faces.')
+    order = np.random.default_rng(seed).permutation(len(paths))
+    development = sorted(order[:development_size].tolist())
+    evaluation = sorted(order[development_size:].tolist())
+    return {'seed': seed, 'development_indices': development, 'evaluation_indices': evaluation,
+            'face_names': [p.name for p in paths],
+            'primary': 'CV on evaluation faces; development faces always available for training',
+            'secondary': 'Full-dataset CV is exploratory because wording used development labels',
+            'previous_exposure': 'All faces appeared in the preceding Base experiment; this is not an untouched external test.'}
+
+
+def anchored_cv_splits(n, development, evaluation, *, folds=10, seed=20260908):
+    """Indices into the full dataset; evaluate each non-development face once."""
+    development, evaluation = np.asarray(development, dtype=int), np.asarray(evaluation, dtype=int)
+    if len(np.unique(np.r_[development, evaluation])) != n or set(np.r_[development, evaluation]) != set(range(n)):
+        raise ValueError('Development and evaluation must be disjoint and cover all faces.')
+    return [(np.r_[development, evaluation[train]], evaluation[test])
+            for train, test in make_cv_splits(len(evaluation), folds, seed)]
+
+
+def compare_prompt_spaces(data, spaces, config=CVConfig(), *, protocol=None):
+    """Matched folds for original, exploitative and exploratory prompt banks.
+
+    With protocol, development faces are used in each outer training set but
+    never scored. All tuning/elitism sees only that fold's training labels.
+    Without protocol, ordinary all-face nested CV is descriptive after adaptation.
+    """
+    x, y = np.asarray(data.predicted_scores, dtype=float), np.asarray(data.human_means, dtype=float)
+    if 'original16' not in spaces:
+        raise ValueError('Provide the original16 parent bank for matched comparisons.')
+    parent = list(spaces['original16'])
+    for bank, columns in spaces.items():
+        if not columns or len(set(columns)) != len(columns) or min(columns) < 0 or max(columns) >= x.shape[1]:
+            raise ValueError(f'Invalid columns for {bank}.')
+        if list(columns[:len(parent)]) != parent:
+            raise ValueError('Every expanded bank must start with the same original columns.')
+    if protocol is None:
+        splits = make_cv_splits(len(y), config.outer_folds, config.seed)
+        evaluated = np.arange(len(y))
+    else:
+        if protocol['face_names'] != [p.name for p in data.paths]:
+            raise ValueError('Protocol face order differs from the score matrix.')
+        splits = anchored_cv_splits(len(y), protocol['development_indices'], protocol['evaluation_indices'],
+                                   folds=config.outer_folds, seed=config.seed)
+        evaluated = np.asarray(protocol['evaluation_indices'])
+    methods = ['reference_linear', 'reference_isotonic'] + [f'{bank}/{kind}' for bank in spaces for kind in ('ridge','lasso','evolved_ridge')]
+    predictions = np.full((len(y), len(methods)), np.nan)
+    fold_ids = np.full(len(y), -1, dtype=int)
+    details, start = [], time.perf_counter()
+    for fold, (train, test) in enumerate(splits):
+        fold_models, histories = {}, {}
+        for method, kind in [('reference_linear','linear'), ('reference_isotonic','isotonic')]:
+            model = fit_score_model(x[train], y[train], kind, [0])
+            predictions[test, methods.index(method)] = predict_score_model(model, x[test])
+            fold_models[method] = model
+        for bank, columns in spaces.items():
+            xx = x[:, columns]
+            search = InnerCVSearch(xx[train], y[train], config, config.seed+1009*(fold+1))
+            _, alpha = search.ridge(tuple(range(len(columns))))
+            _, fraction = search.lasso()
+            subset, evolved_alpha, trace = search.evolve(config.seed+1009*(fold+1),
+                                                        initial_subsets=[tuple(range(len(parent)))])
+            for kind, selected, parameter in [('ridge',None,alpha),('lasso',None,fraction),('evolved_ridge',subset,evolved_alpha)]:
+                model = fit_score_model(xx[train], y[train], 'ridge' if kind=='evolved_ridge' else kind, selected, parameter)
+                # Convert local bank columns back to global phrase IDs for reuse.
+                model['columns'] = [columns[j] for j in model['columns']]
+                method = f'{bank}/{kind}'
+                predictions[test, methods.index(method)] = predict_score_model(model,x[test])
+                fold_models[method] = model
+            histories[bank] = trace
+        details.append({'fold':fold, 'models':fold_models, 'evolution':histories})
+        fold_ids[test] = fold
+    cv_seconds = time.perf_counter()-start
+    if not np.isfinite(predictions[evaluated]).all() or np.any(fold_ids[evaluated]<0):
+        raise RuntimeError('Incomplete outer validation predictions.')
+    metrics = {m:regression_metrics(y[evaluated],predictions[evaluated,j]) for j,m in enumerate(methods)}
+    intervals = {}
+    for bank in spaces:
+        if bank == 'original16': continue
+        for kind in ('ridge','lasso','evolved_ridge'):
+            method, base = f'{bank}/{kind}', f'original16/{kind}'
+            intervals[method] = paired_prediction_bootstrap(y[evaluated],predictions[evaluated,methods.index(base)],
+                                                            predictions[evaluated,methods.index(method)],
+                                                            samples=config.bootstrap_samples,seed=config.seed)
+    direct = {}
+    if 'similar32' in spaces and 'exploratory32' in spaces:
+        direct = paired_prediction_bootstrap(
+            y[evaluated],predictions[evaluated,methods.index('similar32/ridge')],
+            predictions[evaluated,methods.index('exploratory32/ridge')],
+            samples=config.bootstrap_samples,seed=config.seed)
+    return {'n':len(evaluated), 'methods':methods, 'metrics':metrics,'delta_ci_vs_original':intervals,
+            'exploratory_vs_similar_ridge_ci':direct,
+            'predictions':predictions[evaluated], 'fold_ids':fold_ids[evaluated],
+            'evaluated_indices':evaluated.tolist(), 'fold_details':details, 'cv_seconds':cv_seconds,
+            'config':asdict(config), 'spaces':{k:list(v) for k,v in spaces.items()},
+            'fold_metrics':{m:[regression_metrics(y[test],predictions[test,j]) for _,test in splits]
+                            for j,m in enumerate(methods)}}
+
+
+def run_prompt_iteration_stage(args, config):
+    from threadpoolctl import threadpool_limits
+    root = args.output
+    if args.stage == 'discover':
+        first, _ = load_impression_features(root/'so400m'/'asian-features.npz')
+        protocol_path = root/'adaptation_protocol.json'
+        protocol = development_protocol(first.paths)
+        if protocol_path.exists() and json.loads(protocol_path.read_text()) != protocol:
+            raise ValueError('Refusing to replace a different frozen discovery split.')
+        protocol_path.write_text(json.dumps(protocol,indent=2)+'\n')
+        with threadpool_limits(limits=1):
+            for variable in IMPRESSION_PROMPTS:
+                data, _ = load_impression_features(root/'so400m'/f'{variable}-features.npz')
+                if [p.name for p in data.paths] != protocol['face_names']:
+                    raise ValueError('Attributes have different face orders.')
+                discovery = slice_regression(data,protocol['development_indices'])
+                importance = phrase_contributions(discovery,config)
+                (root/f'{variable}-discovery.json').write_text(json.dumps(importance,indent=2)+'\n')
+                print(variable, 'discovery n=',importance['n'],flush=True)
+                for row in sorted(importance['rows'],key=lambda r:r['drop_delta_r2'],reverse=True):
+                    print(json.dumps(row),flush=True)
+        return
+    if args.stage == 'expand-encode':
+        bank_path = root/'expansion_prompts.json'
+        banks = json.loads(bank_path.read_text())
+        prompt_bank = {v:IMPRESSION_PROMPTS[v]+tuple(banks[v]['similar'])+tuple(banks[v]['exploratory']) for v in IMPRESSION_PROMPTS}
+        for variable, texts in prompt_bank.items():
+            if len(texts)!=48 or len(set(texts))!=48:
+                raise ValueError(f'{variable}: expected 48 distinct phrases (16+16+16).')
+        engine = FGCLIP2(device='mps',dtype=torch.float16,local_files_only=True,
+                        memory_reserve_gb=args.memory_reserve_gb)
+        pipeline = FaceImpressionPipeline(engine,FaceDatasetConfig(args.images,limit=None))
+        runtime = extract_impression_features(pipeline,HumanRatingsStore(args.ratings),prompt_bank,
+                                               root/'expanded',text_mode='short',patches=args.patches)
+        print(json.dumps(runtime),flush=True)
+        return
+    if args.stage == 'compare':
+        run_expansion_comparison(args,config)
+    if args.stage == 'iteration-report':
+        regenerate_expansion_report(root)
+
+
+__all__ += ['slice_regression','phrase_contributions','development_protocol','anchored_cv_splits','compare_prompt_spaces']
+
+
+def prompt_space_geometry(x, spaces):
+    """Label-free descriptive novelty relative to the original phrase span."""
+    original, _, _ = _scale_training(x[:, spaces['original16']])
+    values = {}
+    for bank, columns in spaces.items():
+        z, _, _ = _scale_training(x[:, columns])
+        eigenvalues = np.maximum(np.linalg.eigvalsh(z.T@z/len(z)),0)
+        row = {'participation_rank':float(eigenvalues.sum()**2/np.sum(eigenvalues**2))}
+        if bank!='original16':
+            new = z[:,16:]
+            residual = new-original@np.linalg.lstsq(original,new,rcond=None)[0]
+            row['new_residual_variance_fraction'] = np.mean(residual**2,axis=0).tolist()
+            row['median_new_residual_variance_fraction'] = float(np.median(np.mean(residual**2,axis=0)))
+        values[bank] = row
+    return values
+
+
+def save_expansion_result(data,result,directory):
+    import csv
+    directory=Path(directory)
+    directory.mkdir(parents=True,exist_ok=True)
+    clean={k:v for k,v in result.items() if k not in ('predictions','fold_ids')}
+    (directory/'results.json').write_text(json.dumps(clean,indent=2)+'\n')
+    with (directory/'oof_predictions.csv').open('w') as f:
+        writer=csv.writer(f)
+        writer.writerow(['face','fold','human_mean','rater_count',*result['methods']])
+        for row,index in enumerate(result['evaluated_indices']):
+            writer.writerow([data.paths[index].name,result['fold_ids'][row],data.human_means[index],
+                             data.rater_counts[index],*result['predictions'][row]])
+
+
+def plot_expansion_report(records,root):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'axes.spines.top':False,
+                         'axes.spines.right':False,'axes.titleweight':'bold','figure.facecolor':'#fafbfe',
+                         'axes.facecolor':'#fafbfe','savefig.facecolor':'#fafbfe'})
+    colors={'original16':'#738398','similar32':'#176bce','exploratory32':'#e88935'}
+    labels={'original16':'Original 16','similar32':'Original + similar 16','exploratory32':'Original + exploratory 16'}
+    def save(fig,name):
+        fig.savefig(root/f'{name}.png',dpi=190,bbox_inches='tight')
+        fig.savefig(root/f'{name}.svg',bbox_inches='tight')
+        plt.close(fig)
+    fig,axes=plt.subplots(1,len(records),figsize=(6*len(records),4.3),squeeze=False)
+    for ax,(variable,data,primary,secondary,importance,geometry) in zip(axes[0],records):
+        banks=list(colors)
+        for j,bank in enumerate(banks):
+            for k,kind in enumerate(('ridge','lasso','evolved_ridge')):
+                method=f'{bank}/{kind}'
+                value=primary['metrics'][method]['r2']
+                ax.bar(j+(k-1)*.24,value,width=.22,color=colors[bank],alpha=(1,.65,.35)[k],
+                       hatch=('','//','..')[k],edgecolor='white')
+                ax.text(j+(k-1)*.24,value+.0015,f'{value:.3f}',ha='center',fontsize=8)
+        low=min(m['r2'] for key,m in primary['metrics'].items() if '/' in key)-.015
+        high=max(m['r2'] for key,m in primary['metrics'].items() if '/' in key)+.02
+        ax.set(xticks=range(3),xticklabels=['Original 16','+ similar 16','+ exploratory 16'],
+               ylabel='Held-out R² (axis expanded)',ylim=(low,high),title=f'{variable} · 604 evaluation faces')
+    from matplotlib.patches import Patch
+    fig.legend(handles=[Patch(facecolor='#738398',alpha=a,hatch=h,label=l) for a,h,l in
+                        [(1,'','Ridge'),(.65,'//','Lasso'),(.35,'..','Evolved ridge')]],
+               loc='upper center',ncol=3,bbox_to_anchor=(.5,1.06),frameon=False)
+    fig.tight_layout()
+    save(fig,'expansion_performance')
+    fig,axes=plt.subplots(1,len(records),figsize=(6*len(records),3.8),squeeze=False)
+    from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+    for ax,(variable,data,primary,secondary,importance,geometry) in zip(axes[0],records):
+        for j,bank in enumerate(('similar32','exploratory32')):
+            m=f'{bank}/ridge'
+            delta=primary['metrics'][m]['r2']-primary['metrics']['original16/ridge']['r2']
+            lo,hi=primary['delta_ci_vs_original'][m]['delta_r2']
+            ax.plot([lo,hi],[j,j],color=colors[bank],lw=3)
+            ax.scatter([delta],[j],color=colors[bank],s=70,zorder=3)
+            ax.text(hi+.0002,j,f'{delta:+.4f}',va='center',fontsize=9)
+        ax.axvline(0,color='#536170',ls='--',lw=1)
+        ax.set(yticks=[0,1],yticklabels=['Similar expansion','Exploratory expansion'],
+               xlabel='ΔR² versus original 16 · paired 95% interval',title=variable,ylim=(-.5,1.5))
+        ax.invert_yaxis()
+        ax.margins(x=.35)
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+        ax.xaxis.set_major_formatter(StrMethodFormatter('{x:.3f}'))
+    fig.tight_layout()
+    save(fig,'incremental_gain')
+    fig,axes=plt.subplots(1,len(records),figsize=(8*len(records),6.6),squeeze=False)
+    for ax,(variable,data,primary,secondary,importance,geometry) in zip(axes[0],records):
+        ranked=sorted(importance['rows'],key=lambda row:row['drop_delta_r2'],reverse=True)
+        for j,row in enumerate(ranked):
+            lo,hi=row['drop_delta_r2_ci']
+            ax.plot([lo,hi],[j,j],color='#b5c5d8',lw=2)
+            ax.scatter([row['drop_delta_r2']],[j],color='#176bce' if j<4 else '#738398',s=25,zorder=3)
+        ax.axvline(0,color='#536170',lw=1,ls='--')
+        ax.set(yticks=range(len(ranked)),yticklabels=[f'{r["id"]:02d}  {r["phrase"]}' for r in ranked],
+               title=f'{variable} · development faces only',xlabel='R² lost after dropping phrase and retuning ridge')
+        ax.invert_yaxis()
+    fig.tight_layout(w_pad=3)
+    save(fig,'phrase_contributions')
+    fig,axes=plt.subplots(1,len(records),figsize=(6*len(records),4),squeeze=False)
+    for ax,(variable,data,primary,secondary,importance,geometry) in zip(axes[0],records):
+        for j,bank in enumerate(('similar32','exploratory32')):
+            values=geometry[bank]['new_residual_variance_fraction']
+            ax.scatter(np.linspace(j-.13,j+.13,len(values)),values,color=colors[bank],s=28,alpha=.65)
+            ax.plot([j-.2,j+.2],[np.median(values)]*2,color=colors[bank],lw=3)
+        ax.set(xticks=[0,1],xticklabels=['Similar expansion','Exploratory expansion'],
+               ylabel='Fraction of new-score variance outside original span',title=f'{variable} · geometric novelty',ylim=(0,1))
+    fig.tight_layout()
+    save(fig,'prompt_novelty')
+    fig,axes=plt.subplots(len(records),3,figsize=(13,4*len(records)),squeeze=False)
+    for row,(variable,data,primary,secondary,importance,geometry) in enumerate(records):
+        y=data.human_means[primary['evaluated_indices']]
+        preds=[primary['predictions'][:,primary['methods'].index(f'{b}/ridge')] for b in colors]
+        limits=(min(y.min(),min(p.min() for p in preds))-.02,max(y.max(),max(p.max() for p in preds))+.02)
+        for ax,bank,pred in zip(axes[row],colors,preds):
+            ax.hexbin(y,pred,gridsize=28,mincnt=1,cmap='Blues',linewidths=0)
+            ax.plot(limits,limits,'--',color='#e88935',lw=1)
+            m=primary['metrics'][f'{bank}/ridge']
+            ax.set(xlabel='Mean participant rating',ylabel='Held-out prediction',xlim=limits,ylim=limits,
+                   title=f'{variable} · {labels[bank]}\nr={m["pearson"]:.3f}, R²={m["r2"]:.3f}')
+    fig.tight_layout(h_pad=2)
+    save(fig,'expanded_predictions')
+    fig,axes=plt.subplots(len(records),3,figsize=(13,3.3*len(records)),squeeze=False)
+    for row,(variable,data,primary,secondary,importance,geometry) in enumerate(records):
+        for ax,bank in zip(axes[row],colors):
+            for detail in primary['fold_details']:
+                values=np.asarray([v['inner_mse'] for v in detail['evolution'][bank]])
+                ax.plot(np.arange(len(values))+1,100*(1-values/values[0]),color=colors[bank],alpha=.4)
+            ax.set(title=f'{variable} · {labels[bank]}',xlabel='Generation',ylabel='Inner MSE reduction (%)')
+    fig.suptitle('Evolution within training folds · relative to generation 1',fontsize=14,y=1.02)
+    fig.tight_layout(h_pad=2)
+    save(fig,'expansion_evolution')
+
+
+def write_expansion_report(records,root,protocol,banks):
+    import base64
+    import markdown
+    plot_expansion_report(records,root)
+    lines=['# So400m: exploitative versus exploratory prompt expansion','',
+           'Frozen FG-CLIP 2 So400m, float16 on MPS, short text head, 128 image patches; 1,004 generated faces. Targets are mean subjective participant ratings of perceived Asian appearance and happiness. The experiment does not estimate objective ethnicity or internal emotional state.','',
+           '## Result','',
+           '| Attribute | Phrase space | Ridge r | Ridge R² | RMSE | ΔR² vs original | 95% paired interval |',
+           '|---|---|---:|---:|---:|---:|---|']
+    for variable,data,primary,secondary,importance,geometry in records:
+        base=primary['metrics']['original16/ridge']
+        for bank in primary['spaces']:
+            m=primary['metrics'][f'{bank}/ridge']
+            interval=primary['delta_ci_vs_original'].get(f'{bank}/ridge',{}).get('delta_r2')
+            ci='—' if interval is None else f'[{interval[0]:+.4f}, {interval[1]:+.4f}]'
+            lines.append(f'| {variable} | {bank} | {m["pearson"]:.4f} | {m["r2"]:.4f} | {m["rmse"]:.4f} | {m["r2"]-base["r2"]:+.4f} | {ci} |')
+    lines += ['']
+    for variable,data,primary,secondary,importance,geometry in records:
+        original=primary['metrics']['original16/ridge']
+        similar=primary['metrics']['similar32/ridge']
+        exploratory=primary['metrics']['exploratory32/ridge']
+        lo,hi=primary['exploratory_vs_similar_ridge_ci']['delta_r2']
+        conclusion=('The direct interval favors the similar bank.' if hi<0 else
+                    'The direct interval favors the exploratory bank.' if lo>0 else
+                    'The direct interval does not resolve a difference between the two expansions.')
+        lines += [f'**{variable}:** similar phrases reduce RMSE by {100*(1-similar["rmse"]/original["rmse"]):.1f}%; exploratory phrases by {100*(1-exploratory["rmse"]/original["rmse"]):.1f}%. The direct exploratory-minus-similar ΔR² is {exploratory["r2"]-similar["r2"]:+.4f}, with interval [{lo:+.4f}, {hi:+.4f}]. {conclusion}', '']
+    lines+=['','Primary results use **604 evaluation faces**, each predicted once in outer CV. The 400 development faces used to choose parent phrases are included in training but excluded from these metrics. All three banks have identical train/test faces. Intervals resample paired fixed OOF predictions; they omit refit uncertainty, participant clustering and uncertainty in the phrase-development procedure. They are descriptive, unadjusted for multiple comparisons.','',
+            '![Incremental gains](incremental_gain.png)','',
+            '## What the larger model reproduces','',
+            'The following original-16 results use ordinary 10×5 nested CV on all 1,004 faces, matching the earlier Base evaluation design.','',
+            '| Attribute | Reference linear r | Reference isotonic R² | Original-16 ridge r | Original-16 ridge R² |','|---|---:|---:|---:|---:|']
+    for variable,data,primary,secondary,importance,geometry in records:
+        m=secondary['metrics']
+        lines.append(f'| {variable} | {m["reference_linear"]["pearson"]:.4f} | {m["reference_isotonic"]["r2"]:.4f} | {m["original16/ridge"]["pearson"]:.4f} | {m["original16/ridge"]["r2"]:.4f} |')
+    lines += ['']
+    for variable,data,primary,secondary,importance,geometry in records:
+        previous=root.parent/'impression_ensembles'/'base'/variable/'results.json'
+        if previous.exists():
+            prior=json.loads(previous.read_text())
+            current=secondary['metrics']['original16/ridge']
+            lines += [f'Previous Base original-16 ridge R² for {variable}: {prior["metrics"]["ridge"]["r2"]:.4f}; So400m: {current["r2"]:.4f}. This architecture comparison is exploratory; no architecture was chosen using evaluation scores in the new phrase-development step.', '']
+    lines+=['','The reference “a happy face” should be checked against these exact settings rather than assumed to reproduce the previously reported r > 0.75. Reference linear r above is OOF-calibrated; raw-score r is recorded below.','',
+            '## Which original phrases contribute?','',
+            'On 400 fixed development faces, each original phrase was removed in turn, and ridge was refitted with its alpha retuned inside five inner folds. The reported loss is full-model OOF R² minus drop-one OOF R². Positive values indicate conditional predictive benefit. Ten outer folds cover all development faces. Single-phrase performance and adding a phrase to the reference were also measured.','',
+            'Coefficient magnitude is not used as importance: correlated captions can substitute for one another. The top four conditional contributors define four parents, each producing four close lexical mutations. Importance intervals often overlap, particularly for happiness; the ordering is a search heuristic.','',
+            '![Phrase contributions](phrase_contributions.png)','']
+    for variable,data,primary,secondary,importance,geometry in records:
+        lines += [f'### {variable}: development ranking','',
+                  '| ID | Phrase | Drop-one ΔR² | Single calibrated r | Added-to-reference ΔR² |',
+                  '|---:|---|---:|---:|---:|']
+        for r in sorted(importance['rows'],key=lambda row:row['drop_delta_r2'],reverse=True):
+            lines.append(f'| {r["id"]} | {r["phrase"]} | {r["drop_delta_r2"]:+.4f} | {r["single_r"]:.4f} | {r["added_to_reference_delta_r2"]:+.4f} |')
+    lines+=['','## Two mutation strategies','',
+            '**Similar:** four close variants for each of the top four original contributors. **Exploratory:** preserve short face-description syntax but introduce different visible-feature hypotheses. The latter is designed for semantic coverage, not claimed to be a mathematically maximal-diversity set. Contrasting and neutral descriptions are useful candidate regressors even when their standalone correlation is weak.','',
+            'The 48-column cache contains original IDs 1–16, similar IDs 17–32, exploratory IDs 33–48. Comparisons use columns 1–32 or 1–16 plus 33–48; the two additions are never merged into a 48-feature predictor.','']
+    for variable,data,primary,secondary,importance,geometry in records:
+        lines += [f'### {variable}: the 32 new phrases','',banks[variable]['rationale'],'',banks[variable]['exploratory_rationale'],'',
+                  '| New slot | Similar phrase (ID 16 + slot) | Exploratory phrase (ID 32 + slot) |','|---:|---|---|']
+        for j,(similar,exploratory) in enumerate(zip(banks[variable]['similar'],banks[variable]['exploratory']),1):
+            lines.append(f'| {j} | {similar} | {exploratory} |')
+    lines += ['','![Geometric novelty](prompt_novelty.png)','',
+              'Novelty is measured on development images without ratings: standardize score columns, regress each new column on the original 16 scores, and measure residual variance. Greater novelty alone does not establish usefulness. This is an in-development geometric diagnostic, not a held-out effect.','',
+              '## Ridge, lasso and evolutionary selection','',
+              '![All readouts](expansion_performance.png)','',
+              '| Attribute | Model | r | R² | RMSE | MAE |','|---|---|---:|---:|---:|---:|']
+    for variable,data,primary,secondary,importance,geometry in records:
+        for method,m in primary['metrics'].items():
+            lines.append(f'| {variable} | {method} | {m["pearson"]:.4f} | {m["r2"]:.4f} | {m["rmse"]:.4f} | {m["mae"]:.4f} |')
+    lines += ['','The evolutionary searches provide no consistent additional gain over full-bank ridge. Treat the full 32-phrase ridge models as the simpler candidates for the next validation round; the small readout differences above do not establish a universal winner.','']
+    lines += ['','Evolution uses elitism, crossover and bit flips, with population 32, eight elites and six generations. Each expanded search starts with the full bank, the original-16 parent subset, and the reference-only subset plus random candidates. Phrase 1 is always retained. Subset and ridge alpha are selected jointly using training-only inner CV. The same search budget is used for all banks; this is a budgeted search rather than exhaustive optimization.','',
+              '![Evolutionary traces](expansion_evolution.png)','',
+              '![Predictions](expanded_predictions.png)','',
+              '## Exploratory full-dataset comparison','',
+              'For continuity with the earlier report, this table evaluates all 1,004 faces with ordinary nested CV. New wording was chosen using 400 of those faces, so the expanded-bank rows do **not** fully separate phrase development from evaluation. Use the 604-face comparison above for assessing this iteration’s incremental gains.','',
+              '| Attribute | Space / readout | Pearson r | R² | RMSE |','|---|---|---:|---:|---:|']
+    for variable,data,primary,secondary,importance,geometry in records:
+        for method,m in secondary['metrics'].items():
+            if method.endswith('/ridge'):
+                lines.append(f'| {variable} | {method} | {m["pearson"]:.4f} | {m["r2"]:.4f} | {m["rmse"]:.4f} |')
+    lines += ['','## Protocol and limitations','',
+              'Development split seed: 20260909; model-CV seed: 20260908. The discovery split was written before inspecting So400m contributions. Both new banks were fixed before expanded-score evaluation. Primary outer training sets contain 943–944 faces (400 development plus evaluation-training faces); inner CV tunes on those training sets only. Each of the 604 evaluation faces is absent from its own model’s training and from this iteration’s phrase-ranking step. All faces had appeared in the previous Base experiment, so this is an exploratory research iteration, not an untouched external test.','',
+              'Ridge uses 15 log-spaced alphas from 0.001 to 10,000; lasso uses 17 log-spaced fractions from 0.0001 to 1 of training alpha_max. Regressions use float64; encoding uses float16. No target clipping or cross-phrase softmax is applied. Targets retain original slider units; faces receive equal weight. Fold assignment is by face; participant identities and latent-family groups are unavailable. The implementation supports grouping in the original CV API, but this iteration does not estimate generalization to new latent families, raters or real photographs.','',
+              'A gain from additional scores is evidence for a useful linear direction within this frozen encoder, not proof that the text names the visual mechanism causing human judgments. Eyelid, skin, hair and expression descriptions are hypotheses, not objective demographic or emotional labels.','']
+    for variable,data,primary,secondary,importance,geometry in records:
+        lines += [f'- **{variable}:** raw reference r={pearson_correlation(data.human_means,data.predicted_scores[:,0]):.4f}; primary full comparison CV={primary["cv_seconds"]:.2f}s; all-face comparison CV={secondary["cv_seconds"]:.2f}s (encoding, bootstrap and reporting excluded).']
+        lines += [f'  Median new-score residual variance outside the original span: {100*geometry["similar32"]["median_new_residual_variance_fraction"]:.1f}% for similar phrases versus {100*geometry["exploratory32"]["median_new_residual_variance_fraction"]:.1f}% for exploratory phrases.']
+    lines += ['','## Reproduction and reusable code','',
+              'All new functions live in `CLIP/fgclip2_face_impressions.py`: `phrase_contributions`, `development_protocol`, `anchored_cv_splits`, `compare_prompt_spaces`, `prompt_space_geometry`, feature extraction, exports and report generation. `expansion_prompts.json` supplies replaceable banks. Portable full-data fitted models are saved separately; their fitted predictions are never used for reported accuracy.','',
+              '```bash','/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_face_impressions encode --models so400m --output CLIP/research/so400m_prompt_expansion',
+              '/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_face_impressions discover --output CLIP/research/so400m_prompt_expansion',
+              '# Freeze expansion_prompts.json using discovery results only.',
+              '/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_face_impressions expand-encode --output CLIP/research/so400m_prompt_expansion',
+              '/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_face_impressions compare --output CLIP/research/so400m_prompt_expansion','```','',
+              'Exports include all OOF rows, exact folds, fitted fold models, search traces, bootstrap intervals, discovery rankings, phrase provenance, model revision and input/source hashes. Images are reused through the frozen feature cache.','',
+              'Method references: [FG-CLIP official repository](https://github.com/360CVGroup/FG-CLIP); [nested CV documentation](https://scikit-learn.org/stable/auto_examples/model_selection/plot_nested_cross_validation_iris.html).','']
+    (root/'report.md').write_text('\n'.join(lines))
+    html=markdown.markdown('\n'.join(lines),extensions=['tables','fenced_code'])
+    for name in ('incremental_gain','phrase_contributions','prompt_novelty','expansion_performance','expansion_evolution','expanded_predictions'):
+        encoded=base64.b64encode((root/f'{name}.png').read_bytes()).decode()
+        html=html.replace(f'src="{name}.png"',f'src="data:image/png;base64,{encoded}"')
+    (root/'report.html').write_text('<!doctype html><meta charset="utf-8"><title>So400m prompt expansion</title><style>body{max-width:1400px;margin:40px auto;padding:0 32px;font:16px/1.6 system-ui;color:#18304b;background:#fafbfe}h1,h2{line-height:1.2}img{max-width:100%}table{border-collapse:collapse;font-size:13px;width:100%}th,td{padding:7px;border-bottom:1px solid #dce3ed;text-align:left}pre{padding:20px;background:#edf1f7;overflow:auto}a{color:#176bce}</style>'+html)
+    manifest_path=root/'iteration_manifest.json'
+    if manifest_path.exists():
+        manifest=json.loads(manifest_path.read_text())
+        manifest['report_source_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
+
+
+def load_expansion_result(directory):
+    """Reload saved CV output for independent auditing or report regeneration."""
+    import csv
+    directory=Path(directory)
+    result=json.loads((directory/'results.json').read_text())
+    with (directory/'oof_predictions.csv').open() as f:
+        rows=list(csv.DictReader(f))
+    result['predictions']=np.asarray([[float(row[m]) for m in result['methods']] for row in rows])
+    result['fold_ids']=np.asarray([int(row['fold']) for row in rows])
+    if len(rows)!=result['n']:
+        raise ValueError('Saved prediction count differs from the result manifest.')
+    return result
+
+
+def regenerate_expansion_report(root):
+    """Regenerate figures and narrative without rerunning any model fitting."""
+    root=Path(root)
+    protocol=json.loads((root/'adaptation_protocol.json').read_text())
+    banks=json.loads((root/'expansion_prompts.json').read_text())
+    records=[]
+    for variable in IMPRESSION_PROMPTS:
+        data,_=load_impression_features(root/'expanded'/f'{variable}-features.npz')
+        primary=load_expansion_result(root/variable/'primary604')
+        secondary=load_expansion_result(root/variable/'exploratory1004')
+        importance=json.loads((root/f'{variable}-discovery.json').read_text())
+        geometry=json.loads((root/variable/'final_models.json').read_text())['geometry']
+        records.append((variable,data,primary,secondary,importance,geometry))
+    write_expansion_report(records,root,protocol,banks)
+
+
+def run_expansion_comparison(args,config):
+    import platform
+    from datetime import datetime,timezone
+    import sklearn
+    from threadpoolctl import threadpool_limits
+    root=args.output
+    protocol=json.loads((root/'adaptation_protocol.json').read_text())
+    banks=json.loads((root/'expansion_prompts.json').read_text())
+    spaces={'original16':list(range(16)),'similar32':list(range(32)),
+            'exploratory32':list(range(16))+list(range(32,48))}
+    records=[]
+    with threadpool_limits(limits=1):
+        for variable in IMPRESSION_PROMPTS:
+            data,metadata=load_impression_features(root/'expanded'/f'{variable}-features.npz')
+            original,original_metadata=load_impression_features(root/'so400m'/f'{variable}-features.npz')
+            expected=IMPRESSION_PROMPTS[variable]+tuple(banks[variable]['similar'])+tuple(banks[variable]['exploratory'])
+            if data.texts!=expected or data.paths!=original.paths or not np.array_equal(data.human_means,original.human_means):
+                raise ValueError('Expanded feature manifest or target alignment mismatch.')
+            np.testing.assert_array_equal(data.predicted_scores[:,:16],original.predicted_scores)
+            audit=audit_regression_dataset(data)
+            if audit['exact_duplicate_image_pairs']:raise ValueError('Duplicate faces require grouped evaluation.')
+            print(f'{variable}: primary development-separated comparison',flush=True)
+            primary=compare_prompt_spaces(data,spaces,config,protocol=protocol)
+            save_expansion_result(data,primary,root/variable/'primary604')
+            print(json.dumps(primary['metrics']),flush=True)
+            print(f'{variable}: secondary full-data comparison',flush=True)
+            secondary=compare_prompt_spaces(data,spaces,config)
+            save_expansion_result(data,secondary,root/variable/'exploratory1004')
+            print(json.dumps(secondary['metrics']),flush=True)
+            importance=json.loads((root/f'{variable}-discovery.json').read_text())
+            geometry=prompt_space_geometry(data.predicted_scores[protocol['development_indices']],spaces)
+            final_models={}
+            for bank,columns in spaces.items():
+                x=data.predicted_scores[:,columns]
+                search=InnerCVSearch(x,data.human_means,config,config.seed)
+                _,alpha=search.ridge(tuple(range(len(columns))))
+                _,fraction=search.lasso()
+                subset,evolved_alpha,_=search.evolve(config.seed,initial_subsets=[tuple(range(16))])
+                for kind,selected,parameter in [('ridge',None,alpha),('lasso',None,fraction),('evolved_ridge',subset,evolved_alpha)]:
+                    model=fit_score_model(x,data.human_means,'ridge' if kind=='evolved_ridge' else kind,selected,parameter)
+                    model['columns']=[columns[j] for j in model['columns']]
+                    final_models[f'{bank}/{kind}']=model
+            artifact={'texts':list(data.texts),'metadata':metadata,'audit':audit,'geometry':geometry,'models':final_models}
+            (root/variable/'final_models.json').write_text(json.dumps(artifact,indent=2)+'\n')
+            records.append((variable,data,primary,secondary,importance,geometry))
+    manifest={'created_utc':datetime.now(timezone.utc).isoformat(),'config':asdict(config),
+              'python':platform.python_version(),'numpy':np.__version__,'torch':torch.__version__,'sklearn':sklearn.__version__,
+              'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              'input_sha256':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest()
+                              for p in [root/'adaptation_protocol.json',root/'expansion_prompts.json',
+                                        *[root/'expanded'/f'{v}-features.npz' for v in IMPRESSION_PROMPTS]]}}
+    (root/'iteration_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (root/'evaluation_source.py.txt').write_bytes(Path(__file__).read_bytes())
+    write_expansion_report(records,root,protocol,banks)
+    print(f'Report: {root/"report.html"}',flush=True)
+
+
+__all__ += ['prompt_space_geometry','save_expansion_result','write_expansion_report','run_expansion_comparison',
+            'load_expansion_result','regenerate_expansion_report']
+
+
+TRUST_RESOLUTIONS=(128,256)
+
+
+def trustworthiness_stage(args):
+    root=args.output
+    if args.stage=='trust-encode':
+        groups=json.loads((root/'phrase_groups.json').read_text())
+        phrases=tuple(t for g in groups for t in g['phrases'])
+        if len(phrases)!=len(set(phrases)):
+            raise ValueError('Trustworthiness phrase bank contains duplicates.')
+        engine=FGCLIP2(device='mps',dtype=torch.float16,local_files_only=True,
+                        memory_reserve_gb=args.memory_reserve_gb)
+        pipeline=FaceImpressionPipeline(engine,FaceDatasetConfig(args.images,limit=None,batch_size=16))
+        ratings=HumanRatingsStore(args.ratings)
+        for patches in TRUST_RESOLUTIONS:
+            print(f'Encoding {len(phrases)} phrases, {patches} patches',flush=True)
+            print(json.dumps(extract_impression_features(pipeline,ratings,{'trustworthy':phrases},
+                                                          root/f'p{patches}',text_mode='short',patches=patches)),flush=True)
+        return
+    if args.stage=='trust-explore':
+        explore_trustworthiness(root)
+    elif args.stage=='trust-evaluate':
+        evaluate_trustworthiness(root)
+    elif args.stage=='trust-report':
+        report_trustworthiness(root)
+    elif args.stage=='trust-validate':
+        validate_trust_inference(root)
+    elif args.stage=='trust-predict':
+        predictor=TrustworthinessPredictor.load(args.bundle or root/'trustworthiness_model.joblib')
+        predictor.predict_directory(args.images,root/'predictions.csv')
+
+
+
+def load_trust_data(root):
+    root=Path(root)
+    a,ma=load_impression_features(root/'p128'/'trustworthy-features.npz')
+    b,mb=load_impression_features(root/'p256'/'trustworthy-features.npz')
+    if a.paths!=b.paths or a.texts!=b.texts or not np.array_equal(a.human_means,b.human_means):
+        raise ValueError('Trustworthiness resolutions are not aligned.')
+    groups=json.loads((root/'phrase_groups.json').read_text())
+    if tuple(t for g in groups for t in g['phrases'])!=a.texts:
+        raise ValueError('Phrase bank changed after feature extraction.')
+    x=np.column_stack([a.predicted_scores,b.predicted_scores]).astype(float)
+    return a,x,groups,{'p128':ma,'p256':mb}
+
+
+def trust_recipe_grid():
+    """Finite development budget; no tuning against hidden test stimuli."""
+    recipes=[]
+    def add(family,bank,**params):
+        recipes.append(dict(family=family,bank=bank,**params))
+    for bank in ('p128','p256','both'):
+        for alpha in (1.,10.,100.,1000.,10000.):add('ridge',bank,alpha=alpha)
+        for gamma in (.1,.3,1.,3.):
+            for alpha in (.001,.01,.1,1.):add('rbf',bank,gamma=gamma,alpha=alpha)
+        for gamma in (.1,.3,1.):
+            for alpha in (.001,.01,.1):add('centered_rbf',bank,gamma=gamma,alpha=alpha)
+    for k in (32,64,128):
+        for alpha in (1.,10.,100.,1000.):add('screened_ridge','both',alpha=alpha,screen_k=k)
+    for bank in ('p256','both'):
+        for alpha in (.001,.01,.1,1.,10.):add('poly2',bank,alpha=alpha)
+        for gamma in (.1,1.):
+            for c in (.1,1.,10.):add('svr',bank,gamma=gamma,C=c,epsilon=.01)
+    for leaves in (7,15):
+        for l2 in (1.,10.):add('hgb','p256',leaves=leaves,l2=l2)
+    return recipes
+
+
+def trust_feature_columns(x,y,recipe):
+    p=x.shape[1]//2
+    columns=np.asarray(recipe.get('columns', list(range(p)) if recipe['bank']=='p128'
+                                  else list(range(p,2*p)) if recipe['bank']=='p256'
+                                  else list(range(2*p))),dtype=int)
+    if len(columns)==0 or min(columns)<0 or max(columns)>=x.shape[1]:
+        raise ValueError('Invalid trustworthiness feature indices.')
+    if recipe.get('screen_k'):
+        z,_,_=_scale_training(x[:,columns])
+        relevance=np.abs(z.T@(y-y.mean()))
+        columns=columns[np.argsort(-relevance,kind='stable')[:recipe['screen_k']]]
+    return columns
+
+
+def fit_trust_recipe(x,y,recipe):
+    """Fit training-only preprocessing and a small linear/nonlinear readout."""
+    from sklearn.linear_model import Ridge
+    from sklearn.kernel_ridge import KernelRidge
+    from sklearn.svm import SVR
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    x,y=np.asarray(x,float),np.asarray(y,float)
+    if recipe['family']=='centered_rbf':
+        x=trust_center_scores(x)
+    columns=trust_feature_columns(x,y,recipe)
+    z,mean,scale=_scale_training(x[:,columns])
+    family=recipe['family']
+    if family in ('ridge','screened_ridge','evolved_groups'):
+        estimator=Ridge(alpha=recipe['alpha'],fit_intercept=False,solver='cholesky')
+    elif family in ('rbf','centered_rbf'):
+        estimator=KernelRidge(alpha=recipe['alpha'],kernel='rbf',gamma=recipe['gamma']/len(columns))
+    elif family=='poly2':
+        estimator=KernelRidge(alpha=recipe['alpha'],kernel='polynomial',degree=2,gamma=1/len(columns),coef0=1.)
+    elif family=='svr':
+        estimator=SVR(C=recipe['C'],epsilon=recipe['epsilon'],gamma=recipe['gamma']/len(columns))
+    elif family=='hgb':
+        estimator=HistGradientBoostingRegressor(max_iter=150,learning_rate=.05,max_leaf_nodes=recipe['leaves'],
+                    l2_regularization=recipe['l2'],min_samples_leaf=20,early_stopping=False,random_state=20260910)
+    else:raise ValueError(f'Unknown trustworthiness family {family}')
+    estimator.fit(z,y-y.mean())
+    return {'recipe':recipe,'columns':columns,'mean':mean,'scale':scale,'target_mean':float(y.mean()),'estimator':estimator}
+
+
+def predict_trust_readout(model,x):
+    """Raw mean-rating prediction, including recursively stored convex ensembles."""
+    if "transfer_kind" in model:
+        return predict_trust_transfer(model,x)
+    if 'components' in model:
+        return sum(w*predict_trust_readout(m,x) for w,m in zip(model['weights'],model['components']))
+    x=np.asarray(x,float)
+    if model['recipe']['family']=='centered_rbf':
+        x=trust_center_scores(x)
+    z=(x[:,model['columns']]-model['mean'])/model['scale']
+    return model['estimator'].predict(z)+model['target_mean']
+
+
+def trust_center_scores(x):
+    """Remove each face's shared logit level separately at each resolution."""
+    x=np.asarray(x,float);p=x.shape[1]//2
+    return np.column_stack([x[:,:p]-x[:,:p].mean(axis=1,keepdims=True),
+                            x[:,p:]-x[:,p:].mean(axis=1,keepdims=True)])
+
+
+def trust_candidate_cv(x,y,recipes,*,folds=5,seed=20260910,progress=False):
+    """Exact complete inner OOF matrix for a finite recipe list."""
+    splits=make_cv_splits(len(y),folds,seed)
+    predictions=np.empty((len(y),len(recipes)))
+    for j,recipe in enumerate(recipes):
+        for train,test in splits:
+            model=fit_trust_recipe(x[train],y[train],recipe)
+            predictions[test,j]=predict_trust_readout(model,x[test])
+        if progress and (j+1)%15==0:
+            print(f'  scored {j+1}/{len(recipes)} recipes',flush=True)
+    return predictions
+
+
+def choose_trust_strategy(predictions,y,recipes):
+    """Inner-only selection of a recipe or a linear/nonlinear convex blend.
+
+    Blend weights are picked on the same inner OOF matrix, so only the outer
+    evaluation estimates performance of this whole selection procedure.
+    """
+    losses=np.mean((predictions-y[:,None])**2,axis=0)
+    family_best={}
+    for j,r in enumerate(recipes):
+        family=r['family']
+        if family not in family_best or losses[j]<losses[family_best[family]]:family_best[family]=j
+    best=int(np.argmin(losses))
+    choices=[{'indices':[best],'weights':[1.],'mse':float(losses[best])}]
+    ranked=sorted(family_best.values(),key=lambda j:losses[j])[:3]
+    if len(ranked)>1:
+        for i in range(len(ranked)):
+            for j in range(i+1,len(ranked)):
+                for w in (.25,.5,.75):
+                    p=w*predictions[:,ranked[i]]+(1-w)*predictions[:,ranked[j]]
+                    choices.append({'indices':[ranked[i],ranked[j]],'weights':[w,1-w],
+                                    'mse':float(np.mean((p-y)**2))})
+        p=predictions[:,ranked].mean(axis=1)
+        choices.append({'indices':ranked,'weights':[1/len(ranked)]*len(ranked),'mse':float(np.mean((p-y)**2))})
+    return min(choices,key=lambda c:c['mse']),family_best,losses
+
+
+def fit_trust_strategy(x,y,recipes,strategy):
+    return {'components':[fit_trust_recipe(x,y,recipes[j]) for j in strategy['indices']],
+            'weights':strategy['weights'],'strategy':strategy}
+
+
+def trust_tail_metrics(y,prediction,fold_ids,high_mask,se=None):
+    """Upper-tail errors and same-model close-rating pair concordance.
+
+    These are rating-near pairs among distinct images, NOT within-identity
+    latent traversals. Pair counts share faces and are not independent trials.
+    """
+    high_mask=np.asarray(high_mask,bool)
+    result={'high_n':int(high_mask.sum()),'high_metrics':regression_metrics(y[high_mask],prediction[high_mask])}
+    a,b=np.triu_indices(len(y),1)
+    gap=y[b]-y[a]
+    eligible=(fold_ids[a]==fold_ids[b])&high_mask[a]&high_mask[b]&(np.abs(gap)>=.01)&(np.abs(gap)<=.05)
+    margin=(prediction[b]-prediction[a])*np.sign(gap)
+    result['close_pairs']=int(eligible.sum())
+    result['close_pair_concordance']=float(np.mean((margin[eligible]>0)+.5*(margin[eligible]==0))) if eligible.any() else None
+    if se is not None:
+        reliable=eligible&(np.abs(gap)>1.96*np.sqrt(se[a]**2+se[b]**2))
+        result['noise_separated_pairs']=int(reliable.sum())
+        result['noise_separated_concordance']=float(np.mean((margin[reliable]>0)+.5*(margin[reliable]==0))) if reliable.any() else None
+    return result
+
+
+def _trust_sem(data,metadata):
+    ratings=HumanRatingsStore(metadata['p128']['ratings_path'])._load()['trustworthy']
+    values=[]
+    for path in data.paths:
+        a=np.asarray(ratings[path.name],float);a=a[np.isfinite(a)]
+        values.append(a.std(ddof=1)/np.sqrt(len(a)))
+    return np.asarray(values)
+
+
+def evolve_trust_groups(x,y,groups,*,seed=20260910):
+    """Small development-only genetic search over the 16 literature cue families."""
+    rng=np.random.default_rng(seed)
+    p=x.shape[1]//2
+    offsets=np.cumsum([0]+[len(g['phrases']) for g in groups])
+    cache={}
+    def columns(mask):
+        local=[j for g in mask for j in range(offsets[g],offsets[g+1])]
+        return local+[j+p for j in local]
+    def fitness(mask):
+        mask=tuple(sorted(mask))
+        if mask not in cache:
+            candidates=[dict(family='evolved_groups',bank='both',columns=columns(mask),alpha=a) for a in (10.,100.,1000.)]
+            pred=trust_candidate_cv(x,y,candidates,folds=3,seed=seed)
+            mse=np.mean((pred-y[:,None])**2,axis=0);best=int(np.argmin(mse))
+            cache[mask]=(float(mse[best]),candidates[best])
+        return cache[mask]
+    population={tuple(range(len(groups)))}
+    while len(population)<12:
+        mask=tuple(np.flatnonzero(rng.random(len(groups))<.65).tolist())
+        if len(mask)>=2:population.add(mask)
+    trace=[]
+    for generation in range(4):
+        ranked=sorted(population,key=lambda m:fitness(m)[0])
+        trace.append({'generation':generation+1,'mse':fitness(ranked[0])[0],'groups':list(ranked[0]),'evaluated':len(cache)})
+        if generation==3:break
+        population=set(ranked[:3])
+        while len(population)<12:
+            parents=[ranked[int(rng.integers(3))] for _ in range(2)]
+            bits=np.where(rng.random(len(groups))<.5,np.isin(range(len(groups)),parents[0]),np.isin(range(len(groups)),parents[1]))
+            bits^=rng.random(len(groups))<1/len(groups)
+            mask=tuple(np.flatnonzero(bits).tolist())
+            if len(mask)>=2:population.add(mask)
+    best=min(cache,key=lambda m:cache[m][0])
+    return cache[best][1],trace
+
+
+def explore_trustworthiness(root):
+    """Explore only 400 original faces, freeze candidates, leave 604 for evaluation."""
+    from scipy.stats import pearsonr,spearmanr
+    from threadpoolctl import threadpool_limits
+    root=Path(root);data,x,groups,metadata=load_trust_data(root)
+    protocol=development_protocol(data.paths,development_size=400,seed=20260910)
+    protocol['target']='trustworthy';protocol['criterion']='Mean squared error; upper-tail diagnostics are secondary.'
+    (root/'protocol.json').write_text(json.dumps(protocol,indent=2)+'\n')
+    dev=np.asarray(protocol['development_indices']);dx,dy=x[dev],data.human_means[dev]
+    p=len(data.texts)
+    rows=[];group_ids=[g['name'] for g in groups for _ in g['phrases']]
+    for j,text in enumerate(data.texts):
+        for offset,res in ((0,128),(p,256)):
+            r,pvalue=pearsonr(dx[:,j+offset],dy)
+            rows.append({'phrase_id':j+1,'text':text,'group':group_ids[j],'patches':res,
+                         'pearson':float(r),'spearman':float(spearmanr(dx[:,j+offset],dy).statistic),'p':float(pvalue)})
+    order=np.argsort([row['p'] for row in rows]);raw=np.array([rows[i]['p'] for i in order])*len(rows)/np.arange(1,len(rows)+1)
+    q=np.minimum.accumulate(raw[::-1])[::-1]
+    for i,value in zip(order,q):rows[i]['bh_q']=float(min(value,1))
+    with threadpool_limits(limits=1):
+        print('Development: fitting the literature-group evolutionary search',flush=True)
+        evolved,trace=evolve_trust_groups(dx,dy,groups)
+        recipes=trust_recipe_grid()+[dict(evolved,alpha=a) for a in (1.,10.,100.,1000.,10000.)]
+        print(f'Development: comparing {len(recipes)} linear and nonlinear recipes',flush=True)
+        predictions=trust_candidate_cv(dx,dy,recipes,progress=True)
+        losses=np.mean((predictions-dy[:,None])**2,axis=0)
+        # Keep two development winners from each distinct family; all family
+        # choices and blends are still selected anew within outer training folds.
+        kept=[]
+        for family in dict.fromkeys(r['family'] for r in recipes):
+            indices=[j for j,r in enumerate(recipes) if r['family']==family]
+            kept.extend(sorted(indices,key=lambda j:losses[j])[:2])
+        frozen=[recipes[j] for j in kept]
+        # Leave-family-out diagnostics use a fixed development-selected ridge
+        # alpha, refitting each fold; descriptive conditional group utility.
+        ridge_indices=[j for j,r in enumerate(recipes) if r['family']=='ridge' and r['bank']=='both']
+        best_ridge=min(ridge_indices,key=lambda j:losses[j]);ridge=recipes[best_ridge]
+        full_r2=regression_metrics(dy,predictions[:,best_ridge])['r2']
+        offsets=np.cumsum([0]+[len(g['phrases']) for g in groups]);group_ablation=[]
+        for g,group in enumerate(groups):
+            dropped=set(range(offsets[g],offsets[g+1]))|set(range(p+offsets[g],p+offsets[g+1]))
+            recipe=dict(ridge,columns=[j for j in range(2*p) if j not in dropped])
+            pred=trust_candidate_cv(dx,dy,[recipe])[:,0]
+            group_ablation.append({'group':group['name'],'drop_delta_r2':full_r2-regression_metrics(dy,pred)['r2']})
+    result={'phrases':rows,'group_ablation':group_ablation,'evolution':trace,
+            'recipes':[{'recipe':r,'mse':float(losses[j]),'metrics':regression_metrics(dy,predictions[:,j])} for j,r in enumerate(recipes)],
+            'n_development':len(dev),'evolved_recipe':evolved}
+    (root/'exploration.json').write_text(json.dumps(result,indent=2)+'\n')
+    (root/'frozen_candidates.json').write_text(json.dumps(frozen,indent=2)+'\n')
+    print('Development winners:',flush=True)
+    for j in sorted(kept,key=lambda j:losses[j]):print(json.dumps({'recipe':recipes[j],'rmse':float(np.sqrt(losses[j]))}),flush=True)
+    print('Largest absolute development phrase correlations:',flush=True)
+    for row in sorted(rows,key=lambda r:abs(r['pearson']),reverse=True)[:15]:print(json.dumps(row),flush=True)
+
+
+
+def trust_outer_cv(x,y,recipes,protocol,*,seed=20260910,folds=10,inner_folds=5):
+    """Evaluate the COMPLETE recipe/blend selector on development-excluded faces."""
+    splits=anchored_cv_splits(len(y),protocol['development_indices'],protocol['evaluation_indices'],folds=folds,seed=seed)
+    indices=np.asarray(protocol['evaluation_indices']);families=list(dict.fromkeys(r['family'] for r in recipes))
+    methods=['training_mean','trustworthy_phrase','warm_phrase','happy_phrase',*families,'selected']
+    output=np.full((len(y),len(methods)),np.nan);fold_ids=np.full(len(y),-1);high=np.zeros(len(y),bool)
+    details=[];started=time.perf_counter()
+    for fold,(train,test) in enumerate(splits):
+        print(f'Outer fold {fold+1}/{folds}: {len(train)} training, {len(test)} evaluation',flush=True)
+        inner=trust_candidate_cv(x[train],y[train],recipes,folds=inner_folds,seed=seed+1009*(fold+1))
+        strategy,best,losses=choose_trust_strategy(inner,y[train],recipes)
+        output[test,0]=y[train].mean()
+        for j,column in enumerate((0,1,16),1):
+            model=fit_score_model(x[train],y[train],'linear',[column])
+            output[test,j]=predict_score_model(model,x[test])
+        fitted={j:fit_trust_recipe(x[train],y[train],recipes[j]) for j in set(best.values())|set(strategy['indices'])}
+        for family,j in best.items():output[test,methods.index(family)]=predict_trust_readout(fitted[j],x[test])
+        model={'components':[fitted[j] for j in strategy['indices']],'weights':strategy['weights'],'strategy':strategy}
+        output[test,-1]=predict_trust_readout(model,x[test])
+        fold_ids[test]=fold;threshold=float(np.quantile(y[train],.75));high[test]=y[test]>=threshold
+        details.append({'fold':fold,'strategy':strategy,'family_recipes':{f:recipes[j] for f,j in best.items()},
+                        'inner_mse':losses.tolist(),'high_threshold':threshold,'test_indices':test.tolist()})
+    if not np.isfinite(output[indices]).all():raise RuntimeError('Missing outer predictions.')
+    return {'methods':methods,'predictions':output[indices],'fold_ids':fold_ids[indices],
+            'high_mask':high[indices],'indices':indices.tolist(),'fold_details':details,
+            'cv_seconds':time.perf_counter()-started}
+
+
+def evaluate_trustworthiness(root, *, generate_report=True):
+    import csv,joblib,platform,sklearn
+    from datetime import datetime,timezone
+    from threadpoolctl import threadpool_limits
+    root=Path(root);data,x,groups,metadata=load_trust_data(root)
+    protocol=json.loads((root/'protocol.json').read_text());recipes=json.loads((root/'frozen_candidates.json').read_text())
+    if protocol['face_names']!=[p.name for p in data.paths]:raise ValueError('Frozen face identities differ.')
+    audit=audit_regression_dataset(data)
+    if audit['exact_duplicate_image_pairs']:raise ValueError('Duplicate images need grouped splits.')
+    with threadpool_limits(limits=1):
+        result=trust_outer_cv(x,data.human_means,recipes,protocol)
+        indices=np.asarray(result['indices']);y=data.human_means[indices];sem=_trust_sem(data,metadata)[indices]
+        result['metrics']={m:regression_metrics(y,result['predictions'][:,j]) for j,m in enumerate(result['methods'])}
+        result['tail_metrics']={m:trust_tail_metrics(y,result['predictions'][:,j],result['fold_ids'],result['high_mask'],sem)
+                                for j,m in enumerate(result['methods'])}
+        result['selected_vs_ridge']=paired_prediction_bootstrap(y,result['predictions'][:,result['methods'].index('ridge')],
+                                                                 result['predictions'][:,-1],samples=3000,seed=20260910)
+        result['selected_vs_trustworthy']=paired_prediction_bootstrap(y,result['predictions'][:,1],
+                                                                 result['predictions'][:,-1],samples=3000,seed=20260910)
+        print('Outer evaluation complete:',json.dumps(result['metrics']),flush=True)
+        print('Final all-training-data selection',flush=True)
+        inner=trust_candidate_cv(x,data.human_means,recipes,folds=5,seed=20260910,progress=True)
+        strategy,_,losses=choose_trust_strategy(inner,data.human_means,recipes)
+        model=fit_trust_strategy(x,data.human_means,recipes,strategy)
+    bundle={'format_version':1,'target':'trustworthy','model':model,'phrases':list(data.texts),
+            'resolutions':list(TRUST_RESOLUTIONS),'metadata':metadata,'training_faces':[p.name for p in data.paths],
+            'training_y_range':[float(data.human_means.min()),float(data.human_means.max())],
+            'sklearn_version':sklearn.__version__,'selected_recipes':[recipes[j] for j in strategy['indices']],
+            'selection_weights':strategy['weights'],'frozen_candidates':recipes,'training_audit':audit}
+    joblib.dump(bundle,root/'trustworthiness_model.joblib',compress=3)
+    result['final_recipes']=bundle['selected_recipes'];result['final_weights']=strategy['weights']
+    result['final_inner_mse']=float(strategy['mse'])
+    with (root/'oof_predictions.csv').open('w') as f:
+        writer=csv.writer(f);writer.writerow(['face','fold','mean_rating','rater_count','rating_sem','upper_quartile',*result['methods']])
+        for row,index in enumerate(indices):writer.writerow([data.paths[index].name,result['fold_ids'][row],data.human_means[index],
+                 data.rater_counts[index],sem[row],int(result['high_mask'][row]),*result['predictions'][row]])
+    clean={k:v for k,v in result.items() if k not in ('predictions','fold_ids','high_mask')}
+    (root/'results.json').write_text(json.dumps(clean,indent=2)+'\n')
+    manifest={'created_utc':datetime.now(timezone.utc).isoformat(),'python':platform.python_version(),
+              'numpy':np.__version__,'torch':torch.__version__,'sklearn':sklearn.__version__,
+              'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              'files_sha256':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in
+                  [root/'phrase_groups.json',root/'literature.json',root/'protocol.json',root/'frozen_candidates.json',
+                   root/'p128/trustworthy-features.npz',root/'p256/trustworthy-features.npz',root/'trustworthiness_model.joblib']}}
+    (root/'model_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (root/'evaluation_source.py.txt').write_bytes(Path(__file__).read_bytes())
+    if generate_report:
+        report_trustworthiness(root)
+
+
+class TrustworthinessPredictor:
+    """Frozen mean-rating predictor; no human labels are needed at inference.
+
+    The joblib bundle is a trusted local artifact. It contains sklearn estimators,
+    so use the recorded sklearn version for reproducible deployment.
+    """
+    def __init__(self,bundle):
+        if bundle.get('format_version')!=1 or bundle.get('target')!='trustworthy':
+            raise ValueError('Unrecognized trustworthiness model bundle.')
+        self.bundle=bundle;self._engine=None;self._text_features=None
+
+    @classmethod
+    def load(cls,path):
+        import joblib
+        return cls(joblib.load(Path(path)))
+
+    def predict_scores(self,scores):
+        scores=np.asarray(scores,float)
+        if scores.ndim!=2 or scores.shape[1]!=2*len(self.bundle['phrases']) or not np.isfinite(scores).all():
+            raise ValueError(f'Expected finite [faces, {2*len(self.bundle["phrases"])}] scores ordered p128 phrases then p256 phrases.')
+        return predict_trust_readout(self.bundle['model'],scores)
+
+    @torch.inference_mode()
+    def predict_images(self,paths,*,engine=None,batch_size=16,return_scores=False):
+        paths=list(paths)
+        if not paths:raise ValueError('Provide at least one face image.')
+        if batch_size<1:raise ValueError('Batch size must be positive.')
+        engine=engine or self._engine
+        if engine is None:
+            engine=FGCLIP2(device='mps',dtype=torch.float16,local_files_only=True)
+        expected=self.bundle['metadata']['p128']['encoding']
+        if (engine.model_id,engine.revision,str(engine.dtype))!=(expected['model'],expected['revision'],expected['dtype']):
+            raise ValueError('Encoder model/revision/dtype differs from the frozen training configuration.')
+        if engine is not self._engine or self._text_features is None:
+            phrases=self.bundle['phrases']
+            self._text_features=torch.cat([engine.encode_text(phrases[start:start+32],mode='short').cpu()
+                                           for start in range(0,len(phrases),32)])
+            self._engine=engine
+        score_parts=[]
+        scale=engine.model.logit_scale.float().exp().item();bias=engine.model.logit_bias.float().item()
+        for patches in self.bundle['resolutions']:
+            pieces=[]
+            for start in range(0,len(paths),batch_size):
+                features=engine.encode_image_preprocessed(engine.prepare_images(paths[start:start+batch_size],max_num_patches=patches)).cpu()
+                pieces.append((features@self._text_features.T*scale+bias).numpy())
+            score_parts.append(np.concatenate(pieces))
+        scores=np.column_stack(score_parts)
+        prediction=self.predict_scores(scores)
+        return (prediction,scores) if return_scores else prediction
+
+    def predict_directory(self,directory,output):
+        import csv
+        paths=discover_face_images(FaceDatasetConfig(Path(directory),limit=None))
+        predictions=self.predict_images(paths)
+        output=Path(output);output.parent.mkdir(parents=True,exist_ok=True)
+        with output.open('w') as f:
+            writer=csv.writer(f);writer.writerow(['face','predicted_trustworthy_mean'])
+            writer.writerows(zip([p.name for p in paths],predictions))
+        return predictions
+
+
+__all__ += ['TrustworthinessPredictor','trust_center_scores','fit_trust_recipe','predict_trust_readout',
+            'trust_candidate_cv','choose_trust_strategy','trust_outer_cv','trust_tail_metrics',
+            'explore_trustworthiness','evaluate_trustworthiness']
+
+
+def validate_trust_inference(root, *, images=7, tolerance=.001):
+    """Check fresh image/cache/batch parity using only frozen original-face paths.
+
+    This is numerical validation of deployment, not an accuracy test on training
+    faces. No study stimuli or hidden test directories are accessed.
+    """
+    from threadpoolctl import threadpool_limits
+    root=Path(root)
+    data,x,_,_=load_trust_data(root)
+    if not 1<=images<=len(data.paths):
+        raise ValueError('Choose a positive number of original images.')
+    model=TrustworthinessPredictor.load(root/'trustworthiness_model.joblib')
+    indices=np.argsort(data.human_means)[np.linspace(0,len(data.paths)-1,images,dtype=int)]
+    paths=[data.paths[i] for i in indices]
+    with threadpool_limits(limits=1):
+        cached=model.predict_scores(x[indices])
+        fresh,scores=model.predict_images(paths,batch_size=images,return_scores=True)
+        single=model.predict_images(paths,batch_size=1)
+        repeat=model.predict_images(paths,batch_size=images)
+    result={'n_original_images':images,'faces':[p.name for p in paths],
+            'cached_feature_predictions':cached.tolist(),'fresh_image_predictions':fresh.tolist(),
+            'fresh_vs_cache_max_score_difference':float(np.max(np.abs(scores-x[indices]))),
+            'fresh_vs_cache_max_prediction_difference':float(np.max(np.abs(fresh-cached))),
+            'batch_1_vs_multi_max_prediction_difference':float(np.max(np.abs(single-fresh))),
+            'repeated_batch_max_prediction_difference':float(np.max(np.abs(repeat-fresh))),
+            'all_predictions_finite':bool(np.isfinite(fresh).all()),
+            'sklearn_version':model.bundle['sklearn_version'],'hidden_images_used':False}
+    (root/'inference_validation.json').write_text(json.dumps(result,indent=2)+'\n')
+    if not result['all_predictions_finite'] or any(
+            value>tolerance for key,value in result.items() if key.endswith('_prediction_difference')):
+        raise AssertionError(f'Image inference differs beyond tolerance {tolerance}: {result}')
+    print(json.dumps(result,indent=2),flush=True)
+    return result
+
+
+def report_trustworthiness(root):
+    """Rebuild the scientific report from saved results, without fitting models."""
+    import base64,csv
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import markdown
+    root=Path(root)
+    result=json.loads((root/'results.json').read_text())
+    exploration=json.loads((root/'exploration.json').read_text())
+    literature=json.loads((root/'literature.json').read_text())
+    data,x,groups,metadata=load_trust_data(root)
+    with (root/'oof_predictions.csv').open() as f:rows=list(csv.DictReader(f))
+    y=np.array([float(row['mean_rating']) for row in rows])
+    high=np.array([bool(int(row['upper_quartile'])) for row in rows])
+    sem=np.array([float(row['rating_sem']) for row in rows])
+    pred={m:np.array([float(row[m]) for row in rows]) for m in result['methods']}
+    for method in result['methods']:
+        for key,value in regression_metrics(y,pred[method]).items():
+            np.testing.assert_allclose(value,result['metrics'][method][key],atol=1e-12)
+    names={'training_mean':'Training mean','trustworthy_phrase':'“A trustworthy face”',
+           'warm_phrase':'“A warm face”','happy_phrase':'“A happy face”','ridge':'All-phrase ridge',
+           'rbf':'RBF kernel ridge','centered_rbf':'Centered RBF kernel ridge',
+           'screened_ridge':'Screened ridge','poly2':'Quadratic kernel ridge','svr':'RBF SVR',
+           'hgb':'Boosted trees','evolved_groups':'Evolved group subset','selected':'Nested model selector'}
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'axes.spines.top':False,
+                         'axes.spines.right':False,'figure.facecolor':'#fbfcff','axes.facecolor':'#fbfcff',
+                         'axes.labelcolor':'#22364a','text.color':'#22364a','savefig.facecolor':'#fbfcff'})
+    figures=[]
+    def save(fig,name):
+        fig.savefig(root/f'{name}.png',dpi=180,bbox_inches='tight')
+        fig.savefig(root/f'{name}.svg',bbox_inches='tight')
+        plt.close(fig);figures.append(name)
+    methods=[m for m in result['methods'] if m!='training_mean']
+    fig,axes=plt.subplots(1,2,figsize=(12,6),gridspec_kw={'width_ratios':[1.65,1]})
+    colors=['#087f8c' if m=='selected' else '#5c80a4' if m in ('ridge','rbf','centered_rbf') else '#aebdcb' for m in methods]
+    vals=[result['metrics'][m]['rmse'] for m in methods]
+    axes[0].barh(range(len(methods)),vals,color=colors)
+    axes[0].set_yticks(range(len(methods)),[names[m] for m in methods]);axes[0].invert_yaxis()
+    axes[0].set_xlabel('Held-out RMSE · lower is better');axes[0].set_xlim(0,max(vals)*1.2)
+    for j,v in enumerate(vals):axes[0].text(v+.001,j,f'{v:.4f}',va='center',fontsize=9)
+    axes[0].set_title('604 evaluation faces · nested selection')
+    chosen=['happy_phrase','ridge','rbf','centered_rbf','selected']
+    axes[1].barh(range(len(chosen)),[result['tail_metrics'][m]['high_metrics']['rmse'] for m in chosen],color=['#aebdcb']+['#5c80a4']*3+['#087f8c'])
+    axes[1].set_yticks(range(len(chosen)),[names[m] for m in chosen]);axes[1].invert_yaxis()
+    axes[1].set_xlabel('Upper-quartile RMSE');axes[1].set_title(f'High-rating region · {high.sum()} faces')
+    fig.tight_layout(w_pad=3);save(fig,'model_accuracy')
+
+    fig,axes=plt.subplots(1,3,figsize=(14,4.3))
+    for ax,method,title in zip(axes[:2],['happy_phrase','selected'],['Single happy phrase','Nested model selector']):
+        ax.scatter(y[~high],pred[method][~high],s=14,alpha=.5,c='#5c80a4',edgecolors='none')
+        ax.scatter(y[high],pred[method][high],s=19,alpha=.7,c='#d68045',edgecolors='none',label='Upper quartile')
+        ax.plot([.2,.9],[.2,.9],'--',c='#6f7f8b',lw=1)
+        ax.set(xlabel='Human mean rating',ylabel='Held-out prediction',xlim=(.2,.9),ylim=(.2,.9),title=title)
+        ax.text(.04,.95,f'r = {result["metrics"][method]["pearson"]:.3f}\nRMSE = {result["metrics"][method]["rmse"]:.4f}',transform=ax.transAxes,va='top')
+    axes[1].legend(loc='lower right',frameon=False,fontsize=9)
+    for method,color in [('ridge','#5c80a4'),('selected','#087f8c')]:
+        order=np.argsort(pred[method]);bins=np.array_split(order,10)
+        px=[pred[method][b].mean() for b in bins];means=[y[b].mean() for b in bins]
+        errors=[y[b].std(ddof=1)/np.sqrt(len(b)) for b in bins]
+        axes[2].errorbar(px,means,yerr=errors,marker='o',ms=4,lw=1.5,color=color,label=names[method])
+    axes[2].plot([.25,.85],[.25,.85],'--',c='#6f7f8b',lw=1)
+    axes[2].set(xlabel='Mean prediction in predicted-score decile',ylabel='Mean observed rating',title='Calibration · ±1 SE across faces')
+    axes[2].legend(frameon=False,fontsize=8)
+    fig.tight_layout();save(fig,'prediction_calibration')
+
+    fig,axes=plt.subplots(1,3,figsize=(14,4.3))
+    yp=y[high];pp=pred['selected'][high]
+    axes[0].scatter(yp,pp,s=22,c='#d68045',alpha=.65,edgecolors='none')
+    axes[0].plot([.65,.87],[.65,.87],'--',c='#6f7f8b');axes[0].set(xlabel='Human mean rating',ylabel='Held-out prediction',title='High ratings · magnified')
+    bins=np.array_split(np.argsort(y),8)
+    for method,color in [('ridge','#5c80a4'),('selected','#087f8c')]:
+        residual=pred[method]-y
+        axes[1].errorbar([y[b].mean() for b in bins],[residual[b].mean() for b in bins],
+                        yerr=[residual[b].std(ddof=1)/np.sqrt(len(b)) for b in bins],marker='o',ms=4,color=color,label=names[method])
+    axes[1].axhline(0,c='#6f7f8b',ls='--');axes[1].set(xlabel='Human mean-rating bin',ylabel='Prediction − rating',title='Bias across the rating range')
+    axes[1].legend(frameon=False,fontsize=8)
+    chosen=['happy_phrase','ridge','selected']
+    values=[result['tail_metrics'][m]['close_pair_concordance'] for m in chosen]
+    axes[2].bar(range(3),[100*v if v is not None else 0 for v in values],color=['#aebdcb','#5c80a4','#087f8c'])
+    axes[2].axhline(50,c='#6f7f8b',ls='--');axes[2].set_xticks(range(3),['Happy phrase','Ridge','Selector'])
+    axes[2].set(ylim=(0,100),ylabel='Correct ordering (%)',title='High-region pairs · gaps 0.01–0.05')
+    for i,v in enumerate(values):
+        if v is not None:axes[2].text(i,100*v+2,f'{100*v:.1f}%',ha='center')
+    fig.tight_layout();save(fig,'high_rating_diagnostics')
+
+    p128=[r for r in exploration['phrases'] if r['patches']==128]
+    ranked=sorted(p128,key=lambda r:r['pearson'])
+    selected=ranked[:7]+ranked[-9:]
+    fig,axes=plt.subplots(1,2,figsize=(14,7))
+    values=[r['pearson'] for r in selected]
+    axes[0].barh(range(len(selected)),values,color=['#b36b50' if v<0 else '#087f8c' for v in values])
+    axes[0].set_yticks(range(len(selected)),[r['text'] for r in selected],fontsize=9)
+    axes[0].axvline(0,c='#6f7f8b',lw=.7);axes[0].set(xlabel='Development Pearson r · 400 faces',title='Strong signed phrase associations · p128')
+    ablation=sorted(exploration['group_ablation'],key=lambda r:r['drop_delta_r2'])
+    axes[1].barh(range(len(ablation)),[r['drop_delta_r2'] for r in ablation],color='#5c80a4')
+    axes[1].set_yticks(range(len(ablation)),[r['group'].replace('_',' ') for r in ablation],fontsize=9)
+    axes[1].axvline(0,c='#6f7f8b',lw=.7);axes[1].set(xlabel='R² lost when group is removed',title='Conditional utility · development ridge ablation')
+    fig.tight_layout(w_pad=3);save(fig,'phrase_analysis')
+
+    fig,axes=plt.subplots(1,2,figsize=(12,4.5))
+    families=list(dict.fromkeys(r['recipe']['family'] for r in exploration['recipes']))
+    for i,family in enumerate(families):
+        candidates=[r for r in exploration['recipes'] if r['recipe']['family']==family]
+        values=np.array([r['metrics']['rmse'] for r in candidates])
+        axes[0].scatter(i+np.linspace(-.18,.18,len(values)),values,s=15,alpha=.55,c='#5c80a4')
+        axes[0].scatter(i,min(values),s=38,c='#087f8c')
+    axes[0].set_xticks(range(len(families)),[f.replace('_',' ') for f in families],rotation=35,ha='right',fontsize=8)
+    axes[0].set(ylabel='Development 5-fold RMSE',title=f'{len(exploration["recipes"])} development recipes · green = family best')
+    trace=exploration['evolution']
+    axes[1].plot([r['generation'] for r in trace],[np.sqrt(r['mse']) for r in trace],'-o',c='#087f8c')
+    axes[1].set_xticks([r['generation'] for r in trace]);axes[1].set(xlabel='Generation',ylabel='Best development 3-fold RMSE',title='Evolution of cue-group subsets')
+    fig.tight_layout();save(fig,'development_search')
+
+    reference={r['id']:r for r in literature}
+    with (root/'phrase_statistics.csv').open('w') as f:
+        writer=csv.DictWriter(f,fieldnames=list(exploration['phrases'][0]));writer.writeheader();writer.writerows(exploration['phrases'])
+    metric=result['metrics']['selected'];tail=result['tail_metrics']['selected'];ridge=result['metrics']['ridge']
+    ci=result['selected_vs_ridge']['rmse_reduction']
+    lines=['# Predicting perceived trustworthiness from a frozen vision–language model','',
+           '**FG-CLIP2 So400m · 256 literature-guided phrases · nested evaluation · 8 September 2026**','',
+           f'The complete model-selection procedure reaches **r = {metric["pearson"]:.4f}, R² = {metric["r2"]:.4f}, RMSE = {metric["rmse"]:.4f} and MAE = {metric["mae"]:.4f}** on 604 faces excluded from phrase exploration. The target is the mean human impression on the stored slider scale, not a person’s actual honesty or behavior. The final deployable model is refitted on all 1,004 original faces; its own training fit is never reported as accuracy.','',
+           f'Compared with all-phrase ridge, the nested selector changes RMSE by {metric["rmse"]-ridge["rmse"]:+.4f}. A paired face bootstrap gives a 95% interval of [{ci[0]:.4f}, {ci[1]:.4f}] for RMSE reduction. This interval conditions on the fitted folds; it does not include retraining or search uncertainty.','',
+           '![Model accuracy](model_accuracy.png)','',
+           '## What the psychological literature suggested','',
+           'The search connects findings about expression resemblance, smile components, facial form, typicality and image conditions. This is a targeted review of 14 primary studies/reviews, not an exhaustive systematic review. Each phrase group records its source links and whether its specific wording is exploratory. No individual caption is assumed to isolate a psychological mechanism.','',
+           '| Evidence | Finding and implication |','|---|---|']
+    for source in literature:
+        lines.append(f'| [{source["citation"]}]({source["url"]}) | {source["finding"]} **Feature design:** {source["model_implication"]} |')
+    lines += ['','## From literature to a nonlinear predictor','',
+              'The frozen bank contains 16 groups of 16 phrases: direct impressions, positive expressions, smile authenticity, negative expressions, mouth/cheeks, eyes/brows, gaze/pose, sex-typical appearance, age/babyface, facial geometry, typicality/familiarity, attractiveness/health appearance, skin reflectance, grooming/image conditions, eyewear/occlusion, and explicit cue combinations. Some are established broad cue families; granular wording and interaction captions are model hypotheses.','',
+              'So400m encodes every image with patch budgets 128 and 256, producing 512 image–text similarity logits. The image/text encoder is frozen and runs in float16; regression calculations use float64. Scores are not probabilities. The raw-score models standardize each column using training data only. Centered RBF first subtracts each image’s mean score separately within each resolution, then applies training-column standardization.','',
+              'Linear ridge and screened/evolved subsets compete with smooth RBF kernel ridge, a quadratic kernel, RBF support-vector regression and boosted trees. The RBF kernel uses exp(−γ‖z−z′‖²), with γ equal to the recipe gamma divided by its feature count. It can represent nonlinear cue combinations without explicitly estimating all pairwise coefficients. The quadratic kernel is (1 + z·z′/p)². Convex blends of the three best inner-CV families are also considered. MSE governs every selection; correlation and pair ordering are diagnostics.','',
+              '## Phrase exploration: useful signals and misleading wording','',
+              '![Phrase analysis](phrase_analysis.png)','',
+              '| Phrase | Development r, p128 | Development r, p256 |','|---|---:|---:|']
+    for text in ['a trustworthy face','a warm face','a happy face','a joyful face','a genuine smile','an insincere smile','a very feminine face','glasses','sunglasses']:
+        r={row['patches']:row['pearson'] for row in exploration['phrases'] if row['text']==text}
+        lines.append(f'| {text} | {r[128]:.4f} | {r[256]:.4f} |')
+    lines += ['','“An insincere smile” has a positive marginal association. One possible explanation is that the encoder emphasizes smiling content over the modifier; the correlation alone cannot establish that mechanism. Negatively worded captions should therefore enter as measured features, rather than being assigned a negative sign by hand. The eye/mouth and eyewear combinations similarly remain hypotheses.','',
+              'The ablation plot removes both resolutions of a cue group and refits development CV ridge using a fixed, development-selected alpha. Positive values indicate conditional predictive utility in that readout, not causal importance. Strongly correlated phrases can substitute for one another. The complete 512-row table includes Pearson, Spearman, p and Benjamini–Hochberg q values; these are exploratory, face-independence-based statistics and do not measure incremental utility in the nonlinear model.','',
+              '![Development search](development_search.png)','',
+              'Evolution searched group masks using a population of 12, three elites, crossover, bit-flip mutation and four generations. Three-fold development CV tuned each mask over ridge alphas 10, 100 and 1000. The best mask was then evaluated with five ridge alphas in the larger development comparison. This budgeted search tests whether dropping cue families helps; it is not exhaustive optimization. The full bank remains eligible.','',
+              '## Evaluation protocol and complete results','',
+              'A fixed seed (20260910) separates 400 development faces from 604 evaluation faces. All phrase statistics, group evolution and initial recipe pruning use the development faces only. The best two development recipes from each of eight model families form a frozen list of 16. Each of ten outer folds trains on the 400 development faces plus the other evaluation faces (943–944 training faces). Five-fold inner CV selects each family’s recipe and the final recipe/blend. Every evaluation face is predicted once by a model that has not seen its rating. Baseline single phrases receive training-only linear slope/intercept calibration.','',
+              'This is complete ten-fold coverage of the development-excluded faces, not leave-one-out CV and not an external test. The 400 development faces are deliberately excluded from headline accuracy. Earlier research used these original images for other attributes; this evaluation does not establish independence from prior image-level familiarity.','',
+              '| Readout / procedure | Pearson r | Spearman ρ | R² | RMSE | MAE |','|---|---:|---:|---:|---:|---:|']
+    for method in result['methods']:
+        m=result['metrics'][method]
+        lines.append(f'| {names[method]} | {m["pearson"]:.4f} | {m["spearman"]:.4f} | {m["r2"]:.4f} | {m["rmse"]:.4f} | {m["mae"]:.4f} |')
+    lines += ['','The “Nested model selector” row is the prespecified primary procedure. Picking the best family after reading this table would introduce additional selection optimism. Family comparisons are useful diagnostics, but do not override the frozen selection rule. Centered RBF has a slightly better standalone outer score; the final model still follows the declared inner-CV selection rule.','',
+              '![Predictions and calibration](prediction_calibration.png)','',
+              'Calibration bins are defined by held-out predictions. Error bars are ±1 standard error across faces, not uncertainty intervals for an individual rating or the whole training procedure.','',
+              '## Fine differences at high ratings','',
+              f'The upper region uses the 75th percentile of the corresponding outer training ratings as its threshold ({tail["high_n"]} evaluation faces). The selector has high-region **RMSE {tail["high_metrics"]["rmse"]:.4f}, MAE {tail["high_metrics"]["mae"]:.4f}, r {tail["high_metrics"]["pearson"]:.4f}, R² {tail["high_metrics"]["r2"]:.4f}**. Restricting the range makes this a harder and distinct assessment.','',
+              '![High-rating diagnostics](high_rating_diagnostics.png)','',
+              '| Procedure | High-region RMSE | High-region MAE | Close-pair ordering | Pairs | Noise-separated pairs | Ordering on noise-separated pairs |',
+              '|---|---:|---:|---:|---:|---:|---:|']
+    def percent(value):return 'n/a' if value is None else f'{100*value:.1f}%'
+    for method in ['happy_phrase','ridge','rbf','centered_rbf','selected']:
+        t=result['tail_metrics'][method]
+        lines.append(f'| {names[method]} | {t["high_metrics"]["rmse"]:.4f} | {t["high_metrics"]["mae"]:.4f} | {percent(t["close_pair_concordance"])} | {t["close_pairs"]} | {t["noise_separated_pairs"]} | {percent(t["noise_separated_concordance"])} |')
+    lines += ['','Close pairs have human-mean gaps from 0.01 to 0.05, both faces in the upper region, and the same outer fold so their predictions come from the same fitted model. Ties receive half credit. The nonlinear selector improves high-region rating error but does not improve this close-pair ordering diagnostic over ridge. These are different images close in rating; they are **not verified same-identity latent variants**. Pairs reuse faces, so the pair count is not an independent sample size.','',
+              f'The median per-face rating SEM in evaluation is {np.median(sem):.4f}. The optional “noise-separated” filter requires the observed gap to exceed 1.96√(SEM₁² + SEM₂²). It assumes independent rating errors and omits shared-rater covariance; it is an approximate descriptive screen. The remaining pairs can be very few. A good population-level score does not establish sensitivity to arbitrarily small changes among extremely trustworthy-looking variants. Your hidden controlled test is necessary for that claim.','',
+              '## Frozen model for the hidden test','',
+              'All 1,004 original faces are used for final five-fold recipe/blend selection and refitting. This follows the same frozen candidate list and MSE rule, without choosing a family from the outer-score table. Final components:','',
+              '```json',json.dumps({'recipes':result['final_recipes'],'weights':result['final_weights']},indent=2),'```','',
+              'The bundle stores fitted estimators, feature order, scaling, target mean, text bank, pinned encoder revision, resolution settings, versions and training image names. No target clipping is applied; predictions remain in stored slider units. The extra 1,560 study-stimulus rating records are excluded from model fitting and evaluation, and no hidden test images are scored in this experiment.','',
+              '```python','from CLIP.fgclip2_face_impressions import TrustworthinessPredictor',
+              f'model = TrustworthinessPredictor.load({str((root/"trustworthiness_model.joblib").resolve())!r})',
+              'means = model.predict_images(["/path/to/face_a.png", "/path/to/face_b.png"])',
+              'rating_difference = means[1] - means[0]','```','',
+              'Run from the project root using `/opt/anaconda3/envs/manip311/bin/python`. Image inference loads the cached, pinned So400m model on MPS at half precision. The joblib bundle should be loaded only as a trusted artifact and with its recorded sklearn version. A folder command is documented in `INFERENCE.md`.','',
+              '## Reproducibility and limits','',
+              f'- Original face set: {len(data.paths):,} images; trustworthy ratings per face {int(data.rater_counts.min())}–{int(data.rater_counts.max())}, median {np.median(data.rater_counts):.0f}. Faces receive equal loss weight.',
+              f'- Exact outer evaluation time: {result["cv_seconds"]:.1f} seconds, excluding encoding, development, bootstrap and final fitting. One BLAS thread avoids small-matrix thread overhead.',
+              '- Split unit is the image. Exact duplicates are checked; unknown identity/latent-family relationships and shared raters are not modeled. Generalization to new identities, rater populations, photographic domains or controlled latent traversals requires separate tests.',
+              '- Literature-guided prompts can capture appearance stereotypes and image artifacts. A feature’s predictive contribution does not prove a visual cause of judgments, accurate demographic identification, or actual character.',
+              '- Hyperparameter and phrase searches were finite. The reported model is the result of this tested search, not a guarantee of globally maximal accuracy.',
+              '- `oof_predictions.csv` contains every evaluation prediction. `results.json` contains exact test indices, inner losses and fold selections. `exploration.json` retains all development recipes, correlations, group ablations and evolutionary traces. `model_manifest.json` records hashes and software versions; `evaluation_source.py.txt` snapshots evaluation code.',
+              '- Reusable functions for encoding, development, nested CV, tail metrics, fitting, inference and reporting are in `CLIP/fgclip2_face_impressions.py`. `CLIP/test_fgclip2_research.py` includes numerical parity, serialization, score-centering and held-out-label leakage tests.','']
+    validation_path=root/'inference_validation.json'
+    if validation_path.exists():
+        validation=json.loads(validation_path.read_text())
+        lines += ['### Fresh-image inference verification','','```json',json.dumps(validation,indent=2),'```','']
+    lines += ['## Complete phrase bank','','The table below is the frozen, pre-evaluation bank. Source links describe the broad evidence; exact captions and combinations are exploratory probes.']
+    for group in groups:
+        sources=', '.join(f'[{reference[key]["citation"]}]({reference[key]["url"]})' for key in group['sources'])
+        lines += ['',f'### {group["name"].replace("_"," ").capitalize()}','',group['evidence']+'. Sources: '+sources+'.','',
+                  '| Phrase | r, p128 | r, p256 |','|---|---:|---:|']
+        for text in group['phrases']:
+            rs={r['patches']:r['pearson'] for r in exploration['phrases'] if r['text']==text}
+            lines.append(f'| {text} | {rs[128]:.3f} | {rs[256]:.3f} |')
+    document='\n'.join(lines)
+    (root/'report.md').write_text(document)
+    rendered=markdown.markdown(document,extensions=['tables','fenced_code'])
+    for name in figures:
+        encoded=base64.b64encode((root/f'{name}.png').read_bytes()).decode()
+        rendered=rendered.replace(f'src="{name}.png"',f'src="data:image/png;base64,{encoded}"')
+    (root/'report.html').write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Perceived trustworthiness · FG-CLIP2 research</title><style>body{max-width:1400px;margin:40px auto;padding:0 30px;font:16px/1.65 system-ui;color:#22364a;background:#fbfcff}h1{font-size:36px;line-height:1.2;max-width:1050px}h2{margin-top:52px;border-top:1px solid #d7e2eb;padding-top:24px}h3{margin-top:32px}img{max-width:100%;height:auto}table{border-collapse:collapse;width:100%;font-size:13px;margin:22px 0}td,th{border-bottom:1px solid #d7e2eb;padding:9px;text-align:left;vertical-align:top}th{background:#eaf0f6}pre{overflow:auto;background:#eaf0f6;padding:22px;border-radius:8px;font-size:13px}a{color:#087f8c}strong{color:#145364}code{font-size:.9em}@media print{body{margin:0}h2{break-after:avoid}img,tr{break-inside:avoid}}</style></head><body>'+rendered+'</body></html>')
+    manifest_path=root/'model_manifest.json'
+    manifest=json.loads(manifest_path.read_text());manifest['report_source_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    manifest['runtime_source_sha256']=manifest['report_source_sha256']
+    manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
+    print(f'Report: {root/"report.html"}',flush=True)
+
+
+__all__ += ['report_trustworthiness','validate_trust_inference']
+
+
+def encode_trust_testset(image_dir, bundle_path, output, *, batch_size=16):
+    """Apply the frozen model to trustworthy-named images, with resumable chunks."""
+    import re,csv
+    root=Path(output);root.mkdir(parents=True,exist_ok=True)
+    paths=tuple(sorted(p for p in Path(image_dir).iterdir()
+                       if p.is_file() and 'trustworthy' in p.name.lower() and p.suffix.lower() in DEFAULT_IMAGE_SUFFIXES))
+    if not paths:raise ValueError('No trustworthy image files found.')
+    pattern=re.compile(r'^(?P<identity>.+?)_(?P<method>flow|vector)_level_(?P<level>\d+)$')
+    records=[]
+    for p in paths:
+        match=pattern.fullmatch(p.stem)
+        if not match:raise ValueError(f'Unrecognized manipulation filename: {p.name}')
+        records.append(dict(face=p.name,path=str(p.resolve()),identity=match['identity'],method=match['method'],
+                            level=int(match['level']),sha256=hashlib.sha256(p.read_bytes()).hexdigest()))
+    manifest={'bundle_sha256':hashlib.sha256(Path(bundle_path).read_bytes()).hexdigest(),'images':records,
+              'batch_size':batch_size,'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+    (root/'input_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    model=TrustworthinessPredictor.load(bundle_path)
+    pieces=[];started=time.perf_counter()
+    for start in range(0,len(paths),batch_size):
+        part=records[start:start+batch_size]
+        key=hashlib.sha256(json.dumps({'bundle':manifest['bundle_sha256'],'images':part},sort_keys=True).encode()).hexdigest()
+        target=root/f'chunk-{key}.npz'
+        if target.exists():
+            with np.load(target,allow_pickle=False) as cached:
+                scores=cached['scores'];prediction=cached['prediction']
+        else:
+            prediction,scores=model.predict_images(paths[start:start+batch_size],batch_size=batch_size,return_scores=True)
+            _atomic_save_npz(target,scores=scores,prediction=prediction)
+        np.testing.assert_allclose(model.predict_scores(scores),prediction,atol=1e-12)
+        pieces.append(scores)
+        print(f'Frozen inference {min(start+batch_size,len(paths))}/{len(paths)} · {time.perf_counter()-started:.1f}s',flush=True)
+    scores=np.concatenate(pieces);prediction=model.predict_scores(scores)
+    _atomic_save_npz(root/'frozen_predictions.npz',scores=scores,prediction=prediction,faces=np.asarray([p.name for p in paths]))
+    with (root/'image_predictions.csv').open('w') as f:
+        writer=csv.DictWriter(f,fieldnames=[*records[0],'prediction']);writer.writeheader()
+        writer.writerows(dict(row,prediction=float(value)) for row,value in zip(records,prediction))
+    return records,prediction
+
+
+__all__ += ['encode_trust_testset']
+
+
+def trust_change_metrics(records):
+    """Absolute, offset-removed and paired-change diagnostics; never fit a model."""
+    from collections import defaultdict
+    def metrics(y,p):
+        y,p=np.asarray(y,float),np.asarray(p,float)
+        if len(y)<2 or np.var(y)==0:
+            return {'n':len(y),'pearson':None,'r2':None,'rmse':float(np.sqrt(np.mean((y-p)**2))) if len(y) else None,
+                    'mae':float(np.mean(np.abs(y-p))) if len(y) else None}
+        return dict(n=len(y),**regression_metrics(y,p))
+    def compare(rows):return metrics([r['rating'] for r in rows],[r['prediction'] for r in rows])
+    by_level={str(level):compare([r for r in records if r['level']==level]) for level in sorted({r['level'] for r in records})}
+    groups=defaultdict(list)
+    for r in records:groups[(r['identity'],r['method'])].append(r)
+    centered_y=[];centered_p=[];delta_y=[];delta_p=[];step_y=[];step_p=[];slopes=[];trajectories=[];delta_levels=defaultdict(list)
+    for (identity,method),rows in groups.items():
+        rows=sorted(rows,key=lambda r:r['level']);levels=np.array([r['level'] for r in rows],float)
+        if len(rows)<2:continue
+        y=np.array([r['rating'] for r in rows]);p=np.array([r['prediction'] for r in rows])
+        cy=y-y.mean();cp=p-p.mean();centered_y.extend(cy);centered_p.extend(cp)
+        level_c=levels-levels.mean();sy=float(level_c@y/(level_c@level_c));sp=float(level_c@p/(level_c@level_c))
+        slopes.append((sy,sp))
+        trajectory=dict(identity=identity,method=method,levels=levels.tolist(),ratings=y.tolist(),predictions=p.tolist(),
+                        shape_r=pearson_correlation(y,p),centered_rmse=float(np.sqrt(np.mean((cy-cp)**2))),
+                        human_slope=sy,predicted_slope=sp,has_level0=bool(levels[0]==0))
+        step_y.extend(np.diff(y));step_p.extend(np.diff(p))
+        if levels[0]==0:
+            dy=y[1:]-y[0];dp=p[1:]-p[0];delta_y.extend(dy);delta_p.extend(dp)
+            for level,a,b in zip(levels[1:],dy,dp):delta_levels[str(int(level))].append((a,b))
+            trajectory.update(endpoint_human=float(y[-1]-y[0]),endpoint_prediction=float(p[-1]-p[0]),
+                              endpoint_sem=float(np.hypot(rows[0]['sem'],rows[-1]['sem'])))
+        trajectories.append(trajectory)
+    endpoint=[t for t in trajectories if t['has_level0'] and t['levels'][-1]==4]
+    ey=np.array([t['endpoint_human'] for t in endpoint]);ep=np.array([t['endpoint_prediction'] for t in endpoint])
+    direction={}
+    for epsilon in (0.,.01,.02,.03,.05):
+        actual=np.where(ey>epsilon,2,np.where(ey < -epsilon,0,1));predicted=np.where(ep>epsilon,2,np.where(ep < -epsilon,0,1))
+        matrix=np.zeros((3,3),int)
+        for a,b in zip(actual,predicted):matrix[a,b]+=1
+        counts=matrix.sum(axis=1);present=counts>0
+        direction[str(epsilon)]={'threshold':epsilon,'confusion':matrix.tolist(),'labels':['decrease','little_change','increase'],
+             'accuracy':float(np.mean(actual==predicted)) if len(actual) else None,
+             'balanced_accuracy':float(np.mean(np.diag(matrix)[present]/counts[present])) if present.any() else None,
+             'majority_baseline_accuracy':float(max(counts)/sum(counts)) if sum(counts) else None,
+             'predict_no_change_accuracy':float(np.mean(actual==1)) if len(actual) else None}
+    separated=np.abs(ey)>1.96*np.array([t['endpoint_sem'] for t in endpoint])
+    return {'absolute':compare(records),'by_level':by_level,'centered':metrics(centered_y,centered_p),
+            'baseline_changes':metrics(delta_y,delta_p),'adjacent_changes':metrics(step_y,step_p),
+            'change_by_level':{level:metrics(*np.array(pairs).T) for level,pairs in delta_levels.items()},
+            'slopes':metrics(*np.asarray(slopes).T),'endpoint_changes':metrics(ey,ep),'direction':direction,
+            'endpoint_noise_separated_n':int(separated.sum()),
+            'endpoint_noise_separated_sign_accuracy':float(np.mean(np.sign(ey[separated])==np.sign(ep[separated]))) if separated.any() else None,
+            'zero_change_baseline_rmse':float(np.sqrt(np.mean(ey**2))) if len(ey) else None,
+            'trajectory_count':len(trajectories),'complete_trajectory_count':sum(t['levels']==[0,1,2,3,4] for t in trajectories),
+            'median_trajectory_r':float(np.median([t['shape_r'] for t in trajectories])), 'trajectories':trajectories}
+
+
+def analyze_trust_testset(output, ratings_path, *, shared_baselines=False):
+    """Join named ratings, audit shared baselines and evaluate the frozen outputs.
+
+    shared_baselines=True requires dataset-owner confirmation for absent flow
+    baseline files; otherwise aliases require byte-identical existing images.
+    """
+    import csv
+    root=Path(output);manifest=json.loads((root/'input_manifest.json').read_text())
+    ratings=HumanRatingsStore(ratings_path)._load()['trustworthy']
+    with (root/'image_predictions.csv').open() as f:raw=list(csv.DictReader(f))
+    by_name={r['face']:r for r in raw};rows=[];unmatched=[]
+    for row in raw:
+        row=dict(row);row['level']=int(row['level']);row['prediction']=float(row['prediction'])
+        key=row['face'];provenance='exact_filename'
+        if key not in ratings and row['method']=='vector' and row['level']==0:
+            alias=key.replace('_vector_','_flow_')
+            verified=alias in by_name and by_name[alias]['sha256']==row['sha256']
+            if alias in ratings and (verified or shared_baselines):
+                key=alias;provenance='byte_identical_baseline' if verified else 'owner_confirmed_shared_baseline'
+        if key not in ratings:
+            unmatched.append(row['face']);continue
+        values=np.asarray(ratings[key],float);values=values[np.isfinite(values)]
+        if len(values)<2:raise ValueError(f'Insufficient ratings: {key}')
+        row.update(rating=float(values.mean()),n_raters=len(values),sem=float(values.std(ddof=1)/np.sqrt(len(values))),
+                   rating_key=key,rating_provenance=provenance,image_provenance='supplied_file')
+        rows.append(row)
+    if shared_baselines:
+        present={(r['identity'],r['method'],r['level']) for r in rows}
+        for row in list(rows):
+            if row['method']=='vector' and row['level']==0 and (row['identity'],'flow',0) not in present:
+                rows.append(dict(row,method='flow',face=row['face'].replace('_vector_','_flow_'),
+                                 image_provenance='owner_confirmed_shared_vector_baseline'))
+    # Combined absolute statistics count the common baseline once per identity.
+    unique=[];seen=set()
+    for row in sorted(rows,key=lambda r:(r['identity'],r['level'],r['method'])):
+        key=(row['identity'],row['level'],row['sha256']) if row['level']==0 else (row['identity'],row['method'],row['level'])
+        if key not in seen:unique.append(row);seen.add(key)
+    output_metrics={method:trust_change_metrics([r for r in rows if r['method']==method]) for method in ('flow','vector')}
+    combined=trust_change_metrics(rows)
+    unique_metrics=trust_change_metrics(unique)
+    combined['absolute']=unique_metrics['absolute'];combined['by_level']=unique_metrics['by_level']
+    output_metrics['combined']=combined
+    for method in ('flow','vector','combined'):
+        common_levels=trust_change_metrics([r for r in rows if r['level'] in (1,2,3,4)
+                                            and (method=='combined' or r['method']==method)])
+        output_metrics[method]['common_levels_1_to_4']={k:common_levels[k] for k in
+            ('centered','adjacent_changes','slopes','trajectory_count','median_trajectory_r')}
+    from collections import Counter
+    # Paired bootstrap resamples identities, retaining both methods and all levels.
+    identities=sorted({r['identity'] for r in rows});rng=np.random.default_rng(20260911)
+    errors={}
+    for method in ('flow','vector'):
+        errors[method]={t['identity']:t for t in output_metrics[method]['trajectories']}
+    common=sorted(set(errors['flow'])&set(errors['vector']))
+    bootstrap=[]
+    for _ in range(3000):
+        sampled=rng.choice(common,len(common),replace=True)
+        values=[]
+        for method in ('flow','vector'):
+            ts=[errors[method][i] for i in sampled]
+            endpoint=[(t['endpoint_prediction']-t['endpoint_human'])**2 for t in ts if t['has_level0'] and t['levels'][-1]==4]
+            values.append([np.sqrt(np.average([t['centered_rmse']**2 for t in ts],weights=[len(t['levels']) for t in ts])),np.sqrt(np.mean(endpoint)) if endpoint else np.nan])
+        bootstrap.append(np.array(values[0])-values[1])
+    intervals=np.nanquantile(bootstrap,[.025,.975],axis=0)
+    result={'subsets':output_metrics,'physical_images':len(raw),'evaluated_method_rows':len(rows),
+            'unique_absolute_rows':len(unique),'identities':len(identities),'unmatched':unmatched,
+            'shared_baselines_owner_confirmed':shared_baselines,'rating_provenance_counts':dict(Counter(r['rating_provenance'] for r in rows)),
+            'image_provenance_counts':dict(Counter(r['image_provenance'] for r in rows)),
+            'flow_minus_vector_rmse_ci95':{'centered':intervals[:,0].tolist(),'endpoint':intervals[:,1].tolist()},
+            'bundle_sha256':manifest['bundle_sha256'],'ratings_sha256':hashlib.sha256(Path(ratings_path).read_bytes()).hexdigest(),
+            'analysis_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            'rater_count_range':[min(r['n_raters'] for r in rows),max(r['n_raters'] for r in rows)]}
+    (root/'test_results.json').write_text(json.dumps(result,indent=2)+'\n')
+    with (root/'rated_predictions.csv').open('w') as f:
+        writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+    (root/'analysis_source.py.txt').write_bytes(Path(__file__).read_bytes())
+    print(json.dumps({k:{m:v[m] for m in ('absolute','by_level','centered','endpoint_changes','slopes','median_trajectory_r')} for k,v in output_metrics.items()},indent=2),flush=True)
+    return result
+
+
+__all__ += ['trust_change_metrics','analyze_trust_testset']
+
+
+def report_trust_testset(output):
+    """Scientific report for the frozen external test, including all trajectories."""
+    import csv,base64
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import markdown
+    root=Path(output);result=json.loads((root/'test_results.json').read_text());sub=result['subsets']
+    colors={'flow':'#087f8c','vector':'#c27542','combined':'#546b80'}
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'axes.spines.top':False,'axes.spines.right':False,
+                         'figure.facecolor':'#fbfcff','axes.facecolor':'#fbfcff','savefig.facecolor':'#fbfcff'})
+    figures=[]
+    def save(fig,name):
+        fig.savefig(root/f'{name}.png',dpi=160,bbox_inches='tight');fig.savefig(root/f'{name}.svg',bbox_inches='tight')
+        plt.close(fig);figures.append(name)
+    fig,axes=plt.subplots(1,2,figsize=(11,4))
+    for method in ('flow','vector','combined'):
+        rows=sub[method]['by_level'];levels=sorted(map(int,rows))
+        for ax,key in zip(axes,['pearson','rmse']):
+            ax.plot(levels,[rows[str(l)][key] for l in levels],'-o',label=method,color=colors[method],alpha=.85)
+            ax.set_xticks(levels);ax.set_xlabel('Manipulation level')
+    axes[0].set(ylabel='Across-face Pearson r',title='Absolute ratings · separately at each level',ylim=(-.1,1))
+    axes[1].set(ylabel='RMSE in slider units',title='Absolute rating error');axes[1].legend(frameon=False)
+    fig.tight_layout();save(fig,'within_level_accuracy')
+    fig,axes=plt.subplots(1,2,figsize=(11,4.5))
+    for ax,method in zip(axes,('flow','vector')):
+        ts=[t for t in sub[method]['trajectories'] if t['has_level0'] and t['levels'][-1]==4]
+        y=np.array([t['endpoint_human'] for t in ts]);p=np.array([t['endpoint_prediction'] for t in ts])
+        ax.scatter(y,p,c=colors[method],alpha=.8,s=35,edgecolors='none')
+        lo=min(y.min(),p.min(),-.02)-.02;hi=max(y.max(),p.max(),.02)+.02
+        ax.plot([lo,hi],[lo,hi],'--',c='#7a8894',lw=1)
+        ax.axvspan(-.02,.02,color='#dbe2ea',alpha=.4);ax.axhspan(-.02,.02,color='#dbe2ea',alpha=.4)
+        ax.axvline(0,c='#7a8894',lw=.5);ax.axhline(0,c='#7a8894',lw=.5)
+        m=sub[method]['endpoint_changes']
+        ax.set(xlabel='Human change: level 4 − level 0',ylabel='Predicted change: level 4 − level 0',
+               title=f'{method} · n={len(ts)}, r={m["pearson"]:.3f}, RMSE={m["rmse"]:.3f}',xlim=(lo,hi),ylim=(lo,hi))
+    fig.tight_layout();save(fig,'endpoint_changes')
+    fig,axes=plt.subplots(1,2,figsize=(11,4.2))
+    for ax,method in zip(axes,('flow','vector')):
+        ts=[t for t in sub[method]['trajectories'] if t['has_level0'] and t['levels']==[0,1,2,3,4]]
+        y=np.array([t['ratings'] for t in ts]);p=np.array([t['predictions'] for t in ts]);y-=y[:,[0]];p-=p[:,[0]]
+        for values,label,color in [(y,'Human mean change','#1b3f66'),(p,'Frozen-model change','#cd743f')]:
+            ax.errorbar(range(5),values.mean(axis=0),yerr=values.std(axis=0,ddof=1)/np.sqrt(len(values)),
+                        marker='o',capsize=3,label=label,color=color)
+        ax.axhline(0,c='#7a8894',lw=.7);ax.set_xticks(range(5));ax.set(xlabel='Level',ylabel='Change from level 0',title=f'{method} · complete baseline-matched trajectories')
+        ax.legend(frameon=False,fontsize=9)
+    fig.tight_layout();save(fig,'mean_manipulation')
+    fig,axes=plt.subplots(1,2,figsize=(10,4))
+    for ax,method in zip(axes,('flow','vector')):
+        d=sub[method]['direction']['0.02'];matrix=np.array(d['confusion'])
+        ax.imshow(matrix,cmap='Blues',vmin=0,vmax=max(1,matrix.max()))
+        for i in range(3):
+            for j in range(3):ax.text(j,i,str(matrix[i,j]),ha='center',va='center',color='white' if matrix[i,j]>matrix.max()/2 else '#20364b')
+        ax.set_xticks(range(3),['Decrease','Little change','Increase']);ax.set_yticks(range(3),['Decrease','Little change','Increase'])
+        ax.set(xlabel='Predicted endpoint change',ylabel='Observed endpoint change',title=f'{method} · accuracy {100*d["accuracy"]:.1f}%')
+    fig.tight_layout();save(fig,'direction_confusion')
+    # Every trajectory is shown, including failures; a common vertical scale
+    # across both methods prevents selective magnification of favorable examples.
+    extent=max(np.max(np.abs(np.array(t[k])-np.mean(t[k]))) for method in ('flow','vector')
+               for t in sub[method]['trajectories'] for k in ('ratings','predictions'))*1.05
+    for method in ('flow','vector'):
+        ts=sorted(sub[method]['trajectories'],key=lambda t:int(t['identity'].split('_')[-1]))
+        fig,axes=plt.subplots(int(np.ceil(len(ts)/5)),5,figsize=(15,2.05*int(np.ceil(len(ts)/5))),sharex=True,sharey=True)
+        for ax,t in zip(axes.flat,ts):
+            for key,color,label in [('ratings','#1b3f66','Human'),('predictions','#cd743f','Predicted')]:
+                values=np.array(t[key]);ax.plot(t['levels'],values-values.mean(),'-o',ms=3,lw=1.4,color=color,label=label)
+            ax.axhline(0,color='#a0adb8',lw=.6);ax.set_xticks(range(5));ax.set_ylim(-extent,extent)
+            ax.set_title(f'Face {t["identity"].split("_")[-1]} · r={t["shape_r"]:.2f}',fontsize=9)
+        for ax in list(axes.flat)[len(ts):]:ax.set_visible(False)
+        axes.flat[0].legend(frameon=False,fontsize=8)
+        fig.supxlabel('Level');fig.supylabel('Within-face centered rating / prediction')
+        fig.suptitle(f'{method.upper()} · every face trajectory, constant offsets removed',y=1.002,fontsize=16)
+        fig.tight_layout();save(fig,f'{method}_trajectory_atlas')
+    def f(v):return 'n/a' if v is None else f'{v:.4f}'
+    combined=sub['combined'];baseline=combined['by_level']['0']
+    decrease_note='; '.join(f'{method}: {sub[method]["direction"]["0.02"]["confusion"][0][0]} of {sum(sub[method]["direction"]["0.02"]["confusion"][0])} observed decreases correctly classified' for method in ('flow','vector'))
+    lines=['# Frozen-model test: trustworthiness manipulations','',
+           '**FG-CLIP2 So400m · unchanged 256-phrase nonlinear ensemble · 9 September 2026**','',
+           f'On level-0 faces, the frozen model reaches **r={f(baseline["pearson"])}, RMSE={f(baseline["rmse"])} (n={baseline["n"]})**. Absolute performance is substantially weaker than the original development-excluded result (r=.9380, RMSE=.0433). These samples differ, so this is a generalization diagnostic rather than a paired statistical comparison.','',
+           f'After removing each face-and-method trajectory’s constant offset, **flow r={f(sub["flow"]["centered"]["pearson"])}, RMSE={f(sub["flow"]["centered"]["rmse"])}**, versus **vector r={f(sub["vector"]["centered"]["pearson"])}, RMSE={f(sub["vector"]["centered"]["rmse"])}**. The model captures some manipulation variation, but this does not imply calibrated effect sizes or uniformly correct individual trajectories.','',
+           '## Data matching and frozen-test integrity','',
+           f'- {result["physical_images"]} supplied images containing `trustworthy`; {result["identities"]} filename identities. All 50 faces have levels 1–4 for both methods. There are 50 vector level-0 files and 31 flow level-0 files.',
+           '- All 31 existing flow/vector level-0 pairs are byte-identical. Vector level-0 filenames have no exact rating keys. Their corresponding `flow_level_0.png` rating keys exist.',
+           f'- Owner confirmation for all shared baselines: **{result["shared_baselines_owner_confirmed"]}**. Without confirmation, only byte-identical existing baseline pairs receive aliased ratings. Missing flow baseline files are never silently invented.',
+           f'- {result["evaluated_method_rows"]} rated method/image rows; {result["unique_absolute_rows"]} unique rows in combined absolute statistics. A common level-0 image is counted once per identity in combined absolute results, but serves as the baseline of both method trajectories.',
+           f'- {len(result["unmatched"])} supplied images remain without a verified rating match. Ratings per included image: {result["rater_count_range"][0]}–{result["rater_count_range"][1]}. The complete join and provenance are in `rated_predictions.csv`.',
+           '- No fitting, calibration, prompt selection, weight changes or hyperparameter selection used these ratings. The original joblib hash is recorded in both input and result manifests. Every supplied image has a saved frozen prediction, even if its rating mapping is unconfirmed.','',
+           '## Absolute accuracy within each level','',
+           '![Within-level accuracy](within_level_accuracy.png)','',
+           '| Subset | Level | n | Pearson r | R² | RMSE | MAE |','|---|---:|---:|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        for level,m in sorted(sub[method]['by_level'].items()):
+            lines.append(f'| {method} | {level} | {m["n"]} | {f(m["pearson"])} | {f(m["r2"])} | {f(m["rmse"])} | {f(m["mae"])} |')
+    lines += ['','A negative R² means the prediction error exceeds the variance of observed ratings in that subset. A positive correlation can coexist with poor calibration and negative R². Shared baselines make the two method-specific level-0 rows identical; they are not independent replications.','',
+              '## Manipulation efficacy: remove offsets, preserve changes','',
+              'For each identity × method, centered values are y(level) − mean(y) and prediction(level) − mean(prediction), calculated over that trajectory’s available levels. Their pooled correlation measures within-trajectory covariation; centered RMSE measures shape/amplitude error after removing the best constant offset. This diagnostic uses observed means to factor out bias; it is not a deployable test-set recalibration and does not rescale amplitude or repair slope errors.','',
+              'Baseline changes are level k − level 0. Endpoint changes use level 4 − level 0. Adjacent changes use consecutive available levels. Slopes are OLS slopes against level index, separately for human and predicted trajectories. Slope comparison uses indices descriptively and does not assume ratings increase monotonically.','',
+              '| Subset | Diagnostic | n | Pearson r | R² | RMSE |','|---|---|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        for key,label in [('centered','Centered trajectory'),('baseline_changes','All changes from baseline'),('adjacent_changes','Adjacent changes'),('endpoint_changes','Endpoint change'),('slopes','Per-face slope')]:
+            m=sub[method][key];lines.append(f'| {method} | {label} | {m["n"]} | {f(m["pearson"])} | {f(m["r2"])} | {f(m["rmse"])} |')
+    lines += ['','The n column counts rows, changes or slopes, not independent observations. Repeated levels and methods share identities. The combined centered metric retains both method trajectories; the baseline deduplication applies only to absolute metrics.','',
+              '![Endpoint changes](endpoint_changes.png)','',
+              '![Average manipulation](mean_manipulation.png)','',
+              'Mean-change error bars are ±1 standard error across complete, baseline-matched face trajectories. They describe variability across faces, not independent participant uncertainty. The shaded endpoint-scatter bands mark ±.02 slider units.','',
+              '| Subset | Change to level | n | Pearson r | RMSE |','|---|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        for level,m in sorted(sub[method]['change_by_level'].items()):lines.append(f'| {method} | {level} | {m["n"]} | {f(m["pearson"])} | {f(m["rmse"])} |')
+    lines += ['','### Baseline-independent sensitivity: levels 1–4 only','',
+              'This comparison uses all 50 identities per method and only exactly matched ratings. Every trajectory has four levels, so neither missing baseline images nor rating aliases affect these results.','',
+              '| Subset | Centered r | Centered RMSE | Slope r | Slope RMSE | Median per-face shape r |','|---|---:|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        c=sub[method]['common_levels_1_to_4']
+        lines.append(f'| {method} | {f(c["centered"]["pearson"])} | {f(c["centered"]["rmse"])} | {f(c["slopes"]["pearson"])} | {f(c["slopes"]["rmse"])} | {f(c["median_trajectory_r"])} |')
+    lines += ['','## Increase, decrease or little change','',
+              'The primary descriptive neutral band is ±.02 slider units for the endpoint change. It is an explicit practical threshold, not a validated perceptual equivalence margin. A non-significant effect is not automatically “no change.” Both human and predicted changes use the same threshold.','',
+              '![Direction confusion](direction_confusion.png)','',
+              '| Method | Neutral band | Accuracy | Balanced accuracy | Majority-class baseline | Always little-change baseline |','|---|---:|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        for epsilon,d in sub[method]['direction'].items():
+            lines.append(f'| {method} | ±{epsilon} | {100*d["accuracy"]:.1f}% | {100*d["balanced_accuracy"]:.1f}% | {100*d["majority_baseline_accuracy"]:.1f}% | {100*d["predict_no_change_accuracy"]:.1f}% |')
+    lines += ['',f'At ±.02: {decrease_note}. Compare ordinary accuracy with the majority-class baseline before judging individual manipulation selection. Balanced accuracy averages recall over human classes present in the subset. The threshold-zero row is a sign test with a possible exact-zero class. A high ordinary accuracy can reflect a dominant increase class, which is why the baselines and full confusion matrices are included.','',
+              '| Method | Endpoint RMSE | Always-zero-change RMSE | Noise-separated endpoints | Sign accuracy on those endpoints |','|---|---:|---:|---:|---:|']
+    for method in ('combined','flow','vector'):
+        s=sub[method];acc=s['endpoint_noise_separated_sign_accuracy']
+        lines.append(f'| {method} | {f(s["endpoint_changes"]["rmse"])} | {f(s["zero_change_baseline_rmse"])} | {s["endpoint_noise_separated_n"]} | {"n/a" if acc is None else f"{100*acc:.1f}%"} |')
+    lines += ['','The optional noise screen requires |human endpoint change| > 1.96√(SEM₀² + SEM₄²). It omits shared-rater covariance and is approximate. Near-zero observed changes can be noisy, especially with 26–42 ratings per image.','',
+              '## Comparing the manipulation methods','',
+              f'Paired identity bootstrap (3,000 resamples, both methods and all available levels kept together): 95% intervals for **flow minus vector RMSE** are {result["flow_minus_vector_rmse_ci95"]["centered"]} for centered trajectories and {result["flow_minus_vector_rmse_ci95"]["endpoint"]} for endpoints. Negative differences favor flow. These intervals condition on the frozen model and observed rating means, and do not resample participants.',
+              '','RMSE and correlation answer different questions. Lower error for one method can reflect its effect-size distribution as well as model alignment; inspect the actual/predicted changes and zero-change baseline before concluding that a method is intrinsically easier.','',
+              '## Every face trajectory','',
+              'All identities are shown below with the same vertical scale across both methods. Blue is human, orange is predicted. Each curve has its own trajectory mean removed. Missing baseline matches produce a four-level curve starting at level 1; complete trajectories start at 0. No examples were selected by performance.','',
+              '![Flow trajectories](flow_trajectory_atlas.png)','',
+              '![Vector trajectories](vector_trajectory_atlas.png)','',
+              '| Method | Identity | Levels | Shape r | Centered RMSE | Human slope | Predicted slope | Human endpoint | Predicted endpoint |',
+              '|---|---|---|---:|---:|---:|---:|---:|---:|']
+    ts=[t for method in ('flow','vector') for t in sub[method]['trajectories']]
+    for t in ts:
+        lines.append(f'| {t["method"]} | {t["identity"]} | {",".join(str(int(l)) for l in t["levels"])} | {f(t["shape_r"])} | {f(t["centered_rmse"])} | {f(t["human_slope"])} | {f(t["predicted_slope"])} | {f(t.get("endpoint_human"))} | {f(t.get("endpoint_prediction"))} |')
+    with (root/'trajectory_metrics.csv').open('w') as stream:
+        fields=['identity','method','shape_r','centered_rmse','human_slope','predicted_slope','endpoint_human','endpoint_prediction','endpoint_sem']
+        writer=csv.DictWriter(stream,fieldnames=fields,extrasaction='ignore');writer.writeheader();writer.writerows(ts)
+    lines += ['','## Artifacts and reuse','',
+              '- `image_predictions.csv`: all supplied-image predictions; `rated_predictions.csv`: included ratings and join provenance; `trajectory_metrics.csv`: individual manipulation metrics.',
+              '- `test_results.json`: all metrics, trajectories, confusion matrices and paired bootstrap intervals. `input_manifest.json` records image and frozen-model hashes. `frozen_predictions.npz` preserves all 512 score features; per-batch caches permit interrupted inference to resume.',
+              '- Reusable functions in `CLIP/fgclip2_face_impressions.py`: `encode_trust_testset`, `analyze_trust_testset`, `trust_change_metrics`, `report_trust_testset`. The model bundle remains unchanged. PNG and SVG versions of every figure accompany this self-contained HTML.',
+              '- These measurements concern subjective impressions of generated faces. They do not validate actual trustworthiness, and no claim is made that increasing level has a uniform psychological effect.','']
+    if result['unmatched']:
+        lines += ['## Pending baseline mappings','', 'These files have predictions but no verified rating mapping. Their exclusion is explicit; confirming the shared baseline convention permits rerunning only analysis and reporting, without image encoding or model changes.','',*['- '+name for name in result['unmatched']]]
+    source='\n'.join(lines);(root/'report.md').write_text(source)
+    rendered=markdown.markdown(source,extensions=['tables','fenced_code'])
+    for name in figures:
+        rendered=rendered.replace(f'src="{name}.png"',f'src="data:image/png;base64,{base64.b64encode((root/f"{name}.png").read_bytes()).decode()}"')
+    (root/'report.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Trustworthiness manipulation test</title><style>body{max-width:1400px;margin:40px auto;padding:0 28px;font:16px/1.65 system-ui;color:#243b50;background:#fbfcff}h1{font-size:36px;line-height:1.2}h2{margin-top:45px;border-top:1px solid #dae3ec;padding-top:22px}img{max-width:100%}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:8px;border-bottom:1px solid #dae3ec;text-align:left}th{background:#eaf1f7}a{color:#087f8c}pre{overflow:auto}</style>'+rendered)
+    report_manifest={'runtime_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                     'frozen_bundle_sha256':result['bundle_sha256'],
+                     'artifacts_sha256':{name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in
+                         ('test_results.json','rated_predictions.csv','image_predictions.csv','report.html')}}
+    (root/'report_manifest.json').write_text(json.dumps(report_manifest,indent=2)+'\n')
+    print(f'Report: {root/"report.html"}',flush=True)
+
+
+__all__ += ['report_trust_testset']
+
+
+def transfer_center_groups(values, groups):
+    """Remove each identity's training-trajectory mean from vectors or matrices."""
+    values=np.asarray(values,float);groups=np.asarray(groups)
+    out=values.copy()
+    for group in np.unique(groups):
+        mask=groups==group;out[mask]-=out[mask].mean(axis=0)
+    return out
+
+
+def trust_transfer_grid():
+    """Frozen finite search: source replay, domain weighting, contrast loss."""
+    recipes=[{'family':'source_only'}]
+    for family,alphas in [('pooled_ridge',(1.,10.,100.)),('pooled_rbf',(.01,.1,1.,10.))]:
+        for alpha in alphas:
+            for weight in (.25,1.,4.,16.):recipes.append(dict(family=family,alpha=alpha,vector_weight=weight))
+    for mapping,alphas in [('linear',(.01,.1,1.,10.)),('nystrom',(.0001,.001,.01,.1))]:
+        for alpha in alphas:
+            for weight in (.25,1.,4.,16.):
+                for contrast in (0.,1.,4.,16.):
+                    recipes.append(dict(family='residual',mapping=mapping,alpha=alpha,
+                                        vector_weight=weight,contrast=contrast))
+    return recipes
+
+
+def fit_transfer_source(x,y):
+    """Refit the prior architecture from scratch; never load its all-data weights."""
+    recipes=[dict(family='centered_rbf',bank='both',gamma=.1,alpha=.1),
+             dict(family='poly2',bank='p256',alpha=.1)]
+    return {'components':[fit_trust_recipe(x,y,r) for r in recipes],'weights':[.5,.5]}
+
+
+def transfer_basis(source_x,vector_x,source_model,vector_y,groups,mapping):
+    from sklearn.kernel_approximation import Nystroem
+    x=np.row_stack([source_x,vector_x]);z,mean,scale=_scale_training(trust_center_scores(x))
+    transform=None
+    if mapping=='nystrom':
+        transform=Nystroem(kernel='rbf',gamma=.1/z.shape[1],n_components=min(128,len(z)),random_state=20260912,n_jobs=1)
+        z=transform.fit_transform(z)
+    phi=np.column_stack([z,np.ones(len(z))]);a,b=phi[:len(source_x)],phi[len(source_x):]
+    residual=vector_y-predict_trust_readout(source_model,vector_x)
+    centered=transfer_center_groups(b,groups);cr=transfer_center_groups(residual,groups)
+    return {'mean':mean,'scale':scale,'transform':transform,
+            'source_gram':a.T@a/len(a),'vector_gram':b.T@b/len(b),
+            'contrast_gram':centered.T@centered/len(b),
+            'vector_rhs':b.T@residual/len(b),'contrast_rhs':centered.T@cr/len(b)}
+
+
+def fit_trust_transfer(source_x,source_y,vector_x,vector_y,groups,recipe,*,source_model=None,basis=None):
+    """Train on original faces and vector labels only; inference uses one image."""
+    from sklearn.linear_model import Ridge
+    from sklearn.kernel_ridge import KernelRidge
+    from scipy.linalg import solve
+    source_model=source_model or fit_transfer_source(source_x,source_y)
+    family=recipe['family']
+    if family=='source_only':return source_model
+    if family=='residual':
+        basis=basis or transfer_basis(source_x,vector_x,source_model,vector_y,groups,recipe['mapping'])
+        weight,contrast,alpha=recipe['vector_weight'],recipe['contrast'],recipe['alpha']
+        a=basis['source_gram']+weight*(basis['vector_gram']+contrast*basis['contrast_gram'])
+        a=a+alpha*np.eye(len(a));b=weight*(basis['vector_rhs']+contrast*basis['contrast_rhs'])
+        coefficients=solve(a,b,assume_a='pos')
+        return {'transfer_kind':'residual','source_model':source_model,'recipe':recipe,
+                'mean':basis['mean'],'scale':basis['scale'],'transform':basis['transform'],'coefficients':coefficients}
+    x=np.row_stack([source_x,vector_x]);y=np.concatenate([source_y,vector_y])
+    z,mean,scale=_scale_training(trust_center_scores(x))
+    weights=np.concatenate([np.ones(len(source_y)),np.full(len(vector_y),recipe['vector_weight']*len(source_y)/len(vector_y))])
+    target_mean=float(np.average(y,weights=weights))
+    estimator=Ridge(alpha=recipe['alpha'],fit_intercept=False,solver='cholesky') if family=='pooled_ridge' else KernelRidge(alpha=recipe['alpha'],kernel='rbf',gamma=.1/z.shape[1])
+    estimator.fit(z,y-target_mean,sample_weight=weights)
+    return {'transfer_kind':'pooled','recipe':recipe,'mean':mean,'scale':scale,'target_mean':target_mean,'estimator':estimator}
+
+
+def predict_trust_transfer(model,x):
+    z=(trust_center_scores(x)-model['mean'])/model['scale']
+    if model['transfer_kind']=='pooled':return model['estimator'].predict(z)+model['target_mean']
+    if model['transform'] is not None:z=model['transform'].transform(z)
+    return predict_trust_readout(model['source_model'],x)+np.column_stack([z,np.ones(len(z))])@model['coefficients']
+
+
+def trust_transfer_cv(sx,sy,vx,vy,vg,recipes,*,folds=5,seed=20260912):
+    """Paired source folds / identity-grouped vector folds, all preprocessing refit."""
+    ss=make_cv_splits(len(sy),folds,seed);vs=make_cv_splits(len(vy),folds,seed,vg)
+    sp=np.full((len(sy),len(recipes)),np.nan);vp=np.full((len(vy),len(recipes)),np.nan)
+    details=[]
+    for fold,((st,sv),(vt,vv)) in enumerate(zip(ss,vs)):
+        print(f'Transfer validation fold {fold+1}/{folds}: {len(st)} original + {len(vt)} vector training',flush=True)
+        source=fit_transfer_source(sx[st],sy[st])
+        bases={mapping:transfer_basis(sx[st],vx[vt],source,vy[vt],vg[vt],mapping) for mapping in ('linear','nystrom')}
+        for j,recipe in enumerate(recipes):
+            model=fit_trust_transfer(sx[st],sy[st],vx[vt],vy[vt],vg[vt],recipe,source_model=source,basis=bases.get(recipe.get('mapping')))
+            sp[sv,j]=predict_trust_readout(model,sx[sv]);vp[vv,j]=predict_trust_readout(model,vx[vv])
+        details.append({'fold':fold,'source_validation_indices':sv.tolist(),'vector_validation_indices':vv.tolist(),
+                        'vector_training_identities':np.unique(vg[vt]).tolist(),'vector_validation_identities':np.unique(vg[vv]).tolist()})
+    if not np.isfinite(sp).all() or not np.isfinite(vp).all():raise ValueError('Incomplete transfer validation.')
+    source_mse=np.mean((sp-sy[:,None])**2,axis=0);vector_mse=np.mean((vp-vy[:,None])**2,axis=0)
+    cy=transfer_center_groups(vy,vg);cp=transfer_center_groups(vp,vg)
+    shape_mse=np.mean((cp-cy[:,None])**2,axis=0)
+    objective=.7*vector_mse/np.var(vy)+.3*shape_mse/np.var(cy)
+    feasible=source_mse<=source_mse[0]*1.15
+    def best(indices):
+        admissible=[i for i in indices if feasible[i]]
+        return min(admissible,key=lambda i:objective[i]) if admissible else 0
+    selections={'source_only':0,'pooled':best([i for i,r in enumerate(recipes) if r['family'].startswith('pooled')]),
+                'residual_absolute':best([i for i,r in enumerate(recipes) if r['family']=='residual' and r['contrast']==0]),
+                'residual_contrast':best([i for i,r in enumerate(recipes) if r['family']=='residual' and r['contrast']>0]),
+                'selected':best(range(len(recipes)))}
+    candidates=[{'recipe':r,'source_mse':float(source_mse[j]),'vector_mse':float(vector_mse[j]),
+                 'vector_shape_mse':float(shape_mse[j]),'objective':float(objective[j]),'feasible':bool(feasible[j])} for j,r in enumerate(recipes)]
+    return dict(source_predictions=sp,vector_predictions=vp,selections=selections,candidates=candidates,folds=details)
+
+
+def run_trust_transfer(original_root,manipulation_root,output,*,evaluate=True):
+    """Freeze vector-only selection, export its model, then optionally open test labels."""
+    import csv,joblib,platform,sklearn
+    from threadpoolctl import threadpool_limits
+    root=Path(output);root.mkdir(parents=True,exist_ok=True)
+    data,x,_,metadata=load_trust_data(original_root)
+    previous=json.loads((Path(original_root)/'protocol.json').read_text())
+    rng=np.random.default_rng(20260912)
+    test_indices=np.sort(rng.choice(previous['evaluation_indices'],size=200,replace=False))
+    train_indices=np.setdiff1d(np.arange(len(x)),test_indices)
+    manip=Path(manipulation_root);manifest=json.loads((manip/'input_manifest.json').read_text())
+    with np.load(manip/'frozen_predictions.npz',allow_pickle=False) as saved:
+        mx=saved['scores'];names=saved['faces'].tolist()
+    records=manifest['images']
+    if names!=[r['face'] for r in records]:raise ValueError('Manipulation score identity mismatch.')
+    vi=np.array([i for i,r in enumerate(records) if r['method']=='vector' and r['level']>0])
+    fi=np.array([i for i,r in enumerate(records) if r['method']=='flow'])
+    if {records[i]['sha256'] for i in vi}&{records[i]['sha256'] for i in fi}:raise ValueError('Vector/flow image-byte overlap.')
+    vg=np.array([records[i]['identity'] for i in vi])
+    store=HumanRatingsStore(metadata['p128']['ratings_path'])._load()['trustworthy']
+    # Only vector keys are dereferenced before fitting and selection.
+    vy=np.array([np.mean(np.asarray(store[names[i]],float)) for i in vi])
+    recipes=trust_transfer_grid()
+    protocol={'seed':20260912,'source_train_indices':train_indices.tolist(),'source_test_indices':test_indices.tolist(),
+              'source_face_names':[p.name for p in data.paths],'vector_training_faces':[names[i] for i in vi],
+              'flow_test_faces':[names[i] for i in fi],'recipes':recipes,
+              'selection':'Minimize .7 vector absolute NMSE + .3 vector within-identity centered NMSE, subject to original validation MSE <= 1.15 times source-only MSE.',
+              'shared_baselines':'Vector level0 excluded: no own ratings and shared flow baseline keys.',
+              'test_status':'Recycled original split and previously inspected flow outcomes; exploratory transfer, not a pristine external test.',
+              'identity_status':'Flow and vector share identities; evaluates transfer across manipulation methods, not new identities.'}
+    (root/'protocol.json').write_text(json.dumps(protocol,indent=2)+'\n')
+    started=time.perf_counter()
+    with threadpool_limits(limits=1):
+        cv=trust_transfer_cv(x[train_indices],data.human_means[train_indices],mx[vi],vy,vg,recipes)
+        selection={key:recipes[j] for key,j in cv['selections'].items()}
+        (root/'frozen_selection.json').write_text(json.dumps(selection,indent=2)+'\n')
+        clean={k:v for k,v in cv.items() if not k.endswith('_predictions')}
+        (root/'validation.json').write_text(json.dumps(clean,indent=2)+'\n')
+        _atomic_save_npz(root/'validation_predictions.npz',source=cv['source_predictions'],vector=cv['vector_predictions'],vector_y=vy,vector_groups=vg)
+        print('Frozen selections:',json.dumps(selection),flush=True)
+        source=fit_transfer_source(x[train_indices],data.human_means[train_indices]);models={}
+        bases={mapping:transfer_basis(x[train_indices],mx[vi],source,vy,vg,mapping) for mapping in ('linear','nystrom')}
+        fitted={}
+        for method,j in cv['selections'].items():
+            if j not in fitted:
+                fitted[j]=fit_trust_transfer(x[train_indices],data.human_means[train_indices],mx[vi],vy,vg,recipes[j],source_model=source,basis=bases.get(recipes[j].get('mapping')))
+            models[method]=fitted[j]
+    original_bundle=joblib.load(Path(original_root)/'trustworthiness_model.joblib')
+    bundle={**original_bundle,'model':models['selected'],'training_faces':[data.paths[i].name for i in train_indices]+[names[i] for i in vi],
+            'selected_recipes':[selection['selected']],'selection_weights':[1.],
+            'transfer_protocol':protocol,'training_y_range':[float(min(data.human_means[train_indices].min(),vy.min())),float(max(data.human_means[train_indices].max(),vy.max()))]}
+    # Replace stale all-data training claims inherited from the deployment envelope.
+    for key in ('training_audit','frozen_candidates'):bundle.pop(key,None)
+    joblib.dump(bundle,root/'transfer_model.joblib',compress=3)
+    joblib.dump(models,root/'comparison_models.joblib',compress=3)
+    run_manifest={'python':platform.python_version(),'sklearn':sklearn.__version__,'training_seconds':time.perf_counter()-started,
+                  'source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                  'inputs_sha256':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in
+                     [Path(original_root)/'p128/trustworthy-features.npz',Path(original_root)/'p256/trustworthy-features.npz',manip/'frozen_predictions.npz']},
+                  'selected_model_sha256':hashlib.sha256((root/'transfer_model.joblib').read_bytes()).hexdigest()}
+    (root/'run_manifest.json').write_text(json.dumps(run_manifest,indent=2)+'\n')
+    (root/'training_source.py.txt').write_bytes(Path(__file__).read_bytes())
+    if evaluate:evaluate_trust_transfer(original_root,manipulation_root,root)
+    return selection
+
+
+def evaluate_trust_transfer(original_root,manipulation_root,output):
+    """Evaluate an already-frozen transfer selection; never tune from test outcomes."""
+    import csv,joblib
+    from threadpoolctl import threadpool_limits
+    root=Path(output);protocol=json.loads((root/'protocol.json').read_text())
+    data,x,_,metadata=load_trust_data(original_root);test=np.array(protocol['source_test_indices'])
+    manip=Path(manipulation_root);records=json.loads((manip/'input_manifest.json').read_text())['images']
+    with np.load(manip/'frozen_predictions.npz',allow_pickle=False) as a:mx=a['scores'];names=a['faces'].tolist()
+    lookup={name:i for i,name in enumerate(names)};fi=np.array([lookup[name] for name in protocol['flow_test_faces']])
+    models=joblib.load(root/'comparison_models.joblib');store=HumanRatingsStore(metadata['p128']['ratings_path'])._load()['trustworthy']
+    flow=[]
+    for index in fi:
+        values=np.asarray(store[names[index]],float);values=values[np.isfinite(values)]
+        flow.append(dict(records[index],rating=float(values.mean()),sem=float(values.std(ddof=1)/np.sqrt(len(values)))))
+    results={};source_columns={};flow_columns={}
+    with threadpool_limits(limits=1):
+        for method,model in models.items():
+            sp=predict_trust_readout(model,x[test]);fp=predict_trust_readout(model,mx[fi]);source_columns[method]=sp;flow_columns[method]=fp
+            rows=[dict(r,prediction=float(p)) for r,p in zip(flow,fp)]
+            fm=trust_change_metrics(rows)
+            fm['late_endpoint']=transfer_pair_metrics(rows,start=1,end=4)
+            common=trust_change_metrics([r for r in rows if r['level']>0])
+            fm['common_levels_1_to_4']={k:common[k] for k in ('centered','slopes','adjacent_changes','median_trajectory_r')}
+            results[method]={'source_test':regression_metrics(data.human_means[test],sp),'flow_test':fm}
+    for path,base,columns in [('original_test_predictions.csv',[{'face':data.paths[i].name,'rating':float(data.human_means[i])} for i in test],source_columns),
+                              ('flow_test_predictions.csv',flow,flow_columns)]:
+        with (root/path).open('w') as f:
+            writer=csv.DictWriter(f,fieldnames=[*base[0],*columns]);writer.writeheader()
+            writer.writerows(dict(row,**{method:float(pred[i]) for method,pred in columns.items()}) for i,row in enumerate(base))
+    # Cluster bootstrap compares the selected model with the refitted source control.
+    rng=np.random.default_rng(20260912);ids=sorted({r['identity'] for r in flow});groups=np.array([r['identity'] for r in flow])
+    y=np.array([r['rating'] for r in flow]);selected=flow_columns['selected'];baseline=flow_columns['source_only']
+    trajectories={m:{t['identity']:t for t in results[m]['flow_test']['trajectories']} for m in ('selected','source_only')}
+    draws=[]
+    for _ in range(3000):
+        chosen=rng.choice(ids,len(ids),replace=True);index=np.concatenate([np.flatnonzero(groups==i) for i in chosen])
+        values=[]
+        for method,p in [('source_only',baseline),('selected',selected)]:
+            ts=[trajectories[method][i] for i in chosen]
+            values.append([np.sqrt(np.mean((p[index]-y[index])**2)),
+                           np.sqrt(np.average([t['centered_rmse']**2 for t in ts],weights=[len(t['levels']) for t in ts]))])
+        draws.append(np.array(values[0])-values[1])
+    intervals=np.quantile(draws,[.025,.975],axis=0)
+    output_result={'methods':results,'flow_selected_rmse_reduction_ci95':{'absolute':intervals[:,0].tolist(),'centered':intervals[:,1].tolist()},
+                   'n_source_test':len(test),'n_flow_images':len(flow),'n_flow_identities':len(ids),
+                   'selected_recipe':json.loads((root/'frozen_selection.json').read_text())['selected']}
+    (root/'test_results.json').write_text(json.dumps(output_result,indent=2)+'\n')
+    print('Transfer test results:',json.dumps({m:{'source':s['source_test'],'flow':s['flow_test']['absolute'],'flow_centered':s['flow_test']['centered'],'endpoint':s['flow_test']['endpoint_changes'],'direction':s['flow_test']['direction']['0.02']} for m,s in results.items()},indent=2),flush=True)
+    return output_result
+
+
+__all__ += ['transfer_center_groups','trust_transfer_grid','fit_transfer_source','fit_trust_transfer',
+            'predict_trust_transfer','trust_transfer_cv','run_trust_transfer','evaluate_trust_transfer']
+
+
+def freeze_trust_transfer_tradeoffs(original_root,manipulation_root,output):
+    """Validation-only protocol revision exposing the domain-retention tradeoff.
+
+    Use before flow testing. Preserve the strict 15% retention decision, then
+    select a balanced objective with equal total weight for source and vector
+    domains, and a vector-focused comparator. No new recipes are introduced.
+    """
+    import joblib
+    from threadpoolctl import threadpool_limits
+    root=Path(output)
+    if (root/'test_results.json').exists():raise ValueError('Tradeoff selection must precede test evaluation.')
+    protocol=json.loads((root/'protocol.json').read_text());cv=json.loads((root/'validation.json').read_text())
+    data,x,_,_=load_trust_data(original_root);train=np.array(protocol['source_train_indices'])
+    with np.load(Path(manipulation_root)/'frozen_predictions.npz',allow_pickle=False) as f:
+        mx=f['scores'];names=f['faces'].tolist()
+    lookup={name:i for i,name in enumerate(names)};vi=np.array([lookup[n] for n in protocol['vector_training_faces']])
+    with np.load(root/'validation_predictions.npz',allow_pickle=False) as f:vy=f['vector_y'];vg=f['vector_groups']
+    candidates=cv['candidates'];variance=float(np.var(data.human_means[train]))
+    for row in candidates:row['balanced_objective']=.5*row['source_mse']/variance+.5*row['objective']
+    def best(indices,key='balanced_objective'):return min(indices,key=lambda j:candidates[j][key])
+    indices=list(range(len(candidates)))
+    picks={'source_only':0,'retention_15':cv['selections']['selected'],
+           'pooled':best([j for j,r in enumerate(candidates) if r['recipe']['family'].startswith('pooled')]),
+           'residual_absolute':best([j for j,r in enumerate(candidates) if r['recipe']['family']=='residual' and r['recipe']['contrast']==0]),
+           'residual_contrast':best([j for j,r in enumerate(candidates) if r['recipe']['family']=='residual' and r['recipe']['contrast']>0]),
+           'selected':best(indices),'vector_focused':best(indices,'objective')}
+    (root/'strict_retention_selection.json').write_text((root/'frozen_selection.json').read_text())
+    protocol['validation_only_revision']='All adapted recipes failed the 1.15 source-MSE cap. Before any new test evaluation, added balanced selection: .5 original absolute NMSE + .35 vector absolute NMSE + .15 vector centered NMSE. Added a vector-focused comparator. Recipe grid unchanged.'
+    protocol['selection']='Primary: minimize .5 source absolute NMSE + .35 vector absolute NMSE + .15 vector within-identity centered NMSE. Strict retention and vector-focused decisions retained as comparisons.'
+    (root/'protocol.json').write_text(json.dumps(protocol,indent=2)+'\n')
+    cv['strict_selections']=cv['selections'];cv['selections']=picks
+    (root/'validation.json').write_text(json.dumps(cv,indent=2)+'\n')
+    selections={key:candidates[j]['recipe'] for key,j in picks.items()}
+    (root/'frozen_selection.json').write_text(json.dumps(selections,indent=2)+'\n')
+    with threadpool_limits(limits=1):
+        source=fit_transfer_source(x[train],data.human_means[train])
+        bases={mapping:transfer_basis(x[train],mx[vi],source,vy,vg,mapping) for mapping in ('linear','nystrom')}
+        fitted={j:fit_trust_transfer(x[train],data.human_means[train],mx[vi],vy,vg,candidates[j]['recipe'],source_model=source,basis=bases.get(candidates[j]['recipe'].get('mapping'))) for j in set(picks.values())}
+    models={method:fitted[j] for method,j in picks.items()}
+    bundle=joblib.load(root/'transfer_model.joblib');bundle.update(model=models['selected'],selected_recipes=[selections['selected']],transfer_protocol=protocol)
+    joblib.dump(bundle,root/'transfer_model.joblib',compress=3);joblib.dump(models,root/'comparison_models.joblib',compress=3)
+    manifest=json.loads((root/'run_manifest.json').read_text())
+    manifest.update(selected_model_sha256=hashlib.sha256((root/'transfer_model.joblib').read_bytes()).hexdigest(),
+                    source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),validation_only_revision=True)
+    (root/'run_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');(root/'training_source.py.txt').write_bytes(Path(__file__).read_bytes())
+    print('Frozen validation-only tradeoffs:',json.dumps(selections,indent=2),flush=True)
+    return selections
+
+
+__all__ += ['freeze_trust_transfer_tradeoffs']
+
+
+def transfer_pair_metrics(rows, *, start=1, end=4, threshold=.02):
+    """Change and direction metrics for a fixed pair of levels, across identities."""
+    groups={}
+    for row in rows:groups.setdefault(row['identity'],{})[row['level']]=row
+    pairs=[(g[start],g[end]) for g in groups.values() if start in g and end in g]
+    y=np.array([b['rating']-a['rating'] for a,b in pairs]);p=np.array([b['prediction']-a['prediction'] for a,b in pairs])
+    actual=np.where(y>threshold,2,np.where(y < -threshold,0,1));pred=np.where(p>threshold,2,np.where(p < -threshold,0,1))
+    matrix=np.zeros((3,3),int)
+    for a,b in zip(actual,pred):matrix[a,b]+=1
+    counts=matrix.sum(axis=1);present=counts>0
+    return dict(n=len(pairs),start=start,end=end,threshold=threshold,**regression_metrics(y,p),
+                confusion=matrix.tolist(),accuracy=float(np.mean(actual==pred)),
+                balanced_accuracy=float(np.mean(np.diag(matrix)[present]/counts[present])),
+                majority_baseline_accuracy=float(max(counts)/sum(counts)))
+
+
+__all__ += ['transfer_pair_metrics']
+
+
+def report_trust_transfer(output):
+    """Render the fixed vector-to-flow transfer experiment and its tradeoffs."""
+    import csv,base64,joblib
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import markdown
+    root=Path(output);test=json.loads((root/'test_results.json').read_text());cv=json.loads((root/'validation.json').read_text())
+    protocol=json.loads((root/'protocol.json').read_text());selection=json.loads((root/'frozen_selection.json').read_text())
+    results=test['methods'];names={'source_only':'Original-only control','retention_15':'Strict retention rule',
+        'pooled':'Mixed-data RBF','residual_absolute':'Residual, absolute loss','residual_contrast':'Residual, change-aware',
+        'selected':'Balanced validation selection','vector_focused':'Vector-focused selection'}
+    methods=['source_only','pooled','selected','residual_contrast','vector_focused']
+    palette={'source_only':'#637d99','pooled':'#218691','selected':'#cb793e','residual_contrast':'#7d609a','vector_focused':'#aa596e'}
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'axes.spines.top':False,'axes.spines.right':False,
+                         'figure.facecolor':'#fbfcff','axes.facecolor':'#fbfcff','savefig.facecolor':'#fbfcff'})
+    figures=[]
+    def save(fig,name):
+        fig.savefig(root/f'{name}.png',dpi=180,bbox_inches='tight');fig.savefig(root/f'{name}.svg',bbox_inches='tight');plt.close(fig);figures.append(name)
+    fig,axes=plt.subplots(1,2,figsize=(12,4.7))
+    c=cv['candidates'];source_rmse=np.sqrt([r['source_mse'] for r in c]);vec_rmse=np.sqrt([r['vector_mse'] for r in c]);shape_rmse=np.sqrt([r['vector_shape_mse'] for r in c])
+    for ax,y,label in zip(axes,[vec_rmse,shape_rmse],['Vector absolute RMSE','Vector centered RMSE']):
+        ax.scatter(source_rmse,y,s=18,c='#b4c0cb',alpha=.65)
+        for method in methods:
+            j=cv['selections'][method];ax.scatter(source_rmse[j],y[j],s=70,c=palette[method],label=names[method],edgecolors='white',linewidth=.5)
+        ax.axvline(np.sqrt(c[0]['source_mse']*1.15),c='#8b9aa7',ls='--',lw=1)
+        ax.set(xlabel='Original-face validation RMSE',ylabel=label,title='Grouped validation · 157 recipes')
+    axes[1].legend(fontsize=8,frameon=False);fig.tight_layout();save(fig,'validation_tradeoff')
+    fig,axes=plt.subplots(1,3,figsize=(14,4.4))
+    for ax,kind,key,title in zip(axes,['source_test','flow_test','flow_test'],[None,'absolute','centered'],['200 excluded original faces','231 flow images · absolute','Flow trajectories · offsets removed']):
+        values=[results[m][kind]['rmse'] if key is None else results[m][kind][key]['rmse'] for m in methods]
+        ax.barh(range(len(methods)),values,color=[palette[m] for m in methods]);ax.set_yticks(range(len(methods)),[names[m] for m in methods],fontsize=8)
+        ax.invert_yaxis();ax.set(xlabel='RMSE',title=title,xlim=(0,max(values)*1.22))
+        for i,v in enumerate(values):ax.text(v+.0007,i,f'{v:.4f}',va='center',fontsize=8)
+    fig.tight_layout(w_pad=2);save(fig,'transfer_test_accuracy')
+    with (root/'flow_test_predictions.csv').open() as f:rows=list(csv.DictReader(f))
+    y=np.array([float(r['rating']) for r in rows]);levels=np.array([int(r['level']) for r in rows])
+    fig,axes=plt.subplots(1,3,figsize=(13,4))
+    for ax,method in zip(axes,['source_only','selected','pooled']):
+        p=np.array([float(r[method]) for r in rows]);ax.scatter(y,p,c=levels,cmap='viridis',s=15,alpha=.65)
+        ax.plot([.25,.9],[.25,.9],'--',c='#8b9aa7',lw=1);m=results[method]['flow_test']['absolute']
+        ax.set(xlabel='Human mean rating',ylabel='Prediction',xlim=(.25,.9),ylim=(.25,.9),title=f'{names[method]}\nr={m["pearson"]:.3f}, RMSE={m["rmse"]:.3f}')
+    fig.tight_layout();save(fig,'flow_absolute_predictions')
+    fig,axes=plt.subplots(1,3,figsize=(13,4))
+    for ax,method in zip(axes,['source_only','selected','residual_contrast']):
+        trajectories=[t for t in results[method]['flow_test']['trajectories'] if t['has_level0']]
+        a=np.array([t['endpoint_human'] for t in trajectories]);b=np.array([t['endpoint_prediction'] for t in trajectories])
+        ax.scatter(a,b,c=palette[method],s=25,alpha=.8);ax.plot([-.1,.3],[-.1,.3],'--',c='#8b9aa7',lw=1)
+        ax.axvspan(-.02,.02,color='#dbe3eb',alpha=.4);ax.axhspan(-.02,.02,color='#dbe3eb',alpha=.4)
+        ax.axhline(0,c='#8b9aa7',lw=.5);ax.axvline(0,c='#8b9aa7',lw=.5)
+        ax.set(xlabel='Human change, level 4 − level 0',ylabel='Predicted change',title=names[method],xlim=(-.1,.3),ylim=(-.1,.3))
+    fig.tight_layout();save(fig,'flow_change_predictions')
+    fig,axes=plt.subplots(1,3,figsize=(12,3.8))
+    for ax,method in zip(axes,['source_only','selected','residual_contrast']):
+        d=results[method]['flow_test']['direction']['0.02'];matrix=np.array(d['confusion']);ax.imshow(matrix,cmap='Blues',vmin=0,vmax=24)
+        for i in range(3):
+            for j in range(3):ax.text(j,i,str(matrix[i,j]),ha='center',va='center',color='white' if matrix[i,j]>12 else '#21384b')
+        ax.set_xticks(range(3),['Decrease','Little change','Increase'],rotation=20,fontsize=8)
+        ax.set_yticks(range(3),['Decrease','Little change','Increase'],fontsize=8)
+        ax.set(xlabel='Predicted',ylabel='Human',title=names[method])
+    fig.tight_layout();save(fig,'flow_decrease_detection')
+    def f(value):return f'{value:.4f}'
+    selected=results['selected'];base=results['source_only']
+    lines=['# Learning from vector manipulations: transfer to flow','',
+           '**Frozen FG-CLIP2 So400m · 256 phrases / 512 scores · prediction-head adaptation · 9 September 2026**','',
+           f'Vector training improves absolute prediction on flow, with a cost to the original distribution. The head selected by balanced validation reduces **flow RMSE from {f(base["flow_test"]["absolute"]["rmse"])} to {f(selected["flow_test"]["absolute"]["rmse"])}**, while original-test RMSE rises from **{f(base["source_test"]["rmse"])} to {f(selected["source_test"]["rmse"])}**. Its flow centered RMSE changes from {f(base["flow_test"]["centered"]["rmse"])} to {f(selected["flow_test"]["centered"]["rmse"])}.','',
+           'This is stronger evidence for transfer of rating calibration than for reliable detection of subtle decreases. The adapted heads sometimes recover decreases, but there are few baseline-to-endpoint decrease cases and false alarms remain. All displayed adaptations were selected using original/vector validation; none were tuned from the new flow scores.','',
+           '## Split and interpretation','',
+           '- Original source: 804 faces for training/validation; 200 excluded faces for the current test. The 200 were sampled with seed 20260912 from the earlier 604 evaluation faces, keeping the 400 phrase-development faces in training.',
+           '- Vector training/validation: all 200 exactly rated images at levels 1–4, from 50 identities. Five-fold validation keeps every identity’s variants together. Original faces use corresponding five-fold splits.',
+           '- Flow test: all 231 supplied flow images, including the 31 available level-0 images and all 50 identities at levels 1–4. No flow rating key is dereferenced during model fitting or selection. Vector level-0 images are excluded because their rating aliases are flow baseline keys.',
+           '- Source-only control is refitted from scratch on the 804 source-training faces using the previous fixed architecture. The earlier all-1,004-face fitted weights are not reused for fitting or evaluation predictions.',
+           '- Flow and vector share identities. This tests generalization across manipulation methods on identities whose vector variants are available in training; it does not test unseen-identity generalization. No vector-training image is byte-identical to a flow test image.',
+           '- Both the original and flow datasets have already been inspected in earlier research. The current split prevents direct training on test labels, but the results are an exploratory transfer experiment, not a pristine external validation. No original-study test fraction can restore its historical blindness.','',
+           '## Why adapt the head this way','',
+           'The new data contain many correlated variants of only 50 identities. Treating those rows as independent in validation would reward memorizing identity. Simply pooling all rows would also let the larger original dataset dominate the objective. We therefore group vector validation by identity, balance domain loss explicitly, and compare a loss that emphasizes within-identity variation.','',
+           'The encoder and all 256 phrases remain fixed. This isolates whether the existing score representation already contains useful information, with fewer trainable parameters than fine-tuning So400m. No model receives a method name, level index, identity ID or domain flag at prediction time; grouping affects training and evaluation only.','',
+           'Three head strategies are compared: weighted mixed-data ridge/RBF refitting; a residual correction to the refitted original model; and the same correction with an additional within-identity change loss. Residual corrections use either linear score features or 128 Nyström RBF features. Standardization and Nyström landmarks are learned only from the current training fold. [Nyström documentation](https://scikit-learn.org/stable/modules/generated/sklearn.kernel_approximation.Nystroem.html); [grouped-validation guidance](https://scikit-learn.org/stable/modules/cross_validation.html).','',
+           'For source model f₀ and learned correction δ, the residual objective is:','',
+           '`mean_source(δ²) + η·mean_vector((δ − (y−f₀))²) + ηκ·mean_vector((Cδ − C(y−f₀))²) + λ‖β‖²`','',
+           'C subtracts each training identity’s mean across vector levels. Thus κ emphasizes changes rather than identity offsets. Source replay penalizes changing f₀ on source images, without requiring vector-like labels for those images. An intercept is included and regularized. A single-image function remains deployable; no test rating is needed to predict a change. Weighted mixed-data refits instead fit source and vector ratings directly, assigning total vector loss η times total source loss.','',
+           '## Validation decision and its revision','',
+           '![Validation tradeoff](validation_tradeoff.png)','',
+           'The original plan required source-validation MSE ≤1.15 times the source-only control. **None of the 156 adapted candidates met that bound**; the strict-retention decision keeps the source-only model. After inspecting only validation results, before evaluating either current test set, we retained that result and added two declared comparisons:',
+           '', '- **Balanced selection:** minimize .50 original absolute NMSE + .35 vector absolute NMSE + .15 vector centered NMSE.',
+           '- **Vector-focused selection:** minimize .70 vector absolute NMSE + .30 vector centered NMSE, without a source-retention bound.','',
+           'Each NMSE uses the corresponding training/validation pool’s target variance; centered vector variance is measured after identity centering. The 157-recipe grid was unchanged. Each strategy family’s comparison is its best balanced-validation recipe. CV scores are selection statistics, not unbiased performance estimates of the selected procedure. The dashed line in the figure is the rejected strict-retention bound.','',
+           '| Decision | Original validation RMSE | Vector validation RMSE | Vector centered RMSE |','|---|---:|---:|---:|']
+    for method in methods:
+        c=cv['candidates'][cv['selections'][method]]
+        lines.append(f'| {names[method]} | {np.sqrt(c["source_mse"]):.4f} | {np.sqrt(c["vector_mse"]):.4f} | {np.sqrt(c["vector_shape_mse"]):.4f} |')
+    lines += ['','Selected recipes were saved before opening current test outcomes:','','```json',json.dumps(selection,indent=2),'```','',
+              '## Original-face retention and flow transfer','',
+              '![Transfer test accuracy](transfer_test_accuracy.png)','',
+              '| Model | Original r | Original RMSE | Flow r | Flow RMSE | Flow centered r | Flow centered RMSE |',
+              '|---|---:|---:|---:|---:|---:|---:|']
+    for method in methods:
+        s=results[method];a=s['flow_test'];lines.append(f'| {names[method]} | {f(s["source_test"]["pearson"])} | {f(s["source_test"]["rmse"])} | {f(a["absolute"]["pearson"])} | {f(a["absolute"]["rmse"])} | {f(a["centered"]["pearson"])} | {f(a["centered"]["rmse"])} |')
+    ci=test['flow_selected_rmse_reduction_ci95']
+    lines += ['','The mixed-data RBF comparator performs better than the balanced selection on both current tests. That is a post-test observation, not a reason to relabel it as the preselected winner. Its artifact is retained as a candidate for an independent next test.','',
+              f'For balanced selection versus source-only, paired identity-bootstrap 95% intervals for flow RMSE reduction are **{ci["absolute"]}** for absolute ratings and **{ci["centered"]}** after removing trajectory offsets. The centered interval includes zero. The 3,000 bootstrap resamples keep each identity’s available levels together; intervals condition on observed ratings and do not include participant or training uncertainty.','',
+              '![Flow predictions](flow_absolute_predictions.png)','',
+              '| Model | Level | n | Flow r | Flow R² | Flow RMSE |','|---|---:|---:|---:|---:|---:|']
+    for method in methods:
+        for level,m in sorted(results[method]['flow_test']['by_level'].items()):lines.append(f'| {names[method]} | {level} | {m["n"]} | {f(m["pearson"])} | {f(m["r2"])} | {f(m["rmse"])} |')
+    lines += ['','## Can it predict decreases?','',
+              'Endpoint direction uses a ±.02 slider-unit neutral band, unchanged from the previous evaluation. There are only 31 complete baseline-matched flow trajectories: five decreases, two little-change cases and 24 increases. These small class counts make decrease recall uncertain.','',
+              '![Flow change prediction](flow_change_predictions.png)','',
+              '![Flow decrease detection](flow_decrease_detection.png)','',
+              '| Model | Endpoint r | Endpoint RMSE | Decreases recovered | False decrease calls | Accuracy | Balanced accuracy |','|---|---:|---:|---:|---:|---:|---:|']
+    for method in methods:
+        fm=results[method]['flow_test'];d=fm['direction']['0.02'];c=np.array(d['confusion']);m=fm['endpoint_changes']
+        lines.append(f'| {names[method]} | {f(m["pearson"])} | {f(m["rmse"])} | {c[0,0]}/{c[0].sum()} | {c[1:,0].sum()} | {100*d["accuracy"]:.1f}% | {100*d["balanced_accuracy"]:.1f}% |')
+    lines += ['','Within-face centered statistics remove one constant error per trajectory, without changing slope or amplitude. The following comparison uses levels 1–4 only for all 50 flow identities, matching the range available in vector training. It avoids baseline aliases entirely.','',
+              '| Model | Centered r | Centered RMSE | Slope r | Change 4−1 r | Change 4−1 RMSE | Decreases 4−1 recovered | False decrease calls |',
+              '|---|---:|---:|---:|---:|---:|---:|---:|']
+    for method in methods:
+        s=results[method]['flow_test'];m=s['common_levels_1_to_4'];e=s['late_endpoint'];c=np.array(e['confusion'])
+        lines.append(f'| {names[method]} | {f(m["centered"]["pearson"])} | {f(m["centered"]["rmse"])} | {f(m["slopes"]["pearson"])} | {f(e["pearson"])} | {f(e["rmse"])} | {c[0,0]}/{c[0].sum()} | {c[1:,0].sum()} |')
+    lines += ['','The change-aware head can recover some decreases, but it is not uniformly more accurate than ordinary refitting. Higher decline recall must be weighed against false decrease calls, source-distribution degradation and variability in participant mean ratings. This experiment does not justify treating the adapted model as a reliable manipulation-success detector.','',
+              '## Frozen artifacts and reuse','',
+              '`transfer_model.joblib` contains the balanced validation selection. `pooled_model.joblib` and `contrast_model.joblib` contain the declared family comparators. They support the same `TrustworthinessPredictor.load(...).predict_images(...)` API as the original model. They do not require method or level labels. The original published model bundle remains unchanged.','',
+              '```python','from CLIP.fgclip2_face_impressions import TrustworthinessPredictor',
+              f'model = TrustworthinessPredictor.load({str((root/"transfer_model.joblib").resolve())!r})',
+              'means = model.predict_images(["/path/to/face_a.png", "/path/to/face_b.png"])','```','',
+              'Reusable functions are in `CLIP/fgclip2_face_impressions.py`: `transfer_center_groups`, `fit_trust_transfer`, `trust_transfer_cv`, `run_trust_transfer`, `freeze_trust_transfer_tradeoffs`, `evaluate_trust_transfer`, and `report_trust_transfer`. `REPRODUCE.md` gives the exact sequence.','',
+              'The protocol records every original split index, vector training filename and flow test filename. Validation artifacts retain every candidate, grouped fold and OOF prediction. Test CSVs retain every model’s prediction. Manifests and source snapshots preserve model and input hashes. No new encoder training or phrase generation was used; these results isolate adaptation of the frozen phrase-score representation.','']
+    document='\n'.join(lines);(root/'report.md').write_text(document)
+    rendered=markdown.markdown(document,extensions=['tables','fenced_code'])
+    for name in figures:rendered=rendered.replace(f'src="{name}.png"',f'src="data:image/png;base64,{base64.b64encode((root/f"{name}.png").read_bytes()).decode()}"')
+    (root/'report.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vector-to-flow transfer research</title><style>body{max-width:1450px;margin:40px auto;padding:0 28px;font:16px/1.65 system-ui;color:#243c51;background:#fbfcff}h1{font-size:36px;line-height:1.2}h2{margin-top:45px;padding-top:22px;border-top:1px solid #dae3ed}img{max-width:100%}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:8px;border-bottom:1px solid #dae3ed;text-align:left}th{background:#eaf1f7}pre{overflow:auto;padding:20px;background:#eaf1f7}a{color:#087f8c}</style>'+rendered)
+    models=joblib.load(root/'comparison_models.joblib');bundle=joblib.load(root/'transfer_model.joblib')
+    for method,name in [('pooled','pooled_model.joblib'),('residual_contrast','contrast_model.joblib')]:
+        variant=dict(bundle,model=models[method],selected_recipes=[selection[method]],artifact_role=f'Validation-selected {method} comparator; not the primary selection')
+        joblib.dump(variant,root/name,compress=3)
+    manifest={'report_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              'artifacts_sha256':{name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in
+                 ('transfer_model.joblib','pooled_model.joblib','contrast_model.joblib','test_results.json','validation.json','report.html')}}
+    (root/'report_manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    print(f'Report: {root/"report.html"}',flush=True)
+
+
+__all__ += ['report_trust_transfer']
+
+if __name__ == '__main__':
+    research_main()

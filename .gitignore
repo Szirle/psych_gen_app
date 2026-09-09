@@ -48,3 +48,6 @@ app.*.map.json
 /runs/*
 traversal_app.py
 TRAVERSAL_APP.md
+/data
+data/photo_to_coords.pkl
+data/dim_to_photo_to_ratings.pkl

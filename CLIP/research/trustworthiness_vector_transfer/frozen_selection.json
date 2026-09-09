@@ -1,0 +1,41 @@
+{
+  "source_only": {
+    "family": "source_only"
+  },
+  "retention_15": {
+    "family": "source_only"
+  },
+  "pooled": {
+    "family": "pooled_rbf",
+    "alpha": 0.1,
+    "vector_weight": 1.0
+  },
+  "residual_absolute": {
+    "family": "residual",
+    "mapping": "nystrom",
+    "alpha": 0.001,
+    "vector_weight": 4.0,
+    "contrast": 0.0
+  },
+  "residual_contrast": {
+    "family": "residual",
+    "mapping": "nystrom",
+    "alpha": 0.001,
+    "vector_weight": 1.0,
+    "contrast": 4.0
+  },
+  "selected": {
+    "family": "residual",
+    "mapping": "nystrom",
+    "alpha": 0.001,
+    "vector_weight": 4.0,
+    "contrast": 0.0
+  },
+  "vector_focused": {
+    "family": "residual",
+    "mapping": "nystrom",
+    "alpha": 0.01,
+    "vector_weight": 16.0,
+    "contrast": 1.0
+  }
+}

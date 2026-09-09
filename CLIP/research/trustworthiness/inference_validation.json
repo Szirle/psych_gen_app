@@ -1,0 +1,37 @@
+{
+  "n_original_images": 7,
+  "faces": [
+    "638.jpg",
+    "132.jpg",
+    "382.jpg",
+    "13.jpg",
+    "865.jpg",
+    "708.jpg",
+    "336.jpg"
+  ],
+  "cached_feature_predictions": [
+    0.2970195601438068,
+    0.4464752553168114,
+    0.4984009250259198,
+    0.5685436090771379,
+    0.6412713112165658,
+    0.6823531211554801,
+    0.8371110744057881
+  ],
+  "fresh_image_predictions": [
+    0.2970195601438068,
+    0.4464752553168114,
+    0.4984009250259198,
+    0.5685436090771379,
+    0.6412713112165658,
+    0.6823531211554801,
+    0.8371110744057881
+  ],
+  "fresh_vs_cache_max_score_difference": 0.0,
+  "fresh_vs_cache_max_prediction_difference": 0.0,
+  "batch_1_vs_multi_max_prediction_difference": 1.9793053063210664e-07,
+  "repeated_batch_max_prediction_difference": 0.0,
+  "all_predictions_finite": true,
+  "sklearn_version": "1.8.0",
+  "hidden_images_used": false
+}

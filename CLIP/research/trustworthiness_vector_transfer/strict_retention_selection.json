@@ -1,0 +1,17 @@
+{
+  "source_only": {
+    "family": "source_only"
+  },
+  "pooled": {
+    "family": "source_only"
+  },
+  "residual_absolute": {
+    "family": "source_only"
+  },
+  "residual_contrast": {
+    "family": "source_only"
+  },
+  "selected": {
+    "family": "source_only"
+  }
+}

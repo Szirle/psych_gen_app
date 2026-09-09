@@ -11,6 +11,7 @@ class SettingsPanel extends StatelessWidget {
   final ValueChanged<String> onModeChanged;
   final ValueChanged<int> onNumFacesChanged;
   final VoidCallback onGenerateDatasetPressed;
+  final bool showTruncation;
 
   const SettingsPanel({
     super.key,
@@ -22,6 +23,7 @@ class SettingsPanel extends StatelessWidget {
     required this.onModeChanged,
     required this.onNumFacesChanged,
     required this.onGenerateDatasetPressed,
+    this.showTruncation = true,
   });
 
   Widget _buildModeToggle(BuildContext context, String value, String other) {
@@ -90,33 +92,35 @@ class SettingsPanel extends StatelessWidget {
               ),
             )),
             const SizedBox(height: 10),
-            Text('settings.truncation_psi'.tr(),
-                style: const TextStyle(fontSize: 12)),
-            Row(
-              children: [
-                Expanded(
-                  child: Tooltip(
-                    message: 'tooltip.truncation_psi'.tr(),
-                    child: Slider(
-                      value: truncationPsi,
-                      min: 0.1,
-                      max: 1.0,
-                      divisions: 9,
-                      onChanged: onTruncationPsiChanged,
+            if (showTruncation) ...[
+              Text('settings.truncation_psi'.tr(),
+                  style: const TextStyle(fontSize: 12)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Tooltip(
+                      message: 'tooltip.truncation_psi'.tr(),
+                      child: Slider(
+                        value: truncationPsi,
+                        min: 0.1,
+                        max: 1.0,
+                        divisions: 9,
+                        onChanged: onTruncationPsiChanged,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    truncationPsi.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
+                  SizedBox(
+                    width: 50,
+                    child: Text(
+                      truncationPsi.toStringAsFixed(1),
+                      style: const TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             const SizedBox(height: 10),
             Text('settings.mode'.tr(), style: const TextStyle(fontSize: 12)),
             const SizedBox(height: 10),

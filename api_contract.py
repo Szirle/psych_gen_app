@@ -18,6 +18,69 @@ class ApiValidationError(ValueError):
         return self.message
 
 
+SELECTION_GRID_SIDE = 3
+SELECTION_SAMPLE_COUNT = SELECTION_GRID_SIDE ** 2
+
+
+@dataclass(frozen=True)
+class StimuliSelectionRequest:
+    """Sampling criteria are independent of per-face manipulation settings.
+
+    Add future text-selection criteria here, not to manipulation dimensions.
+    Unknown criteria fail explicitly until their selection policy exists.
+    """
+
+    preview_revision: int
+    filters: Dict[str, Tuple[float, float]]
+    truncation_psi: float
+    sample_count: int = SELECTION_SAMPLE_COUNT
+
+
+def parse_selection_request(
+    payload: Any, available: Collection[str]
+) -> StimuliSelectionRequest:
+    if not isinstance(payload, Mapping):
+        raise ApiValidationError("The request body must be a JSON object.")
+    unknown_fields = set(payload) - {
+        "preview_revision",
+        "sample_count",
+        "truncation_psi",
+        "selection",
+    }
+    if unknown_fields:
+        raise ApiValidationError(
+            "Unsupported selection request fields.",
+            details={"unsupported_fields": sorted(unknown_fields)},
+        )
+    revision = payload.get("preview_revision")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise ApiValidationError("preview_revision must be a non-negative integer.")
+    selection = payload.get("selection", {})
+    if not isinstance(selection, Mapping):
+        raise ApiValidationError("selection must be an object.")
+    unknown = set(selection) - {"filters"}
+    if unknown:
+        raise ApiValidationError(
+            "Unsupported selection criteria.",
+            details={"unsupported_criteria": sorted(unknown)},
+        )
+    count = payload.get("sample_count", SELECTION_SAMPLE_COUNT)
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or count != SELECTION_SAMPLE_COUNT
+    ):
+        raise ApiValidationError(
+            "sample_count must be 9 for the 3x3 selection preview."
+        )
+    truncation = _finite_number(payload.get("truncation_psi", 0.6), "truncation_psi")
+    if not 0.1 <= truncation <= 1.0:
+        raise ApiValidationError("truncation_psi must be between 0.1 and 1.0.")
+    return StimuliSelectionRequest(
+        revision, parse_filters(selection.get("filters"), available), truncation, count
+    )
+
+
 def camel_to_dash(name: str) -> str:
     if not isinstance(name, str) or not name.strip():
         raise ApiValidationError("Dimension names must be non-empty strings.")

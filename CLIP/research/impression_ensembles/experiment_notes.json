@@ -1,0 +1,8 @@
+{
+  "notes": [
+    "This completed experiment uses **FG-CLIP 2 Base**, revision `430fbc8a912c86fd4de601381b6245a0edab22f0`, MPS float16 frozen encoding, short text head, and 128 image patches. All 1,004 image files are unique by SHA-256; all have both targets.",
+    "A So400m replication was attempted but its model loader's memory guard rejected loading under the available system memory (3.4 GiB needed versus 2.3–3.2 GiB available with the default reserve; 2.9 GiB versus 2.5 GiB with a 0.75 GiB reserve). No So400m result is claimed. The CLI supports rerunning that architecture when sufficient memory is available.",
+    "The supplied happy reference did **not** reproduce r > 0.75 with these Base/short/128 settings (raw r approximately 0.672). Architecture, text-head or image-patch settings in the earlier experiment may differ; that cause has not been verified. All comparisons here use the identical frozen features, face sample and held-out folds.",
+    "Recommendation for the next study: carry forward the complete 16-phrase ridge readout. It improves both targets, including against nonlinear single-phrase calibration, while evolutionary pruning produces no meaningful incremental gain in this run. Treat future prompt expansion or architecture choice as a new development round and reserve fresh faces for confirmation."
+  ]
+}

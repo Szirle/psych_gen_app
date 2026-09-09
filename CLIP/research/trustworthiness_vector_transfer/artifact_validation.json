@@ -1,0 +1,16 @@
+{
+  "transfer_model.joblib": {
+    "max_flow_prediction_difference": 0.0,
+    "max_source_prediction_difference": 0.0
+  },
+  "pooled_model.joblib": {
+    "max_flow_prediction_difference": 0.0,
+    "max_source_prediction_difference": 0.0
+  },
+  "contrast_model.joblib": {
+    "max_flow_prediction_difference": 0.0,
+    "max_source_prediction_difference": 0.0
+  },
+  "training_test_overlap": false,
+  "original_published_bundle_unchanged": true
+}

@@ -1,0 +1,19 @@
+{
+  "created_utc": "2026-09-08T20:29:58.781436+00:00",
+  "python": "3.11.8",
+  "numpy": "1.26.4",
+  "torch": "2.15.0.dev20260817",
+  "sklearn": "1.8.0",
+  "source_sha256": "8544bef8fa9d9a57eea853136f423a3ff5be49ed15e7cce1bd51c352a44eb75e",
+  "files_sha256": {
+    "phrase_groups.json": "e6516b9a05905d6fb134aacac10a0f8071c3f02eee9f8a004d597fca6ce496f5",
+    "literature.json": "2a0f3b73c0eab2f96208d7a8fd5e4a70087d9f2a9414ba6be82300ae09c63c47",
+    "protocol.json": "1ac1b9e8750f6d97f11ace85911bd54e178c267ade92ca9b0f71252ff58b3955",
+    "frozen_candidates.json": "93ec887ca180ad419a4b78cdc02ea06cfa0473f0900d557ae0592749feb5de06",
+    "p128/trustworthy-features.npz": "76470c7a9338dce04eb7836ab8343d5eb87ea39d18ebf7c0ac38b428275363a4",
+    "p256/trustworthy-features.npz": "dffbfcf8447d2af864fcfa25c7f162c74cca46116046ceeabacc15dec77b85b9",
+    "trustworthiness_model.joblib": "36903e01982b44ea1c33c6fbe70c055e549f069b471325f5173a7b5aa4e41ecd"
+  },
+  "report_source_sha256": "d5447db6a214c2755be913d1cb7a74745de44119a3f3d13eca5aac00ade421ec",
+  "runtime_source_sha256": "d5447db6a214c2755be913d1cb7a74745de44119a3f3d13eca5aac00ade421ec"
+}

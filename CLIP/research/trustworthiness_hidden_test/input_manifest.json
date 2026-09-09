@@ -1,0 +1,4007 @@
+{
+  "bundle_sha256": "36903e01982b44ea1c33c6fbe70c055e549f069b471325f5173a7b5aa4e41ecd",
+  "images": [
+    {
+      "face": "study4_trustworthy_0_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_flow_level_0.png",
+      "identity": "study4_trustworthy_0",
+      "method": "flow",
+      "level": 0,
+      "sha256": "e31551063ab7ddacef7b3c0dabbd6b0330420998f59fd60fdf1ee81ca698f1e8"
+    },
+    {
+      "face": "study4_trustworthy_0_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_flow_level_1.png",
+      "identity": "study4_trustworthy_0",
+      "method": "flow",
+      "level": 1,
+      "sha256": "3e2297f695457c9fd9e0d9d378fdd16be33e6e223cc5e5db7ff04237d841d693"
+    },
+    {
+      "face": "study4_trustworthy_0_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_flow_level_2.png",
+      "identity": "study4_trustworthy_0",
+      "method": "flow",
+      "level": 2,
+      "sha256": "594d3a93e4c09f286d5720c92f3f2be2b9d39108042589d582c1b141600a2040"
+    },
+    {
+      "face": "study4_trustworthy_0_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_flow_level_3.png",
+      "identity": "study4_trustworthy_0",
+      "method": "flow",
+      "level": 3,
+      "sha256": "cb619c5ad4e6e82c2566e336e721d3611250b1d206c1fb699801230c2d5a51dd"
+    },
+    {
+      "face": "study4_trustworthy_0_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_flow_level_4.png",
+      "identity": "study4_trustworthy_0",
+      "method": "flow",
+      "level": 4,
+      "sha256": "7c8e11b5d367233d54592db6e333b1458132443d63419ee92fe13b42f9c42edc"
+    },
+    {
+      "face": "study4_trustworthy_0_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_vector_level_0.png",
+      "identity": "study4_trustworthy_0",
+      "method": "vector",
+      "level": 0,
+      "sha256": "e31551063ab7ddacef7b3c0dabbd6b0330420998f59fd60fdf1ee81ca698f1e8"
+    },
+    {
+      "face": "study4_trustworthy_0_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_vector_level_1.png",
+      "identity": "study4_trustworthy_0",
+      "method": "vector",
+      "level": 1,
+      "sha256": "9e9fef99ac3eccca50c8291d768f1279c641b6a5ba2991bbb10c9b4e765786f7"
+    },
+    {
+      "face": "study4_trustworthy_0_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_vector_level_2.png",
+      "identity": "study4_trustworthy_0",
+      "method": "vector",
+      "level": 2,
+      "sha256": "e4a61446809f2c0f23ca1eeabb0f2ba988675003ed0282339ce437faf3baa08a"
+    },
+    {
+      "face": "study4_trustworthy_0_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_vector_level_3.png",
+      "identity": "study4_trustworthy_0",
+      "method": "vector",
+      "level": 3,
+      "sha256": "201884f0d9a42ba29d0a04b4c45ad6db075606408eafc738a6daef8b77d77a2e"
+    },
+    {
+      "face": "study4_trustworthy_0_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_0_vector_level_4.png",
+      "identity": "study4_trustworthy_0",
+      "method": "vector",
+      "level": 4,
+      "sha256": "22a90299b627d36f1fa4640958dbe490fae19954efb238acdb6de560c65992fd"
+    },
+    {
+      "face": "study4_trustworthy_10_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_flow_level_0.png",
+      "identity": "study4_trustworthy_10",
+      "method": "flow",
+      "level": 0,
+      "sha256": "2b34f0b6a90635932754c85ace36fc40794a67c0045992764d311d435d75a0c5"
+    },
+    {
+      "face": "study4_trustworthy_10_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_flow_level_1.png",
+      "identity": "study4_trustworthy_10",
+      "method": "flow",
+      "level": 1,
+      "sha256": "48c2cb0665782a3697605ebfaf45fe46309038b0f46835d291b809be1c5af4aa"
+    },
+    {
+      "face": "study4_trustworthy_10_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_flow_level_2.png",
+      "identity": "study4_trustworthy_10",
+      "method": "flow",
+      "level": 2,
+      "sha256": "3edbaf91c0cf242c2e56472d611aadbf9411c8b6b715be11b71a976110ced64d"
+    },
+    {
+      "face": "study4_trustworthy_10_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_flow_level_3.png",
+      "identity": "study4_trustworthy_10",
+      "method": "flow",
+      "level": 3,
+      "sha256": "635b0a9a0080d163f31d78d4e5c30d4f516b63e7af7e1d6fbe4523b416358b13"
+    },
+    {
+      "face": "study4_trustworthy_10_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_flow_level_4.png",
+      "identity": "study4_trustworthy_10",
+      "method": "flow",
+      "level": 4,
+      "sha256": "bd8564aeda531866274f3de973c866cb411382b176658aa44f864a3fe1885b7e"
+    },
+    {
+      "face": "study4_trustworthy_10_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_vector_level_0.png",
+      "identity": "study4_trustworthy_10",
+      "method": "vector",
+      "level": 0,
+      "sha256": "2b34f0b6a90635932754c85ace36fc40794a67c0045992764d311d435d75a0c5"
+    },
+    {
+      "face": "study4_trustworthy_10_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_vector_level_1.png",
+      "identity": "study4_trustworthy_10",
+      "method": "vector",
+      "level": 1,
+      "sha256": "7f4f127716d63600f5f8d82d622a6866af1351e9d8d75a65afb92bcee534d6d7"
+    },
+    {
+      "face": "study4_trustworthy_10_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_vector_level_2.png",
+      "identity": "study4_trustworthy_10",
+      "method": "vector",
+      "level": 2,
+      "sha256": "d9cbcbcfb62f32d9bdb9ce3a14c37492e03ca758f5d392ab350cf70775a47380"
+    },
+    {
+      "face": "study4_trustworthy_10_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_vector_level_3.png",
+      "identity": "study4_trustworthy_10",
+      "method": "vector",
+      "level": 3,
+      "sha256": "11bed934f0cd35da95d383281aa9d0bea3e54942e6e92bef368e7dafb73ecf6a"
+    },
+    {
+      "face": "study4_trustworthy_10_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_10_vector_level_4.png",
+      "identity": "study4_trustworthy_10",
+      "method": "vector",
+      "level": 4,
+      "sha256": "c83f02ba8e355209873f5437747f3b3ee3890399ea01434a799a24d5f2630d9a"
+    },
+    {
+      "face": "study4_trustworthy_11_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_flow_level_0.png",
+      "identity": "study4_trustworthy_11",
+      "method": "flow",
+      "level": 0,
+      "sha256": "7e29291e14ea8a12ef917544d05de7909e9b7623742bc81df3f912609e2a73e2"
+    },
+    {
+      "face": "study4_trustworthy_11_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_flow_level_1.png",
+      "identity": "study4_trustworthy_11",
+      "method": "flow",
+      "level": 1,
+      "sha256": "342c5e65447d7c9dc7dfab768dfd13a762aa36ac44304918263269bd28ce84b7"
+    },
+    {
+      "face": "study4_trustworthy_11_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_flow_level_2.png",
+      "identity": "study4_trustworthy_11",
+      "method": "flow",
+      "level": 2,
+      "sha256": "02c74145c5e02dcb58cdba4b0993cbd5010c09ca60252b6e18b3436c984ba1b2"
+    },
+    {
+      "face": "study4_trustworthy_11_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_flow_level_3.png",
+      "identity": "study4_trustworthy_11",
+      "method": "flow",
+      "level": 3,
+      "sha256": "d6ef7042b52f2b88fe7c3b8ebb9434b76512b18cb64cda781355dc71e6c48fc3"
+    },
+    {
+      "face": "study4_trustworthy_11_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_flow_level_4.png",
+      "identity": "study4_trustworthy_11",
+      "method": "flow",
+      "level": 4,
+      "sha256": "27a6adb7044893617650b30296ecbfa868e695e2215178967e46ae39c78e03c6"
+    },
+    {
+      "face": "study4_trustworthy_11_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_vector_level_0.png",
+      "identity": "study4_trustworthy_11",
+      "method": "vector",
+      "level": 0,
+      "sha256": "7e29291e14ea8a12ef917544d05de7909e9b7623742bc81df3f912609e2a73e2"
+    },
+    {
+      "face": "study4_trustworthy_11_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_vector_level_1.png",
+      "identity": "study4_trustworthy_11",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c1531e50d427b601b1fceb15d2789678e747b2dba01f5ead2c6fb244fe2d1feb"
+    },
+    {
+      "face": "study4_trustworthy_11_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_vector_level_2.png",
+      "identity": "study4_trustworthy_11",
+      "method": "vector",
+      "level": 2,
+      "sha256": "259c9d06a10de6fed96432c1b9699d3aa2b037f825154a6c700f68137a208d03"
+    },
+    {
+      "face": "study4_trustworthy_11_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_vector_level_3.png",
+      "identity": "study4_trustworthy_11",
+      "method": "vector",
+      "level": 3,
+      "sha256": "4b3e1e497d8fe91a2e6e6d52340d5ae297a3eeed0c2a377fb1dcd02b67a03d71"
+    },
+    {
+      "face": "study4_trustworthy_11_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_11_vector_level_4.png",
+      "identity": "study4_trustworthy_11",
+      "method": "vector",
+      "level": 4,
+      "sha256": "60b6a57a78c580b3d0208b265779cd93fdd4551bcb7dd1a672241e8d96a87475"
+    },
+    {
+      "face": "study4_trustworthy_12_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_flow_level_0.png",
+      "identity": "study4_trustworthy_12",
+      "method": "flow",
+      "level": 0,
+      "sha256": "65df1f9755c6f2d8f6e302494195eb710fa20a34c9383fb7b6846bef3bddf223"
+    },
+    {
+      "face": "study4_trustworthy_12_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_flow_level_1.png",
+      "identity": "study4_trustworthy_12",
+      "method": "flow",
+      "level": 1,
+      "sha256": "c35e0303ec1ac6f062a5083cebfa65fdfcfb4a835dfbb1699efe899f48b14727"
+    },
+    {
+      "face": "study4_trustworthy_12_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_flow_level_2.png",
+      "identity": "study4_trustworthy_12",
+      "method": "flow",
+      "level": 2,
+      "sha256": "39ee06031a1e0f89fdb1ef2912121eb98720f778604e60b39e56428af9811e41"
+    },
+    {
+      "face": "study4_trustworthy_12_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_flow_level_3.png",
+      "identity": "study4_trustworthy_12",
+      "method": "flow",
+      "level": 3,
+      "sha256": "6aec029640d10df09b64547459c9f692c144f6f8bd276c556b6a27e32848a7e3"
+    },
+    {
+      "face": "study4_trustworthy_12_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_flow_level_4.png",
+      "identity": "study4_trustworthy_12",
+      "method": "flow",
+      "level": 4,
+      "sha256": "1619552c9612dc0afc2e28cb8a161bed066fe59d3376f542c94275e1f57b6266"
+    },
+    {
+      "face": "study4_trustworthy_12_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_vector_level_0.png",
+      "identity": "study4_trustworthy_12",
+      "method": "vector",
+      "level": 0,
+      "sha256": "65df1f9755c6f2d8f6e302494195eb710fa20a34c9383fb7b6846bef3bddf223"
+    },
+    {
+      "face": "study4_trustworthy_12_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_vector_level_1.png",
+      "identity": "study4_trustworthy_12",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c0179111a50cb56ecaf02776a039112cb61b068191fc2fa0eeb564a80258e0cc"
+    },
+    {
+      "face": "study4_trustworthy_12_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_vector_level_2.png",
+      "identity": "study4_trustworthy_12",
+      "method": "vector",
+      "level": 2,
+      "sha256": "e2aa3d385e9c93a79933dd3297dabdadcedaed92bb71f7abae0126eb0987ea68"
+    },
+    {
+      "face": "study4_trustworthy_12_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_vector_level_3.png",
+      "identity": "study4_trustworthy_12",
+      "method": "vector",
+      "level": 3,
+      "sha256": "1eacd66c02505a71c55593555fa2e868cab9093d0594013a1e71329eff365347"
+    },
+    {
+      "face": "study4_trustworthy_12_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_12_vector_level_4.png",
+      "identity": "study4_trustworthy_12",
+      "method": "vector",
+      "level": 4,
+      "sha256": "27a100fe496ac64e169a16d18f5535b3f4b6db13f3c31314c2655159a37f44e5"
+    },
+    {
+      "face": "study4_trustworthy_13_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_flow_level_0.png",
+      "identity": "study4_trustworthy_13",
+      "method": "flow",
+      "level": 0,
+      "sha256": "ff7576ec18004c8c7fb7a320dfc35e2f675f584e84f1c14f9f51f3a46b82a9c7"
+    },
+    {
+      "face": "study4_trustworthy_13_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_flow_level_1.png",
+      "identity": "study4_trustworthy_13",
+      "method": "flow",
+      "level": 1,
+      "sha256": "2b831daecdb81ce225e52f116e03fc5147dcb1172423000f2653035867085d59"
+    },
+    {
+      "face": "study4_trustworthy_13_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_flow_level_2.png",
+      "identity": "study4_trustworthy_13",
+      "method": "flow",
+      "level": 2,
+      "sha256": "bcb42e2afa37a42cb6f41a823f586818fe18958225070c782a7a60e23cb205b7"
+    },
+    {
+      "face": "study4_trustworthy_13_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_flow_level_3.png",
+      "identity": "study4_trustworthy_13",
+      "method": "flow",
+      "level": 3,
+      "sha256": "0785a50254481e7033f4939a87eba2f72a5dc723286e8735a5ad0c233bfbdeaf"
+    },
+    {
+      "face": "study4_trustworthy_13_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_flow_level_4.png",
+      "identity": "study4_trustworthy_13",
+      "method": "flow",
+      "level": 4,
+      "sha256": "b8d577dfbf19d863c82960fc982a2644d8360d051baf8a8e93f979ba3e2345e8"
+    },
+    {
+      "face": "study4_trustworthy_13_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_vector_level_0.png",
+      "identity": "study4_trustworthy_13",
+      "method": "vector",
+      "level": 0,
+      "sha256": "ff7576ec18004c8c7fb7a320dfc35e2f675f584e84f1c14f9f51f3a46b82a9c7"
+    },
+    {
+      "face": "study4_trustworthy_13_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_vector_level_1.png",
+      "identity": "study4_trustworthy_13",
+      "method": "vector",
+      "level": 1,
+      "sha256": "1538505c73d7c56a903c058dd9142d7348da93c819c72d757ff74029605910e0"
+    },
+    {
+      "face": "study4_trustworthy_13_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_vector_level_2.png",
+      "identity": "study4_trustworthy_13",
+      "method": "vector",
+      "level": 2,
+      "sha256": "70c19c100c2aebfd05c720265b09b237ccf2d19c9e730623d59face0ceab6762"
+    },
+    {
+      "face": "study4_trustworthy_13_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_vector_level_3.png",
+      "identity": "study4_trustworthy_13",
+      "method": "vector",
+      "level": 3,
+      "sha256": "8f1f3a1b9ee1db742a3023ae4ba1feafe71e7eb4d9b79f5c734efab9d8286b69"
+    },
+    {
+      "face": "study4_trustworthy_13_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_13_vector_level_4.png",
+      "identity": "study4_trustworthy_13",
+      "method": "vector",
+      "level": 4,
+      "sha256": "ae7863e4c1b3f38aa36439e4c1bc2ab5b57ca71cc457a458b9c9d8a1df615eec"
+    },
+    {
+      "face": "study4_trustworthy_14_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_flow_level_0.png",
+      "identity": "study4_trustworthy_14",
+      "method": "flow",
+      "level": 0,
+      "sha256": "a65f176d2641b83de6e38ab3b107570276dfa7841e374cf7bb21125977f28b43"
+    },
+    {
+      "face": "study4_trustworthy_14_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_flow_level_1.png",
+      "identity": "study4_trustworthy_14",
+      "method": "flow",
+      "level": 1,
+      "sha256": "998a798e79d71f32d537cbc8ade0eeadbcbe6e70a5fad28b08479b424e32c72f"
+    },
+    {
+      "face": "study4_trustworthy_14_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_flow_level_2.png",
+      "identity": "study4_trustworthy_14",
+      "method": "flow",
+      "level": 2,
+      "sha256": "f7ee2a9fbb3bdc37efdd5c330d88ca13f3364dc5dba65c9feda628421bda6fd6"
+    },
+    {
+      "face": "study4_trustworthy_14_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_flow_level_3.png",
+      "identity": "study4_trustworthy_14",
+      "method": "flow",
+      "level": 3,
+      "sha256": "4c26270137fa1c7dfcce60a5b6731b5cbbe5cb21af3f2617eb59969b181bf9b2"
+    },
+    {
+      "face": "study4_trustworthy_14_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_flow_level_4.png",
+      "identity": "study4_trustworthy_14",
+      "method": "flow",
+      "level": 4,
+      "sha256": "fc0bddfb5ff149d05bc7e1ae01568a7e20fb14c52a5eed2c3bb59b638099903e"
+    },
+    {
+      "face": "study4_trustworthy_14_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_vector_level_0.png",
+      "identity": "study4_trustworthy_14",
+      "method": "vector",
+      "level": 0,
+      "sha256": "a65f176d2641b83de6e38ab3b107570276dfa7841e374cf7bb21125977f28b43"
+    },
+    {
+      "face": "study4_trustworthy_14_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_vector_level_1.png",
+      "identity": "study4_trustworthy_14",
+      "method": "vector",
+      "level": 1,
+      "sha256": "f7b7a0bbe02243bb094dd4ab3c0b4ff684325dc417655fb7fd85711c0c55056b"
+    },
+    {
+      "face": "study4_trustworthy_14_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_vector_level_2.png",
+      "identity": "study4_trustworthy_14",
+      "method": "vector",
+      "level": 2,
+      "sha256": "a51777e9e55489721de28ce7a6ffa561cdb149e01806a8df2627984f21577d33"
+    },
+    {
+      "face": "study4_trustworthy_14_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_vector_level_3.png",
+      "identity": "study4_trustworthy_14",
+      "method": "vector",
+      "level": 3,
+      "sha256": "da9e6ae7db9452cdb70f5bec2cee030823f2e058f89108f8a5ffe23f1f5d3ee9"
+    },
+    {
+      "face": "study4_trustworthy_14_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_14_vector_level_4.png",
+      "identity": "study4_trustworthy_14",
+      "method": "vector",
+      "level": 4,
+      "sha256": "ae880734e779ed4bdd49ac4cb1b37a4fc71ff12946bb0a67a3c4e474a7dca2aa"
+    },
+    {
+      "face": "study4_trustworthy_15_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_flow_level_0.png",
+      "identity": "study4_trustworthy_15",
+      "method": "flow",
+      "level": 0,
+      "sha256": "c13470edcbf9f6d83e51dc83aa277c55bde520fcaff718b855f2f842b904d9f9"
+    },
+    {
+      "face": "study4_trustworthy_15_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_flow_level_1.png",
+      "identity": "study4_trustworthy_15",
+      "method": "flow",
+      "level": 1,
+      "sha256": "2b6f0ec2b1ff6fa86c0d700ad2f860e6acb3a6ef8ba0796c543f64637ea271b4"
+    },
+    {
+      "face": "study4_trustworthy_15_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_flow_level_2.png",
+      "identity": "study4_trustworthy_15",
+      "method": "flow",
+      "level": 2,
+      "sha256": "a9b6d8fa02733735076ff06721fa78f4750998de6c1106a071b7aa4f35d7b615"
+    },
+    {
+      "face": "study4_trustworthy_15_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_flow_level_3.png",
+      "identity": "study4_trustworthy_15",
+      "method": "flow",
+      "level": 3,
+      "sha256": "7364677b6eba7ed3cafd8943cd2cec521e63c7fc1c8fa062b1af982f81c38c59"
+    },
+    {
+      "face": "study4_trustworthy_15_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_flow_level_4.png",
+      "identity": "study4_trustworthy_15",
+      "method": "flow",
+      "level": 4,
+      "sha256": "013bb4ace98fb269b98134a2c5ccaa82b70faf8a34889e52b5c98d3f47309409"
+    },
+    {
+      "face": "study4_trustworthy_15_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_vector_level_0.png",
+      "identity": "study4_trustworthy_15",
+      "method": "vector",
+      "level": 0,
+      "sha256": "c13470edcbf9f6d83e51dc83aa277c55bde520fcaff718b855f2f842b904d9f9"
+    },
+    {
+      "face": "study4_trustworthy_15_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_vector_level_1.png",
+      "identity": "study4_trustworthy_15",
+      "method": "vector",
+      "level": 1,
+      "sha256": "269cb1b2b5fe317da6cf367f870655a84beed76efbc447eaf4cafb64d1aea84e"
+    },
+    {
+      "face": "study4_trustworthy_15_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_vector_level_2.png",
+      "identity": "study4_trustworthy_15",
+      "method": "vector",
+      "level": 2,
+      "sha256": "97ded4c3d5fb2752236276f9b4cb955cda35ebac30d7a5f47fdb278abdd47a41"
+    },
+    {
+      "face": "study4_trustworthy_15_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_vector_level_3.png",
+      "identity": "study4_trustworthy_15",
+      "method": "vector",
+      "level": 3,
+      "sha256": "2cabb9dbf7a55b43689537dbf1c81f0b3b23bf6dc2a812f8c348bef6f0837e9f"
+    },
+    {
+      "face": "study4_trustworthy_15_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_15_vector_level_4.png",
+      "identity": "study4_trustworthy_15",
+      "method": "vector",
+      "level": 4,
+      "sha256": "4741fc99221238a4a97c904026ac3cd6a79245f33695bc5e2c460053597e1592"
+    },
+    {
+      "face": "study4_trustworthy_16_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_flow_level_0.png",
+      "identity": "study4_trustworthy_16",
+      "method": "flow",
+      "level": 0,
+      "sha256": "be5d9feafc8a85b970630dccabc7c425be05860118e95237fb9eb757e7256e03"
+    },
+    {
+      "face": "study4_trustworthy_16_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_flow_level_1.png",
+      "identity": "study4_trustworthy_16",
+      "method": "flow",
+      "level": 1,
+      "sha256": "7f0deab4fbc62dfe3e5133740ffe83725a9a625320b6689ced19fb8288762a67"
+    },
+    {
+      "face": "study4_trustworthy_16_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_flow_level_2.png",
+      "identity": "study4_trustworthy_16",
+      "method": "flow",
+      "level": 2,
+      "sha256": "aae2bc34fc950ccfa0cab802c5bb3992facd9ca3e4df35d1fb074ddf31e5598c"
+    },
+    {
+      "face": "study4_trustworthy_16_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_flow_level_3.png",
+      "identity": "study4_trustworthy_16",
+      "method": "flow",
+      "level": 3,
+      "sha256": "bb080ae49effa50098ae44887dffb738347c4b9f60bb60cdd25fddb23dbd60e0"
+    },
+    {
+      "face": "study4_trustworthy_16_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_flow_level_4.png",
+      "identity": "study4_trustworthy_16",
+      "method": "flow",
+      "level": 4,
+      "sha256": "c7025ffaa0754e5ebe921b001903dff952f9c142a3853ad9da6d301048641fb0"
+    },
+    {
+      "face": "study4_trustworthy_16_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_vector_level_0.png",
+      "identity": "study4_trustworthy_16",
+      "method": "vector",
+      "level": 0,
+      "sha256": "be5d9feafc8a85b970630dccabc7c425be05860118e95237fb9eb757e7256e03"
+    },
+    {
+      "face": "study4_trustworthy_16_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_vector_level_1.png",
+      "identity": "study4_trustworthy_16",
+      "method": "vector",
+      "level": 1,
+      "sha256": "ef8cc497323b9767f817aeaf2d1cc4a00bcf47c6e8cc43f75478ed37eda404ba"
+    },
+    {
+      "face": "study4_trustworthy_16_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_vector_level_2.png",
+      "identity": "study4_trustworthy_16",
+      "method": "vector",
+      "level": 2,
+      "sha256": "f2de41ebe0f4c8675f2205811b96ec154c0b3694c2c8c07040b59164d4c62551"
+    },
+    {
+      "face": "study4_trustworthy_16_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_vector_level_3.png",
+      "identity": "study4_trustworthy_16",
+      "method": "vector",
+      "level": 3,
+      "sha256": "49900930658f519b732c5cb165e6e2b340d7d3f685a0339ad86fb45ce7e01bd9"
+    },
+    {
+      "face": "study4_trustworthy_16_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_16_vector_level_4.png",
+      "identity": "study4_trustworthy_16",
+      "method": "vector",
+      "level": 4,
+      "sha256": "3c5a6ed154a53ff9a10e26d4de840093046528fa79fd78389206853d857e103d"
+    },
+    {
+      "face": "study4_trustworthy_17_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_flow_level_0.png",
+      "identity": "study4_trustworthy_17",
+      "method": "flow",
+      "level": 0,
+      "sha256": "c270b7a93bcab12cc298c20ec33b0c9367e6493cc411a2a24d603fe7cb0be44a"
+    },
+    {
+      "face": "study4_trustworthy_17_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_flow_level_1.png",
+      "identity": "study4_trustworthy_17",
+      "method": "flow",
+      "level": 1,
+      "sha256": "2049e0ea9682bb35775625387c35f1c01561f0df264f02597a882bdd403c3a6c"
+    },
+    {
+      "face": "study4_trustworthy_17_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_flow_level_2.png",
+      "identity": "study4_trustworthy_17",
+      "method": "flow",
+      "level": 2,
+      "sha256": "26991368b0817d104c31cac73ecda1127f7541f7e4c7215b2af629b4151fc199"
+    },
+    {
+      "face": "study4_trustworthy_17_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_flow_level_3.png",
+      "identity": "study4_trustworthy_17",
+      "method": "flow",
+      "level": 3,
+      "sha256": "883e22eba65ea80e21c705c6012e382cab52331372449f564280f3bce40e4c00"
+    },
+    {
+      "face": "study4_trustworthy_17_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_flow_level_4.png",
+      "identity": "study4_trustworthy_17",
+      "method": "flow",
+      "level": 4,
+      "sha256": "eca4036ffc5ed4e87617c4fbe61393b935173816181336f6182e983de6ad18e8"
+    },
+    {
+      "face": "study4_trustworthy_17_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_vector_level_0.png",
+      "identity": "study4_trustworthy_17",
+      "method": "vector",
+      "level": 0,
+      "sha256": "c270b7a93bcab12cc298c20ec33b0c9367e6493cc411a2a24d603fe7cb0be44a"
+    },
+    {
+      "face": "study4_trustworthy_17_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_vector_level_1.png",
+      "identity": "study4_trustworthy_17",
+      "method": "vector",
+      "level": 1,
+      "sha256": "82f7a381635022d4a09b9471ff542e96ab9d1c21d17fc253588f299adcecad93"
+    },
+    {
+      "face": "study4_trustworthy_17_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_vector_level_2.png",
+      "identity": "study4_trustworthy_17",
+      "method": "vector",
+      "level": 2,
+      "sha256": "44f5936c7daeb19057f65b36628c0739814869f54fba529e248caf9af6b1a498"
+    },
+    {
+      "face": "study4_trustworthy_17_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_vector_level_3.png",
+      "identity": "study4_trustworthy_17",
+      "method": "vector",
+      "level": 3,
+      "sha256": "40a1ec362e79d075cdb185b2a07a58d6220cb5fe355b6c933e1a0246c52b4d43"
+    },
+    {
+      "face": "study4_trustworthy_17_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_17_vector_level_4.png",
+      "identity": "study4_trustworthy_17",
+      "method": "vector",
+      "level": 4,
+      "sha256": "5ef8725a5870be3661f01ac26933635a3382f0f469b015d8a8f36affaa4969be"
+    },
+    {
+      "face": "study4_trustworthy_18_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_flow_level_0.png",
+      "identity": "study4_trustworthy_18",
+      "method": "flow",
+      "level": 0,
+      "sha256": "337d6a835b75db3e9f12725442042650fc73d80a69c72726e830f33f8bcc4783"
+    },
+    {
+      "face": "study4_trustworthy_18_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_flow_level_1.png",
+      "identity": "study4_trustworthy_18",
+      "method": "flow",
+      "level": 1,
+      "sha256": "c74d72e9c8881be5ae70683fa53d77eac695ac911a4e9f853350d2f54d36577e"
+    },
+    {
+      "face": "study4_trustworthy_18_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_flow_level_2.png",
+      "identity": "study4_trustworthy_18",
+      "method": "flow",
+      "level": 2,
+      "sha256": "3b8630cb122ecbbd7b39ded31a44a1e589287d1dae98b015e64930cf9647d576"
+    },
+    {
+      "face": "study4_trustworthy_18_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_flow_level_3.png",
+      "identity": "study4_trustworthy_18",
+      "method": "flow",
+      "level": 3,
+      "sha256": "84fb1d30d10d15050593aad498756531585960219ac54a9d7251fa4c3bae8d4b"
+    },
+    {
+      "face": "study4_trustworthy_18_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_flow_level_4.png",
+      "identity": "study4_trustworthy_18",
+      "method": "flow",
+      "level": 4,
+      "sha256": "ee7d0966cdc39df132f3571d029885f1b22c2ccace4152ae4f92ee69ff9b5016"
+    },
+    {
+      "face": "study4_trustworthy_18_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_vector_level_0.png",
+      "identity": "study4_trustworthy_18",
+      "method": "vector",
+      "level": 0,
+      "sha256": "337d6a835b75db3e9f12725442042650fc73d80a69c72726e830f33f8bcc4783"
+    },
+    {
+      "face": "study4_trustworthy_18_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_vector_level_1.png",
+      "identity": "study4_trustworthy_18",
+      "method": "vector",
+      "level": 1,
+      "sha256": "430fb60286c9a78f849be33d92f0e300758517ee5afea7b87319ef00a3a837dd"
+    },
+    {
+      "face": "study4_trustworthy_18_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_vector_level_2.png",
+      "identity": "study4_trustworthy_18",
+      "method": "vector",
+      "level": 2,
+      "sha256": "a097b7f4bb2364e0b338ef8d213447acf51bd142b48ef3a8753dd1e45fb57463"
+    },
+    {
+      "face": "study4_trustworthy_18_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_vector_level_3.png",
+      "identity": "study4_trustworthy_18",
+      "method": "vector",
+      "level": 3,
+      "sha256": "f5deb93d460341ce5ae911bf0e1b9be7eb87f5098d27ec30c189b379c3aca44c"
+    },
+    {
+      "face": "study4_trustworthy_18_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_18_vector_level_4.png",
+      "identity": "study4_trustworthy_18",
+      "method": "vector",
+      "level": 4,
+      "sha256": "464ec9e0e93bb428af6776ce444ffee7794344e0738bd45abf7ea5713f31b2c9"
+    },
+    {
+      "face": "study4_trustworthy_19_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_flow_level_0.png",
+      "identity": "study4_trustworthy_19",
+      "method": "flow",
+      "level": 0,
+      "sha256": "f47e86607e6cae329281364af6dce3d2ec1cc8d397488785379194b376a50ffc"
+    },
+    {
+      "face": "study4_trustworthy_19_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_flow_level_1.png",
+      "identity": "study4_trustworthy_19",
+      "method": "flow",
+      "level": 1,
+      "sha256": "03a28584d5e438e27be09ed1630dcf68a095767e7a94d6a032e37e49ca5e1b4a"
+    },
+    {
+      "face": "study4_trustworthy_19_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_flow_level_2.png",
+      "identity": "study4_trustworthy_19",
+      "method": "flow",
+      "level": 2,
+      "sha256": "7d87a00b459bc20677fd80655790774c84bd6f0f29e1457ab0c2d87d79602788"
+    },
+    {
+      "face": "study4_trustworthy_19_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_flow_level_3.png",
+      "identity": "study4_trustworthy_19",
+      "method": "flow",
+      "level": 3,
+      "sha256": "fdb31ee16dd131064dcf8faf958949d3d27f4b4da7a554119be2ead6c3f3a702"
+    },
+    {
+      "face": "study4_trustworthy_19_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_flow_level_4.png",
+      "identity": "study4_trustworthy_19",
+      "method": "flow",
+      "level": 4,
+      "sha256": "ab8d5004ecb6c08e48f79b2a4bcf4ff941d98753d22df62a35bd8b72f190ecdf"
+    },
+    {
+      "face": "study4_trustworthy_19_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_vector_level_0.png",
+      "identity": "study4_trustworthy_19",
+      "method": "vector",
+      "level": 0,
+      "sha256": "f47e86607e6cae329281364af6dce3d2ec1cc8d397488785379194b376a50ffc"
+    },
+    {
+      "face": "study4_trustworthy_19_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_vector_level_1.png",
+      "identity": "study4_trustworthy_19",
+      "method": "vector",
+      "level": 1,
+      "sha256": "60cd7d91ed834a409a6e0772ae089880a6243f6943ed5eb296a10e0537800557"
+    },
+    {
+      "face": "study4_trustworthy_19_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_vector_level_2.png",
+      "identity": "study4_trustworthy_19",
+      "method": "vector",
+      "level": 2,
+      "sha256": "45bbeda412afac68cf2489ca13602e10b7f2826a2cf6d8179992ae2e4cabf52a"
+    },
+    {
+      "face": "study4_trustworthy_19_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_vector_level_3.png",
+      "identity": "study4_trustworthy_19",
+      "method": "vector",
+      "level": 3,
+      "sha256": "730099571e4b82da7c969005aef52c8bbf8e11b08e7d0bf053b4ec7aec1f948e"
+    },
+    {
+      "face": "study4_trustworthy_19_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_19_vector_level_4.png",
+      "identity": "study4_trustworthy_19",
+      "method": "vector",
+      "level": 4,
+      "sha256": "a57debf6765ee80f905caf28075128db9e837e487e25b77c33c81d3504402deb"
+    },
+    {
+      "face": "study4_trustworthy_1_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_flow_level_0.png",
+      "identity": "study4_trustworthy_1",
+      "method": "flow",
+      "level": 0,
+      "sha256": "26f2d460c09c902edcfef9092f8a2324fc411874c7d566bccd944d107fca85df"
+    },
+    {
+      "face": "study4_trustworthy_1_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_flow_level_1.png",
+      "identity": "study4_trustworthy_1",
+      "method": "flow",
+      "level": 1,
+      "sha256": "ae74dc03b5863bd764a35020bd58557e3da1a37011681782a91f1fa0ec31f971"
+    },
+    {
+      "face": "study4_trustworthy_1_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_flow_level_2.png",
+      "identity": "study4_trustworthy_1",
+      "method": "flow",
+      "level": 2,
+      "sha256": "7095c9b6547a0dad2af080a028068a1a24a9ca71b7b3ebabd65e73372359308c"
+    },
+    {
+      "face": "study4_trustworthy_1_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_flow_level_3.png",
+      "identity": "study4_trustworthy_1",
+      "method": "flow",
+      "level": 3,
+      "sha256": "4c6a51aa41fd84a613f975a35d105c796d87c5a36af1a73a5716817e6e0a582b"
+    },
+    {
+      "face": "study4_trustworthy_1_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_flow_level_4.png",
+      "identity": "study4_trustworthy_1",
+      "method": "flow",
+      "level": 4,
+      "sha256": "065bf42814c5d89e8d1b7ab2657630e906ebbf3759087d513d4c34733d6cf323"
+    },
+    {
+      "face": "study4_trustworthy_1_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_vector_level_0.png",
+      "identity": "study4_trustworthy_1",
+      "method": "vector",
+      "level": 0,
+      "sha256": "26f2d460c09c902edcfef9092f8a2324fc411874c7d566bccd944d107fca85df"
+    },
+    {
+      "face": "study4_trustworthy_1_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_vector_level_1.png",
+      "identity": "study4_trustworthy_1",
+      "method": "vector",
+      "level": 1,
+      "sha256": "b63a0d20becbce8da1dac85a631b4bb0e7741003bde7e7ff6ba9bd6d1699ae8e"
+    },
+    {
+      "face": "study4_trustworthy_1_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_vector_level_2.png",
+      "identity": "study4_trustworthy_1",
+      "method": "vector",
+      "level": 2,
+      "sha256": "e8f150d65e47a9fb4d77036daa687f0db6dda842da545482b07cd6caa245ddbf"
+    },
+    {
+      "face": "study4_trustworthy_1_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_vector_level_3.png",
+      "identity": "study4_trustworthy_1",
+      "method": "vector",
+      "level": 3,
+      "sha256": "a5cfb472ad5aa5be8154889f71e22ee81457dd485c047b4da4b9de61c0d4e363"
+    },
+    {
+      "face": "study4_trustworthy_1_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_1_vector_level_4.png",
+      "identity": "study4_trustworthy_1",
+      "method": "vector",
+      "level": 4,
+      "sha256": "3dc69465b5b352c2d14fb60a7129654ee46dab1bde2070580e8476024072794a"
+    },
+    {
+      "face": "study4_trustworthy_20_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_flow_level_0.png",
+      "identity": "study4_trustworthy_20",
+      "method": "flow",
+      "level": 0,
+      "sha256": "419795eafde67ff10fd41c6daa7968506b12235f5e1847a7b10f4d21fb73cfde"
+    },
+    {
+      "face": "study4_trustworthy_20_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_flow_level_1.png",
+      "identity": "study4_trustworthy_20",
+      "method": "flow",
+      "level": 1,
+      "sha256": "402e00b4d4c885f34212eb20a92d30a6409631c7737d17adc405efdff1c7565f"
+    },
+    {
+      "face": "study4_trustworthy_20_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_flow_level_2.png",
+      "identity": "study4_trustworthy_20",
+      "method": "flow",
+      "level": 2,
+      "sha256": "e8ab53e319eb6d81a4805689efcf3bf8ae6109c91cbb198b2234a8492d35e7bb"
+    },
+    {
+      "face": "study4_trustworthy_20_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_flow_level_3.png",
+      "identity": "study4_trustworthy_20",
+      "method": "flow",
+      "level": 3,
+      "sha256": "7feb39b3e8ec61064508cc3818b6e37cf2e7a0ce459353179906f05b052d9da9"
+    },
+    {
+      "face": "study4_trustworthy_20_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_flow_level_4.png",
+      "identity": "study4_trustworthy_20",
+      "method": "flow",
+      "level": 4,
+      "sha256": "a818bc3d65cd61380366b53982812c14c9256ab64b07c99c5e7817155287d30b"
+    },
+    {
+      "face": "study4_trustworthy_20_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_vector_level_0.png",
+      "identity": "study4_trustworthy_20",
+      "method": "vector",
+      "level": 0,
+      "sha256": "419795eafde67ff10fd41c6daa7968506b12235f5e1847a7b10f4d21fb73cfde"
+    },
+    {
+      "face": "study4_trustworthy_20_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_vector_level_1.png",
+      "identity": "study4_trustworthy_20",
+      "method": "vector",
+      "level": 1,
+      "sha256": "2ed7e3ba347e74962a26d49e8674147759c3bdb2f3ad5afb92edf63a92aa73ae"
+    },
+    {
+      "face": "study4_trustworthy_20_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_vector_level_2.png",
+      "identity": "study4_trustworthy_20",
+      "method": "vector",
+      "level": 2,
+      "sha256": "740940e73f066a26f3dd71d8c7571d96cdaf721c160576dddbe34641b3e382da"
+    },
+    {
+      "face": "study4_trustworthy_20_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_vector_level_3.png",
+      "identity": "study4_trustworthy_20",
+      "method": "vector",
+      "level": 3,
+      "sha256": "f52a567b0178cf30ece5b657a50691e4459817ecddadf3f7dd45ad5a3e0e05df"
+    },
+    {
+      "face": "study4_trustworthy_20_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_20_vector_level_4.png",
+      "identity": "study4_trustworthy_20",
+      "method": "vector",
+      "level": 4,
+      "sha256": "1462109d28b0f0e40b1b5269beafe343ad54d17e2783059001069ae30693f0bf"
+    },
+    {
+      "face": "study4_trustworthy_21_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_flow_level_0.png",
+      "identity": "study4_trustworthy_21",
+      "method": "flow",
+      "level": 0,
+      "sha256": "f0fe63294da0a90b238f69506924968746dad000aa9b5b95baaec55cee7b4d38"
+    },
+    {
+      "face": "study4_trustworthy_21_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_flow_level_1.png",
+      "identity": "study4_trustworthy_21",
+      "method": "flow",
+      "level": 1,
+      "sha256": "6feea77bfb5b7a223d3dd55dee2cf1433c3bc396d1ad022659cb81e9c1681795"
+    },
+    {
+      "face": "study4_trustworthy_21_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_flow_level_2.png",
+      "identity": "study4_trustworthy_21",
+      "method": "flow",
+      "level": 2,
+      "sha256": "ea8392a4d53eae313032710ffc1aed0ff57673b26aa129ba529f52ff9320f812"
+    },
+    {
+      "face": "study4_trustworthy_21_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_flow_level_3.png",
+      "identity": "study4_trustworthy_21",
+      "method": "flow",
+      "level": 3,
+      "sha256": "e5e5797805625caceb77fd38a6bb179876d2e2cb3d4495fc6991e77b6208ff31"
+    },
+    {
+      "face": "study4_trustworthy_21_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_flow_level_4.png",
+      "identity": "study4_trustworthy_21",
+      "method": "flow",
+      "level": 4,
+      "sha256": "0f36cbf493ffaa532459e6027433c77afffca7eef8c96bd0033cbbe0e1b81505"
+    },
+    {
+      "face": "study4_trustworthy_21_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_vector_level_0.png",
+      "identity": "study4_trustworthy_21",
+      "method": "vector",
+      "level": 0,
+      "sha256": "f0fe63294da0a90b238f69506924968746dad000aa9b5b95baaec55cee7b4d38"
+    },
+    {
+      "face": "study4_trustworthy_21_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_vector_level_1.png",
+      "identity": "study4_trustworthy_21",
+      "method": "vector",
+      "level": 1,
+      "sha256": "cc1723f7b852ad4568cc52781de35ee3b3aaa8957cc476af8b44c1b9410659fd"
+    },
+    {
+      "face": "study4_trustworthy_21_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_vector_level_2.png",
+      "identity": "study4_trustworthy_21",
+      "method": "vector",
+      "level": 2,
+      "sha256": "8396d476d4f2695376f074d9f199c6f1b9241cdfaeb78370ecd54ccec18fe6c5"
+    },
+    {
+      "face": "study4_trustworthy_21_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_vector_level_3.png",
+      "identity": "study4_trustworthy_21",
+      "method": "vector",
+      "level": 3,
+      "sha256": "934dda93d5c714ade08df48d655bff185b26cf63049bd02b2a0604509307cb36"
+    },
+    {
+      "face": "study4_trustworthy_21_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_21_vector_level_4.png",
+      "identity": "study4_trustworthy_21",
+      "method": "vector",
+      "level": 4,
+      "sha256": "57b9a68a1d03ffbdf8a257e90e19e9d6125592428fc0c210658e343225590a2b"
+    },
+    {
+      "face": "study4_trustworthy_22_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_flow_level_0.png",
+      "identity": "study4_trustworthy_22",
+      "method": "flow",
+      "level": 0,
+      "sha256": "cb26ea72f23c896f36799d2b39b646fd7e72638492447772059309f330b83f8c"
+    },
+    {
+      "face": "study4_trustworthy_22_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_flow_level_1.png",
+      "identity": "study4_trustworthy_22",
+      "method": "flow",
+      "level": 1,
+      "sha256": "1c01e640439317c06dd21278335a6492ce7d7f47080d869661620258f8ac3f22"
+    },
+    {
+      "face": "study4_trustworthy_22_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_flow_level_2.png",
+      "identity": "study4_trustworthy_22",
+      "method": "flow",
+      "level": 2,
+      "sha256": "c6cb798e8b2bc17944fd2c1383ffa748f8e1f54586ad3d8d06744cd22fc59631"
+    },
+    {
+      "face": "study4_trustworthy_22_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_flow_level_3.png",
+      "identity": "study4_trustworthy_22",
+      "method": "flow",
+      "level": 3,
+      "sha256": "2aff01c00d547000c9f0a02291aeddb5d7c5652073586056b89a94b3bfe5c31d"
+    },
+    {
+      "face": "study4_trustworthy_22_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_flow_level_4.png",
+      "identity": "study4_trustworthy_22",
+      "method": "flow",
+      "level": 4,
+      "sha256": "138d388474b1d7746d86a1c68eb7287b985ca7d8f7469f1a19ef5771f6ecfbd1"
+    },
+    {
+      "face": "study4_trustworthy_22_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_vector_level_0.png",
+      "identity": "study4_trustworthy_22",
+      "method": "vector",
+      "level": 0,
+      "sha256": "cb26ea72f23c896f36799d2b39b646fd7e72638492447772059309f330b83f8c"
+    },
+    {
+      "face": "study4_trustworthy_22_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_vector_level_1.png",
+      "identity": "study4_trustworthy_22",
+      "method": "vector",
+      "level": 1,
+      "sha256": "a9d19532e3a30328aa2764997589a327d36483734cca36e59ae598f274e69f80"
+    },
+    {
+      "face": "study4_trustworthy_22_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_vector_level_2.png",
+      "identity": "study4_trustworthy_22",
+      "method": "vector",
+      "level": 2,
+      "sha256": "5ac2aed35ccd9c573f273de593ee7b13c8bf5676da5f45d44362fb091da73b04"
+    },
+    {
+      "face": "study4_trustworthy_22_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_vector_level_3.png",
+      "identity": "study4_trustworthy_22",
+      "method": "vector",
+      "level": 3,
+      "sha256": "efb949c4d8b4ae28d7ec4ae06d4219525b0cfc22ef0de203413ee0a8bc1437e8"
+    },
+    {
+      "face": "study4_trustworthy_22_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_22_vector_level_4.png",
+      "identity": "study4_trustworthy_22",
+      "method": "vector",
+      "level": 4,
+      "sha256": "0a3c425520330b724dc66850c7a7632f4e6b8305a4c03ce40c97250cce744e35"
+    },
+    {
+      "face": "study4_trustworthy_23_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_flow_level_0.png",
+      "identity": "study4_trustworthy_23",
+      "method": "flow",
+      "level": 0,
+      "sha256": "7e1ccbb458513d0f6628bf907fd1d90cbe7261daeb0ced514a653bdef448a39a"
+    },
+    {
+      "face": "study4_trustworthy_23_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_flow_level_1.png",
+      "identity": "study4_trustworthy_23",
+      "method": "flow",
+      "level": 1,
+      "sha256": "32cc6eea972988eafab850ccc5f56b665b849df16094b0c89fe2c8952bbdd39b"
+    },
+    {
+      "face": "study4_trustworthy_23_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_flow_level_2.png",
+      "identity": "study4_trustworthy_23",
+      "method": "flow",
+      "level": 2,
+      "sha256": "1a3ddbd96afb754a36312598dea992994c8fc949e39c6a914e004da19071ad9e"
+    },
+    {
+      "face": "study4_trustworthy_23_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_flow_level_3.png",
+      "identity": "study4_trustworthy_23",
+      "method": "flow",
+      "level": 3,
+      "sha256": "1bb902856e21a3ef5dfd404851838664815dcdb3af11741540d0c5a0a04a4ea3"
+    },
+    {
+      "face": "study4_trustworthy_23_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_flow_level_4.png",
+      "identity": "study4_trustworthy_23",
+      "method": "flow",
+      "level": 4,
+      "sha256": "4a9ab08dfcc59a36b4f9d310e8ed193cff45f64823ff1a30b701944800866bb0"
+    },
+    {
+      "face": "study4_trustworthy_23_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_vector_level_0.png",
+      "identity": "study4_trustworthy_23",
+      "method": "vector",
+      "level": 0,
+      "sha256": "7e1ccbb458513d0f6628bf907fd1d90cbe7261daeb0ced514a653bdef448a39a"
+    },
+    {
+      "face": "study4_trustworthy_23_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_vector_level_1.png",
+      "identity": "study4_trustworthy_23",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c3b6ce7d01424cb9c8f8597a089db38fab5801eb856a77b5a6b638d9c48ae65b"
+    },
+    {
+      "face": "study4_trustworthy_23_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_vector_level_2.png",
+      "identity": "study4_trustworthy_23",
+      "method": "vector",
+      "level": 2,
+      "sha256": "19d70b90c2169c3ce5bf9794f8faa073e9c9ae68955f29c8809d0f779fceb875"
+    },
+    {
+      "face": "study4_trustworthy_23_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_vector_level_3.png",
+      "identity": "study4_trustworthy_23",
+      "method": "vector",
+      "level": 3,
+      "sha256": "acf7bdb0fed91a0398eb4b2d562178dbbb371cc2c061b92441eb3566969c71b0"
+    },
+    {
+      "face": "study4_trustworthy_23_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_23_vector_level_4.png",
+      "identity": "study4_trustworthy_23",
+      "method": "vector",
+      "level": 4,
+      "sha256": "12e8f722183025b0a1f0261b5f1fb797f05916f37b9b32f1c6813f9657107c21"
+    },
+    {
+      "face": "study4_trustworthy_24_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_flow_level_0.png",
+      "identity": "study4_trustworthy_24",
+      "method": "flow",
+      "level": 0,
+      "sha256": "a6451cadf4ad2dd962f1eeb475106d2f26472f25f227095573bd654f9f059972"
+    },
+    {
+      "face": "study4_trustworthy_24_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_flow_level_1.png",
+      "identity": "study4_trustworthy_24",
+      "method": "flow",
+      "level": 1,
+      "sha256": "05cf1e6a2fd32ee173e9770cda906ca6013414ce72a515209867d85805b35607"
+    },
+    {
+      "face": "study4_trustworthy_24_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_flow_level_2.png",
+      "identity": "study4_trustworthy_24",
+      "method": "flow",
+      "level": 2,
+      "sha256": "e3d9f80de2bb9f498c3376436e0f4c03e6eabd2f18a9c613919dd489cdd38543"
+    },
+    {
+      "face": "study4_trustworthy_24_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_flow_level_3.png",
+      "identity": "study4_trustworthy_24",
+      "method": "flow",
+      "level": 3,
+      "sha256": "954020963aa93851f9befda5c69f53b0456f8ab7953b675c6bae5967325c9168"
+    },
+    {
+      "face": "study4_trustworthy_24_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_flow_level_4.png",
+      "identity": "study4_trustworthy_24",
+      "method": "flow",
+      "level": 4,
+      "sha256": "9500c7cb0e558c478e7d6855e6a18bb0a1bf836c83f78ff6f874ef6fb3525236"
+    },
+    {
+      "face": "study4_trustworthy_24_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_vector_level_0.png",
+      "identity": "study4_trustworthy_24",
+      "method": "vector",
+      "level": 0,
+      "sha256": "a6451cadf4ad2dd962f1eeb475106d2f26472f25f227095573bd654f9f059972"
+    },
+    {
+      "face": "study4_trustworthy_24_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_vector_level_1.png",
+      "identity": "study4_trustworthy_24",
+      "method": "vector",
+      "level": 1,
+      "sha256": "630076199f52ca92ea2da56e2fe052907de75793d2216bd5704f558acab2c57f"
+    },
+    {
+      "face": "study4_trustworthy_24_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_vector_level_2.png",
+      "identity": "study4_trustworthy_24",
+      "method": "vector",
+      "level": 2,
+      "sha256": "4511213db814bb395a57bd7b9bbd8cc4c676f0ce47d3efedbaf35934b6d25130"
+    },
+    {
+      "face": "study4_trustworthy_24_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_vector_level_3.png",
+      "identity": "study4_trustworthy_24",
+      "method": "vector",
+      "level": 3,
+      "sha256": "dfb2d277c99fbb9a2ffff036ac46b615f88d22970290205523d43882db676d66"
+    },
+    {
+      "face": "study4_trustworthy_24_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_24_vector_level_4.png",
+      "identity": "study4_trustworthy_24",
+      "method": "vector",
+      "level": 4,
+      "sha256": "508250f8ffe4ac41df42dbf67993f9933d0aeda2fb39ef3780ca225e8936f08b"
+    },
+    {
+      "face": "study4_trustworthy_25_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_flow_level_0.png",
+      "identity": "study4_trustworthy_25",
+      "method": "flow",
+      "level": 0,
+      "sha256": "e6499db33dc0a2d3fedb16a250daee52e92773379b31fdce42ef83d7b0713878"
+    },
+    {
+      "face": "study4_trustworthy_25_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_flow_level_1.png",
+      "identity": "study4_trustworthy_25",
+      "method": "flow",
+      "level": 1,
+      "sha256": "c2e76d20bd5a1ac67fb5c6c4f11e5251ba31a272cc32e573a1bba1e304d33b7b"
+    },
+    {
+      "face": "study4_trustworthy_25_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_flow_level_2.png",
+      "identity": "study4_trustworthy_25",
+      "method": "flow",
+      "level": 2,
+      "sha256": "b314be97e77bdc01360d5177e93b10f16715f60d22a6ad5e7ff302b55486bb4a"
+    },
+    {
+      "face": "study4_trustworthy_25_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_flow_level_3.png",
+      "identity": "study4_trustworthy_25",
+      "method": "flow",
+      "level": 3,
+      "sha256": "6991c216a75de369af08b24eb58b9e71f4fa56eef05a60585d9db17fb682dac9"
+    },
+    {
+      "face": "study4_trustworthy_25_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_flow_level_4.png",
+      "identity": "study4_trustworthy_25",
+      "method": "flow",
+      "level": 4,
+      "sha256": "27b839deecb92ad05e25b2742fa9f000ad919c20e26b14965ed6f348f9874fab"
+    },
+    {
+      "face": "study4_trustworthy_25_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_vector_level_0.png",
+      "identity": "study4_trustworthy_25",
+      "method": "vector",
+      "level": 0,
+      "sha256": "e6499db33dc0a2d3fedb16a250daee52e92773379b31fdce42ef83d7b0713878"
+    },
+    {
+      "face": "study4_trustworthy_25_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_vector_level_1.png",
+      "identity": "study4_trustworthy_25",
+      "method": "vector",
+      "level": 1,
+      "sha256": "4aededdd02e7ee9dd1af64fa3546f6181f91058efec943feb1e2b57f9c840da4"
+    },
+    {
+      "face": "study4_trustworthy_25_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_vector_level_2.png",
+      "identity": "study4_trustworthy_25",
+      "method": "vector",
+      "level": 2,
+      "sha256": "a9f48b83ab209409f8020ff47c2f9c00a20a297ca28df00e645fbd2e993e42a7"
+    },
+    {
+      "face": "study4_trustworthy_25_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_vector_level_3.png",
+      "identity": "study4_trustworthy_25",
+      "method": "vector",
+      "level": 3,
+      "sha256": "49affb4d146214740307ef258962d7e991294fbf761a61280a787e6b116619ac"
+    },
+    {
+      "face": "study4_trustworthy_25_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_25_vector_level_4.png",
+      "identity": "study4_trustworthy_25",
+      "method": "vector",
+      "level": 4,
+      "sha256": "474ce33d50bb3107f637917df27913dde39a1a04829ea686a3cb90296efc4683"
+    },
+    {
+      "face": "study4_trustworthy_26_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_flow_level_0.png",
+      "identity": "study4_trustworthy_26",
+      "method": "flow",
+      "level": 0,
+      "sha256": "b92f7803e9cccd13a2867282a104ba554f749ee9d868f80681ec6fbd65a51680"
+    },
+    {
+      "face": "study4_trustworthy_26_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_flow_level_1.png",
+      "identity": "study4_trustworthy_26",
+      "method": "flow",
+      "level": 1,
+      "sha256": "95948d44300a79103aa8187ed45617de670b4a71a9a71dabf180f4b603831acb"
+    },
+    {
+      "face": "study4_trustworthy_26_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_flow_level_2.png",
+      "identity": "study4_trustworthy_26",
+      "method": "flow",
+      "level": 2,
+      "sha256": "acfa230bbcf918746566c6d9e3e40ae21572aeb497d225db62a59310fdb69d3a"
+    },
+    {
+      "face": "study4_trustworthy_26_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_flow_level_3.png",
+      "identity": "study4_trustworthy_26",
+      "method": "flow",
+      "level": 3,
+      "sha256": "be8befe3616c83cce69b036c0946afe95df2fd511017a56e0fa8e0ecec4b2330"
+    },
+    {
+      "face": "study4_trustworthy_26_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_flow_level_4.png",
+      "identity": "study4_trustworthy_26",
+      "method": "flow",
+      "level": 4,
+      "sha256": "a141ee4ab344a9168c4c554da02634cd81353ee3609818fc78769b202a5cf18b"
+    },
+    {
+      "face": "study4_trustworthy_26_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_vector_level_0.png",
+      "identity": "study4_trustworthy_26",
+      "method": "vector",
+      "level": 0,
+      "sha256": "b92f7803e9cccd13a2867282a104ba554f749ee9d868f80681ec6fbd65a51680"
+    },
+    {
+      "face": "study4_trustworthy_26_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_vector_level_1.png",
+      "identity": "study4_trustworthy_26",
+      "method": "vector",
+      "level": 1,
+      "sha256": "56f567d1c72bbdfc9fca8a68902de55b93922f6d412e08cd798bb67f46929cd4"
+    },
+    {
+      "face": "study4_trustworthy_26_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_vector_level_2.png",
+      "identity": "study4_trustworthy_26",
+      "method": "vector",
+      "level": 2,
+      "sha256": "c5fed9c0754685c6f584aa5b699ef3a8f2d8b50bbe27a4734ad2b41545f97a3b"
+    },
+    {
+      "face": "study4_trustworthy_26_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_vector_level_3.png",
+      "identity": "study4_trustworthy_26",
+      "method": "vector",
+      "level": 3,
+      "sha256": "5d3a44c29617ac9e7d5de5d77da2fc54a682361b6e3e5b31098896d2e092b1c4"
+    },
+    {
+      "face": "study4_trustworthy_26_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_26_vector_level_4.png",
+      "identity": "study4_trustworthy_26",
+      "method": "vector",
+      "level": 4,
+      "sha256": "d5754f017f0552ac14d73963b18c7f8123321e252dae133e3254a63d7af85687"
+    },
+    {
+      "face": "study4_trustworthy_27_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_flow_level_0.png",
+      "identity": "study4_trustworthy_27",
+      "method": "flow",
+      "level": 0,
+      "sha256": "c6bd5021b72855623c59de366bc124e0c5cf3c6a68a7073fd3102d8b00a6a71c"
+    },
+    {
+      "face": "study4_trustworthy_27_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_flow_level_1.png",
+      "identity": "study4_trustworthy_27",
+      "method": "flow",
+      "level": 1,
+      "sha256": "b7177c599e8fd4ab68365329e1f86168339d85400b6219d7114920fe50d4d129"
+    },
+    {
+      "face": "study4_trustworthy_27_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_flow_level_2.png",
+      "identity": "study4_trustworthy_27",
+      "method": "flow",
+      "level": 2,
+      "sha256": "887bbdf96396791d4b02b089eb13ff1bb5a193ae5e8e9de0f007577752ea5dfc"
+    },
+    {
+      "face": "study4_trustworthy_27_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_flow_level_3.png",
+      "identity": "study4_trustworthy_27",
+      "method": "flow",
+      "level": 3,
+      "sha256": "3af3344cb2aa3ae1de5d48ca07b9181562e418bbca3b26cf4e6130b5f67fb95d"
+    },
+    {
+      "face": "study4_trustworthy_27_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_flow_level_4.png",
+      "identity": "study4_trustworthy_27",
+      "method": "flow",
+      "level": 4,
+      "sha256": "62f5ce5b264a87028dca64ce042ee87198b6c19e4d8725abaccf09c34824abad"
+    },
+    {
+      "face": "study4_trustworthy_27_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_vector_level_0.png",
+      "identity": "study4_trustworthy_27",
+      "method": "vector",
+      "level": 0,
+      "sha256": "c6bd5021b72855623c59de366bc124e0c5cf3c6a68a7073fd3102d8b00a6a71c"
+    },
+    {
+      "face": "study4_trustworthy_27_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_vector_level_1.png",
+      "identity": "study4_trustworthy_27",
+      "method": "vector",
+      "level": 1,
+      "sha256": "b00e29d7d19da2b3a51f5a249a3650cf86d2046b519066b27d9abc3757e45c8b"
+    },
+    {
+      "face": "study4_trustworthy_27_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_vector_level_2.png",
+      "identity": "study4_trustworthy_27",
+      "method": "vector",
+      "level": 2,
+      "sha256": "0e775a76ed9716a061c20e57dc7be329299216834b027b34dffc748a2191dc27"
+    },
+    {
+      "face": "study4_trustworthy_27_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_vector_level_3.png",
+      "identity": "study4_trustworthy_27",
+      "method": "vector",
+      "level": 3,
+      "sha256": "fefd34d4e88fa177f2bcf1ee9de9112e1113098f4823ffed5578fb6e2c4948df"
+    },
+    {
+      "face": "study4_trustworthy_27_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_27_vector_level_4.png",
+      "identity": "study4_trustworthy_27",
+      "method": "vector",
+      "level": 4,
+      "sha256": "af4c35b7022a0cf96c02ebb26e46d8bca162ed93a7a8d89849c62057cde7774d"
+    },
+    {
+      "face": "study4_trustworthy_28_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_flow_level_0.png",
+      "identity": "study4_trustworthy_28",
+      "method": "flow",
+      "level": 0,
+      "sha256": "75c1b9425afb24b970028180bc33394cbb42d64f02c3ec4c3825d3e45f32c2f0"
+    },
+    {
+      "face": "study4_trustworthy_28_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_flow_level_1.png",
+      "identity": "study4_trustworthy_28",
+      "method": "flow",
+      "level": 1,
+      "sha256": "7fabe48ac8c409177fd237834638cd93ef9addb596c695e83b641fbecd79d235"
+    },
+    {
+      "face": "study4_trustworthy_28_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_flow_level_2.png",
+      "identity": "study4_trustworthy_28",
+      "method": "flow",
+      "level": 2,
+      "sha256": "401e0b747b85c0e3ffb2aae7b9237e205cc4938546c55285199101c787c40bd5"
+    },
+    {
+      "face": "study4_trustworthy_28_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_flow_level_3.png",
+      "identity": "study4_trustworthy_28",
+      "method": "flow",
+      "level": 3,
+      "sha256": "cb424f2711cec5564df6574c23ae2e0b4afdbbb8ee588f8ddfc08aa8e42f19e4"
+    },
+    {
+      "face": "study4_trustworthy_28_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_flow_level_4.png",
+      "identity": "study4_trustworthy_28",
+      "method": "flow",
+      "level": 4,
+      "sha256": "6a1befcdece2c1bf9dc6b7a8db40769449bdb59f0f0ded168e3b792b5a05d4bd"
+    },
+    {
+      "face": "study4_trustworthy_28_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_vector_level_0.png",
+      "identity": "study4_trustworthy_28",
+      "method": "vector",
+      "level": 0,
+      "sha256": "75c1b9425afb24b970028180bc33394cbb42d64f02c3ec4c3825d3e45f32c2f0"
+    },
+    {
+      "face": "study4_trustworthy_28_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_vector_level_1.png",
+      "identity": "study4_trustworthy_28",
+      "method": "vector",
+      "level": 1,
+      "sha256": "2d30e254f0eac56ae042aa9c0273009019eb4ea13e37a8fc468c69694bce3703"
+    },
+    {
+      "face": "study4_trustworthy_28_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_vector_level_2.png",
+      "identity": "study4_trustworthy_28",
+      "method": "vector",
+      "level": 2,
+      "sha256": "a7af1cc0314f6e69f9b305b6678c26d78c2f1fbfa968a5aace0a42f0d9b43598"
+    },
+    {
+      "face": "study4_trustworthy_28_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_vector_level_3.png",
+      "identity": "study4_trustworthy_28",
+      "method": "vector",
+      "level": 3,
+      "sha256": "455cfeb1400d2b5521eae2ad8ef3c86d8004681a58f510caa5442e37aa0510f0"
+    },
+    {
+      "face": "study4_trustworthy_28_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_28_vector_level_4.png",
+      "identity": "study4_trustworthy_28",
+      "method": "vector",
+      "level": 4,
+      "sha256": "b7bc11f9774e0dc350b72e8cbdb26a7f2731236f3730cea9cc088fae3aa18f61"
+    },
+    {
+      "face": "study4_trustworthy_29_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_flow_level_0.png",
+      "identity": "study4_trustworthy_29",
+      "method": "flow",
+      "level": 0,
+      "sha256": "431c30a4b259c944754e56b9de3dc76d325a09a014f06c1906b23444952122de"
+    },
+    {
+      "face": "study4_trustworthy_29_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_flow_level_1.png",
+      "identity": "study4_trustworthy_29",
+      "method": "flow",
+      "level": 1,
+      "sha256": "e5308f6382a1c6223d1263479acb6243a1ee90f7de2a7f54110cddda7370e020"
+    },
+    {
+      "face": "study4_trustworthy_29_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_flow_level_2.png",
+      "identity": "study4_trustworthy_29",
+      "method": "flow",
+      "level": 2,
+      "sha256": "43d5d0e30a15c8bf2aeb7b4690138a56f0b55182fb9541197ae93b45ee91649b"
+    },
+    {
+      "face": "study4_trustworthy_29_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_flow_level_3.png",
+      "identity": "study4_trustworthy_29",
+      "method": "flow",
+      "level": 3,
+      "sha256": "c2e72b643801c38bc88685c88aa9492077c9d2b8e7c6222d46f7aeb72946e47c"
+    },
+    {
+      "face": "study4_trustworthy_29_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_flow_level_4.png",
+      "identity": "study4_trustworthy_29",
+      "method": "flow",
+      "level": 4,
+      "sha256": "9951055110e449f6b7a2470bcdaa61b587e585826a50d20070edc5196df26e0f"
+    },
+    {
+      "face": "study4_trustworthy_29_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_vector_level_0.png",
+      "identity": "study4_trustworthy_29",
+      "method": "vector",
+      "level": 0,
+      "sha256": "431c30a4b259c944754e56b9de3dc76d325a09a014f06c1906b23444952122de"
+    },
+    {
+      "face": "study4_trustworthy_29_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_vector_level_1.png",
+      "identity": "study4_trustworthy_29",
+      "method": "vector",
+      "level": 1,
+      "sha256": "ecbabcae28f11fd90264a802751956b7265f63e6b55705fc472a032a9fb2bc44"
+    },
+    {
+      "face": "study4_trustworthy_29_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_vector_level_2.png",
+      "identity": "study4_trustworthy_29",
+      "method": "vector",
+      "level": 2,
+      "sha256": "b363eafee13389103df071da1423e6faed879189e5c207183e8a156af49e7e22"
+    },
+    {
+      "face": "study4_trustworthy_29_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_vector_level_3.png",
+      "identity": "study4_trustworthy_29",
+      "method": "vector",
+      "level": 3,
+      "sha256": "0e5f6c1d12da10418cc3bb7f92030f607835a955898f1b584f0bfe88631875ab"
+    },
+    {
+      "face": "study4_trustworthy_29_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_29_vector_level_4.png",
+      "identity": "study4_trustworthy_29",
+      "method": "vector",
+      "level": 4,
+      "sha256": "74391c319dfb5619ff7d09757ecd22c98353151acb36e82c85eb33658c9f46e7"
+    },
+    {
+      "face": "study4_trustworthy_2_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_flow_level_0.png",
+      "identity": "study4_trustworthy_2",
+      "method": "flow",
+      "level": 0,
+      "sha256": "b6e9baae64d3b51c489bd07d7d3f35c04d3e44a43a81b111b69a46a671c5c479"
+    },
+    {
+      "face": "study4_trustworthy_2_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_flow_level_1.png",
+      "identity": "study4_trustworthy_2",
+      "method": "flow",
+      "level": 1,
+      "sha256": "a4ae7452cbad7c7254a47480c23b7bffa2062384a21075d8208e2c20dc1b502c"
+    },
+    {
+      "face": "study4_trustworthy_2_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_flow_level_2.png",
+      "identity": "study4_trustworthy_2",
+      "method": "flow",
+      "level": 2,
+      "sha256": "4c632eac20ef5be486c96681e0ec07a4e1f73eaa9fef1db789d16677135726b6"
+    },
+    {
+      "face": "study4_trustworthy_2_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_flow_level_3.png",
+      "identity": "study4_trustworthy_2",
+      "method": "flow",
+      "level": 3,
+      "sha256": "88e56cfb8818b0fcf7505454129ceab2a3cccfd41430e18596d065e176bae63f"
+    },
+    {
+      "face": "study4_trustworthy_2_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_flow_level_4.png",
+      "identity": "study4_trustworthy_2",
+      "method": "flow",
+      "level": 4,
+      "sha256": "17eaf25e084e90068f1dec11867caeaab1b5287f1a54d6318bb7558f3bccafde"
+    },
+    {
+      "face": "study4_trustworthy_2_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_vector_level_0.png",
+      "identity": "study4_trustworthy_2",
+      "method": "vector",
+      "level": 0,
+      "sha256": "b6e9baae64d3b51c489bd07d7d3f35c04d3e44a43a81b111b69a46a671c5c479"
+    },
+    {
+      "face": "study4_trustworthy_2_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_vector_level_1.png",
+      "identity": "study4_trustworthy_2",
+      "method": "vector",
+      "level": 1,
+      "sha256": "020efd033bad930522cdb5d2dc8fb95fdc3e9a8b25f10b9adb299de59efb23b7"
+    },
+    {
+      "face": "study4_trustworthy_2_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_vector_level_2.png",
+      "identity": "study4_trustworthy_2",
+      "method": "vector",
+      "level": 2,
+      "sha256": "88393f56ba82f4d7e1300788684f45ae5bba75ecff8d1e810f5922c473bf357d"
+    },
+    {
+      "face": "study4_trustworthy_2_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_vector_level_3.png",
+      "identity": "study4_trustworthy_2",
+      "method": "vector",
+      "level": 3,
+      "sha256": "0f069d626db48a3c9a0428ed49cec5e0e4f14ae4d2e31613515cdbe33dbf9174"
+    },
+    {
+      "face": "study4_trustworthy_2_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_2_vector_level_4.png",
+      "identity": "study4_trustworthy_2",
+      "method": "vector",
+      "level": 4,
+      "sha256": "d73ec79146abd85673420ac468d3171508719486cc3cc0adfb5f2e9b8b324065"
+    },
+    {
+      "face": "study4_trustworthy_30_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_flow_level_0.png",
+      "identity": "study4_trustworthy_30",
+      "method": "flow",
+      "level": 0,
+      "sha256": "55006c24379c848012e0d72b55574725e679f890266dd130c20f4b407a674e1b"
+    },
+    {
+      "face": "study4_trustworthy_30_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_flow_level_1.png",
+      "identity": "study4_trustworthy_30",
+      "method": "flow",
+      "level": 1,
+      "sha256": "690116229996279ff59bc22f56a4a5d04a88aba269bc30ea3c32b69df1246d6b"
+    },
+    {
+      "face": "study4_trustworthy_30_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_flow_level_2.png",
+      "identity": "study4_trustworthy_30",
+      "method": "flow",
+      "level": 2,
+      "sha256": "c2d4e2a5dd3152d33abd31302dca3f9fce3fe6bc28fd19a2ad76a2fc257d4af4"
+    },
+    {
+      "face": "study4_trustworthy_30_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_flow_level_3.png",
+      "identity": "study4_trustworthy_30",
+      "method": "flow",
+      "level": 3,
+      "sha256": "39ea29525bf79f0b2c07bb32a0443575ce793f0cd23e1cdda43e033d4b357607"
+    },
+    {
+      "face": "study4_trustworthy_30_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_flow_level_4.png",
+      "identity": "study4_trustworthy_30",
+      "method": "flow",
+      "level": 4,
+      "sha256": "f697576438d1667bea4e3dd4a2aa5faab8e3287395847d3a91847894da8e34f5"
+    },
+    {
+      "face": "study4_trustworthy_30_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_vector_level_0.png",
+      "identity": "study4_trustworthy_30",
+      "method": "vector",
+      "level": 0,
+      "sha256": "55006c24379c848012e0d72b55574725e679f890266dd130c20f4b407a674e1b"
+    },
+    {
+      "face": "study4_trustworthy_30_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_vector_level_1.png",
+      "identity": "study4_trustworthy_30",
+      "method": "vector",
+      "level": 1,
+      "sha256": "64b73e6b0dc81cc3cbf5bfac2a0764ba34b02434d1044bc1aaf45de604d720b3"
+    },
+    {
+      "face": "study4_trustworthy_30_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_vector_level_2.png",
+      "identity": "study4_trustworthy_30",
+      "method": "vector",
+      "level": 2,
+      "sha256": "c6807f5b2ce3dcc33d16d7eb5b09185b75ef2a4bb9037d52f60cf0abb2cf9403"
+    },
+    {
+      "face": "study4_trustworthy_30_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_vector_level_3.png",
+      "identity": "study4_trustworthy_30",
+      "method": "vector",
+      "level": 3,
+      "sha256": "4c7b042e677b92e6a3495aa5d091a07ad2817fe8bac037b4399b7cb82c836e33"
+    },
+    {
+      "face": "study4_trustworthy_30_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_30_vector_level_4.png",
+      "identity": "study4_trustworthy_30",
+      "method": "vector",
+      "level": 4,
+      "sha256": "3f908b0749f5ae91fe0b95c79d505dbac5480a218220ee56dcea72c29f0bc441"
+    },
+    {
+      "face": "study4_trustworthy_31_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_flow_level_0.png",
+      "identity": "study4_trustworthy_31",
+      "method": "flow",
+      "level": 0,
+      "sha256": "ba45cb2db48be3a668f8f5e084a1924e9f4b2828fc1e7ee47fef8e34b246f35d"
+    },
+    {
+      "face": "study4_trustworthy_31_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_flow_level_1.png",
+      "identity": "study4_trustworthy_31",
+      "method": "flow",
+      "level": 1,
+      "sha256": "1319f53814e1c1f035aaa985a74162ec040c1946fb39907842fb3e25e48317b8"
+    },
+    {
+      "face": "study4_trustworthy_31_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_flow_level_2.png",
+      "identity": "study4_trustworthy_31",
+      "method": "flow",
+      "level": 2,
+      "sha256": "9c549db14fc1a476e7ab65acc6c3b777b12b40d14e3f29c5ee3386144f8f5eca"
+    },
+    {
+      "face": "study4_trustworthy_31_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_flow_level_3.png",
+      "identity": "study4_trustworthy_31",
+      "method": "flow",
+      "level": 3,
+      "sha256": "9a9b6169d758d0a7b0e85aa99d9c43ae0b71f4964afd5e7b5f8a556bcfbd1c4c"
+    },
+    {
+      "face": "study4_trustworthy_31_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_flow_level_4.png",
+      "identity": "study4_trustworthy_31",
+      "method": "flow",
+      "level": 4,
+      "sha256": "72d8c041fa5636429fd0425d9bf0f46e1d58d0b216af3dc673f4ce86599a6646"
+    },
+    {
+      "face": "study4_trustworthy_31_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_vector_level_0.png",
+      "identity": "study4_trustworthy_31",
+      "method": "vector",
+      "level": 0,
+      "sha256": "ba45cb2db48be3a668f8f5e084a1924e9f4b2828fc1e7ee47fef8e34b246f35d"
+    },
+    {
+      "face": "study4_trustworthy_31_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_vector_level_1.png",
+      "identity": "study4_trustworthy_31",
+      "method": "vector",
+      "level": 1,
+      "sha256": "efa09422db4230c22b4d1c2ec16f825110609d054cc284257945ca0a316af97a"
+    },
+    {
+      "face": "study4_trustworthy_31_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_vector_level_2.png",
+      "identity": "study4_trustworthy_31",
+      "method": "vector",
+      "level": 2,
+      "sha256": "6bb77a6518a5e71d9133af2eacbcb7a916e3a4012e0cd36ac5486a7bb66fb32f"
+    },
+    {
+      "face": "study4_trustworthy_31_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_vector_level_3.png",
+      "identity": "study4_trustworthy_31",
+      "method": "vector",
+      "level": 3,
+      "sha256": "a2c664294a4de29238eb14d1baf640dad6d64111353692891fe5cda85d0c6e97"
+    },
+    {
+      "face": "study4_trustworthy_31_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_31_vector_level_4.png",
+      "identity": "study4_trustworthy_31",
+      "method": "vector",
+      "level": 4,
+      "sha256": "664761d307f9dc9338ffa0c090d37ad740e0e3db40bf5e2bb873545d26aef6d7"
+    },
+    {
+      "face": "study4_trustworthy_32_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_flow_level_0.png",
+      "identity": "study4_trustworthy_32",
+      "method": "flow",
+      "level": 0,
+      "sha256": "01ea9c2ee130f7ff51a7b1a613a029476bf6c1550f948b3594411edc06008688"
+    },
+    {
+      "face": "study4_trustworthy_32_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_flow_level_1.png",
+      "identity": "study4_trustworthy_32",
+      "method": "flow",
+      "level": 1,
+      "sha256": "d090e9ec104bf704332343852d5ff6eb5578fd3f41aa6f52a275d0b3ca37d6b9"
+    },
+    {
+      "face": "study4_trustworthy_32_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_flow_level_2.png",
+      "identity": "study4_trustworthy_32",
+      "method": "flow",
+      "level": 2,
+      "sha256": "c95f3f021b9f9a377d05d7b14b5ec6af2b13b6465a5f83cd4223cacd261579c8"
+    },
+    {
+      "face": "study4_trustworthy_32_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_flow_level_3.png",
+      "identity": "study4_trustworthy_32",
+      "method": "flow",
+      "level": 3,
+      "sha256": "c33d711269d1682343561bcfcbbf1792a23baff7b3c656462b04edd496cdcab5"
+    },
+    {
+      "face": "study4_trustworthy_32_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_flow_level_4.png",
+      "identity": "study4_trustworthy_32",
+      "method": "flow",
+      "level": 4,
+      "sha256": "b9df1aab17473d8fcfbc7f044f846ce003bdcaf7ab03ca95e99c2c41437d332e"
+    },
+    {
+      "face": "study4_trustworthy_32_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_vector_level_0.png",
+      "identity": "study4_trustworthy_32",
+      "method": "vector",
+      "level": 0,
+      "sha256": "01ea9c2ee130f7ff51a7b1a613a029476bf6c1550f948b3594411edc06008688"
+    },
+    {
+      "face": "study4_trustworthy_32_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_vector_level_1.png",
+      "identity": "study4_trustworthy_32",
+      "method": "vector",
+      "level": 1,
+      "sha256": "0f6ea51ee20a3f8afe6dcd1a693363b00cdc8cfe9a98a0614738eb6112105bac"
+    },
+    {
+      "face": "study4_trustworthy_32_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_vector_level_2.png",
+      "identity": "study4_trustworthy_32",
+      "method": "vector",
+      "level": 2,
+      "sha256": "350a3dc7f82becd5ce3a8fb883f63a3431f267c6bdfc5b6cbc2d1375f7a6260c"
+    },
+    {
+      "face": "study4_trustworthy_32_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_vector_level_3.png",
+      "identity": "study4_trustworthy_32",
+      "method": "vector",
+      "level": 3,
+      "sha256": "e996a495e2f066c383a0f20e4118383e12ed7c27ec76e6e70f10b9df96f5a54b"
+    },
+    {
+      "face": "study4_trustworthy_32_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_32_vector_level_4.png",
+      "identity": "study4_trustworthy_32",
+      "method": "vector",
+      "level": 4,
+      "sha256": "ac475c4ae3b84d7586150a4936876bb2770a3ea13544bca1f7b95d50cffc03b5"
+    },
+    {
+      "face": "study4_trustworthy_33_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_flow_level_0.png",
+      "identity": "study4_trustworthy_33",
+      "method": "flow",
+      "level": 0,
+      "sha256": "30af945ae2f0371ebe03ecd631393a6a72a54fa3bd9c4cad5bc3882fefdfc546"
+    },
+    {
+      "face": "study4_trustworthy_33_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_flow_level_1.png",
+      "identity": "study4_trustworthy_33",
+      "method": "flow",
+      "level": 1,
+      "sha256": "119f2fa5a83825a0b5400612c158e0ec106441978fa51ecbebc84cd3e6676fc3"
+    },
+    {
+      "face": "study4_trustworthy_33_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_flow_level_2.png",
+      "identity": "study4_trustworthy_33",
+      "method": "flow",
+      "level": 2,
+      "sha256": "09d354ab227f0e12c0b6ec0538e0e56f3e94410b0b1d82f65def01ac257cc3e7"
+    },
+    {
+      "face": "study4_trustworthy_33_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_flow_level_3.png",
+      "identity": "study4_trustworthy_33",
+      "method": "flow",
+      "level": 3,
+      "sha256": "09d354ab227f0e12c0b6ec0538e0e56f3e94410b0b1d82f65def01ac257cc3e7"
+    },
+    {
+      "face": "study4_trustworthy_33_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_flow_level_4.png",
+      "identity": "study4_trustworthy_33",
+      "method": "flow",
+      "level": 4,
+      "sha256": "ca9af3f7d240f4e1e64ed3f90eb858d922cb44289c6e135e98390e4621eff154"
+    },
+    {
+      "face": "study4_trustworthy_33_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_vector_level_0.png",
+      "identity": "study4_trustworthy_33",
+      "method": "vector",
+      "level": 0,
+      "sha256": "30af945ae2f0371ebe03ecd631393a6a72a54fa3bd9c4cad5bc3882fefdfc546"
+    },
+    {
+      "face": "study4_trustworthy_33_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_vector_level_1.png",
+      "identity": "study4_trustworthy_33",
+      "method": "vector",
+      "level": 1,
+      "sha256": "8e1403f9a67332ff21e7cbf195af3dbe718eee9b1a62d16da01a03fb3d938b81"
+    },
+    {
+      "face": "study4_trustworthy_33_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_vector_level_2.png",
+      "identity": "study4_trustworthy_33",
+      "method": "vector",
+      "level": 2,
+      "sha256": "8f491e15dc70fb7eafb747431bbbb584bb7b875c2e5d662281dbe5befb02d782"
+    },
+    {
+      "face": "study4_trustworthy_33_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_vector_level_3.png",
+      "identity": "study4_trustworthy_33",
+      "method": "vector",
+      "level": 3,
+      "sha256": "c2018b2a4d01b3df8eb78810136c398cbd5812920365206091d1a45dad215b27"
+    },
+    {
+      "face": "study4_trustworthy_33_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_33_vector_level_4.png",
+      "identity": "study4_trustworthy_33",
+      "method": "vector",
+      "level": 4,
+      "sha256": "02945ce468b51fbd64c33732a74d75789f7223098313e9757e92afa51f3406a5"
+    },
+    {
+      "face": "study4_trustworthy_34_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_flow_level_0.png",
+      "identity": "study4_trustworthy_34",
+      "method": "flow",
+      "level": 0,
+      "sha256": "afd7e893e45f5df1e45cccae85ea786c08b66769ec470924c42386d8ba8f634a"
+    },
+    {
+      "face": "study4_trustworthy_34_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_flow_level_1.png",
+      "identity": "study4_trustworthy_34",
+      "method": "flow",
+      "level": 1,
+      "sha256": "4bd6b1d355b855fbcc6b8c48bc9de4eac513b16964795352ee1ed7f45e55ac04"
+    },
+    {
+      "face": "study4_trustworthy_34_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_flow_level_2.png",
+      "identity": "study4_trustworthy_34",
+      "method": "flow",
+      "level": 2,
+      "sha256": "a4ef6b43e298676d8fc696611507385c2a21c0aee79f3196bb6cccde98f35375"
+    },
+    {
+      "face": "study4_trustworthy_34_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_flow_level_3.png",
+      "identity": "study4_trustworthy_34",
+      "method": "flow",
+      "level": 3,
+      "sha256": "42edcf3f59d5e389730208d30cc18df53d25c6bee54fc628e317a9397e557aa1"
+    },
+    {
+      "face": "study4_trustworthy_34_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_flow_level_4.png",
+      "identity": "study4_trustworthy_34",
+      "method": "flow",
+      "level": 4,
+      "sha256": "ea98eb439edfc69692a6a332acb8f904afa943985d27063c65c9cafb0bcb7389"
+    },
+    {
+      "face": "study4_trustworthy_34_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_vector_level_0.png",
+      "identity": "study4_trustworthy_34",
+      "method": "vector",
+      "level": 0,
+      "sha256": "afd7e893e45f5df1e45cccae85ea786c08b66769ec470924c42386d8ba8f634a"
+    },
+    {
+      "face": "study4_trustworthy_34_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_vector_level_1.png",
+      "identity": "study4_trustworthy_34",
+      "method": "vector",
+      "level": 1,
+      "sha256": "6b9fc249326a4da4a7468572e172cc1d205fdfe828acd89c170ac0832b200227"
+    },
+    {
+      "face": "study4_trustworthy_34_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_vector_level_2.png",
+      "identity": "study4_trustworthy_34",
+      "method": "vector",
+      "level": 2,
+      "sha256": "5caddb6ff14420bc6016517148ff745297bb0e90d5ea14e5769681dcaa1f321f"
+    },
+    {
+      "face": "study4_trustworthy_34_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_vector_level_3.png",
+      "identity": "study4_trustworthy_34",
+      "method": "vector",
+      "level": 3,
+      "sha256": "a4ef582be045af1c0b97a1fc137a875b1d2ede0302f471abb22fd8c2b8372ce6"
+    },
+    {
+      "face": "study4_trustworthy_34_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_34_vector_level_4.png",
+      "identity": "study4_trustworthy_34",
+      "method": "vector",
+      "level": 4,
+      "sha256": "5784f4e600b396a08ea465083f1d67367f905c5410b0b8b9bb421bcb31ba4497"
+    },
+    {
+      "face": "study4_trustworthy_35_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_flow_level_0.png",
+      "identity": "study4_trustworthy_35",
+      "method": "flow",
+      "level": 0,
+      "sha256": "6424212f81812ac055609ad5f310fc6a7f33bd4deea43c77f954703764ba37f9"
+    },
+    {
+      "face": "study4_trustworthy_35_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_flow_level_1.png",
+      "identity": "study4_trustworthy_35",
+      "method": "flow",
+      "level": 1,
+      "sha256": "588aee6d6470cbfbe0c42fe4da8f4708c49992666f49d3ef0575777e5ead1ec7"
+    },
+    {
+      "face": "study4_trustworthy_35_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_flow_level_2.png",
+      "identity": "study4_trustworthy_35",
+      "method": "flow",
+      "level": 2,
+      "sha256": "5fe266e2f1f6cef34001e1e06ec4333cf041b47c3285bfb40709bee4eb1a57ff"
+    },
+    {
+      "face": "study4_trustworthy_35_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_flow_level_3.png",
+      "identity": "study4_trustworthy_35",
+      "method": "flow",
+      "level": 3,
+      "sha256": "d320218ade293f625319e2706234be501900764835c2b7f8cfbd3f7e4af20ac5"
+    },
+    {
+      "face": "study4_trustworthy_35_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_flow_level_4.png",
+      "identity": "study4_trustworthy_35",
+      "method": "flow",
+      "level": 4,
+      "sha256": "995dc4cd8a7ff3d2bc3bbb9db3a09507a78d1f45d86c104ea1618f3994fbeb94"
+    },
+    {
+      "face": "study4_trustworthy_35_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_vector_level_0.png",
+      "identity": "study4_trustworthy_35",
+      "method": "vector",
+      "level": 0,
+      "sha256": "6424212f81812ac055609ad5f310fc6a7f33bd4deea43c77f954703764ba37f9"
+    },
+    {
+      "face": "study4_trustworthy_35_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_vector_level_1.png",
+      "identity": "study4_trustworthy_35",
+      "method": "vector",
+      "level": 1,
+      "sha256": "917c5558c8f19e07256c336c4d0700cf3843962f8e13f1c4868b4c2c683dfc9d"
+    },
+    {
+      "face": "study4_trustworthy_35_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_vector_level_2.png",
+      "identity": "study4_trustworthy_35",
+      "method": "vector",
+      "level": 2,
+      "sha256": "108876db63a39ee29c582d41e71d8588965d3bc9d56b30fe4537510bd1e43ffa"
+    },
+    {
+      "face": "study4_trustworthy_35_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_vector_level_3.png",
+      "identity": "study4_trustworthy_35",
+      "method": "vector",
+      "level": 3,
+      "sha256": "7f415635d22aebcef0543824b3ba4b81cbefb4d5c5588fa93e0a3e197c550bd4"
+    },
+    {
+      "face": "study4_trustworthy_35_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_35_vector_level_4.png",
+      "identity": "study4_trustworthy_35",
+      "method": "vector",
+      "level": 4,
+      "sha256": "a56d23d747b63df1881b121f005382450bc095aa289fdcea0ddeb19560ca3105"
+    },
+    {
+      "face": "study4_trustworthy_36_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_flow_level_0.png",
+      "identity": "study4_trustworthy_36",
+      "method": "flow",
+      "level": 0,
+      "sha256": "b091dbbd4bc733b5c518e76715a5f51121065a0f4985d65730241c48394acb7e"
+    },
+    {
+      "face": "study4_trustworthy_36_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_flow_level_1.png",
+      "identity": "study4_trustworthy_36",
+      "method": "flow",
+      "level": 1,
+      "sha256": "7ad2dfe116c2f7395658aa55f3b53ef17878bf7120230026288c77f794f0df0c"
+    },
+    {
+      "face": "study4_trustworthy_36_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_flow_level_2.png",
+      "identity": "study4_trustworthy_36",
+      "method": "flow",
+      "level": 2,
+      "sha256": "085723d23796eec75fc1f0786a4284c66f518920d21512d4cba2d0b09fdea216"
+    },
+    {
+      "face": "study4_trustworthy_36_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_flow_level_3.png",
+      "identity": "study4_trustworthy_36",
+      "method": "flow",
+      "level": 3,
+      "sha256": "7e15a52a411fedea98e43fbc47475c07439e02e3b15b6392f61ef55fd75501f3"
+    },
+    {
+      "face": "study4_trustworthy_36_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_flow_level_4.png",
+      "identity": "study4_trustworthy_36",
+      "method": "flow",
+      "level": 4,
+      "sha256": "0a7253fcb8a2d69219f6f10e57d943c41ca0b699662df9b09a45b1ef01f4cf6f"
+    },
+    {
+      "face": "study4_trustworthy_36_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_vector_level_0.png",
+      "identity": "study4_trustworthy_36",
+      "method": "vector",
+      "level": 0,
+      "sha256": "b091dbbd4bc733b5c518e76715a5f51121065a0f4985d65730241c48394acb7e"
+    },
+    {
+      "face": "study4_trustworthy_36_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_vector_level_1.png",
+      "identity": "study4_trustworthy_36",
+      "method": "vector",
+      "level": 1,
+      "sha256": "a2298183d82aa895cf5efebb792e743f615bf120c0a6d05511cfef2c8b84d823"
+    },
+    {
+      "face": "study4_trustworthy_36_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_vector_level_2.png",
+      "identity": "study4_trustworthy_36",
+      "method": "vector",
+      "level": 2,
+      "sha256": "34c0a37126c7653f13c27b5b195b4ac9c4a5b940377b0fe8fc972a037d0b40d1"
+    },
+    {
+      "face": "study4_trustworthy_36_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_vector_level_3.png",
+      "identity": "study4_trustworthy_36",
+      "method": "vector",
+      "level": 3,
+      "sha256": "f8225e608e97bb5757a36c71e6c4c651dc9f76c2e54e3df636bd6ab6dee5c765"
+    },
+    {
+      "face": "study4_trustworthy_36_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_36_vector_level_4.png",
+      "identity": "study4_trustworthy_36",
+      "method": "vector",
+      "level": 4,
+      "sha256": "cb83b552b646c5033d1c0e0dc5939f761b28120b55b5ba0614dce0214f39d60b"
+    },
+    {
+      "face": "study4_trustworthy_37_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_flow_level_0.png",
+      "identity": "study4_trustworthy_37",
+      "method": "flow",
+      "level": 0,
+      "sha256": "609f526ce072d814abf07bf6e94ba5c273c6c6d6770696e332191fedd92771e6"
+    },
+    {
+      "face": "study4_trustworthy_37_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_flow_level_1.png",
+      "identity": "study4_trustworthy_37",
+      "method": "flow",
+      "level": 1,
+      "sha256": "08fd01c7e12c41854333f0e15e50e44dcc8cca5111c3d066b5b5779c74ffe064"
+    },
+    {
+      "face": "study4_trustworthy_37_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_flow_level_2.png",
+      "identity": "study4_trustworthy_37",
+      "method": "flow",
+      "level": 2,
+      "sha256": "e44fdac99d3e0d12d9f4b1bb21199b3d39f74d7202d67436c2b24ccf34edcae7"
+    },
+    {
+      "face": "study4_trustworthy_37_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_flow_level_3.png",
+      "identity": "study4_trustworthy_37",
+      "method": "flow",
+      "level": 3,
+      "sha256": "cbb45b8aa5f751c7dea59318149d4453a7ee9e7606f91ace9c1f207492b302af"
+    },
+    {
+      "face": "study4_trustworthy_37_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_flow_level_4.png",
+      "identity": "study4_trustworthy_37",
+      "method": "flow",
+      "level": 4,
+      "sha256": "400f4ecaf21699e80c7db03ff7f37b461087f28bec10bd2179bd34caaeeee72f"
+    },
+    {
+      "face": "study4_trustworthy_37_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_vector_level_0.png",
+      "identity": "study4_trustworthy_37",
+      "method": "vector",
+      "level": 0,
+      "sha256": "609f526ce072d814abf07bf6e94ba5c273c6c6d6770696e332191fedd92771e6"
+    },
+    {
+      "face": "study4_trustworthy_37_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_vector_level_1.png",
+      "identity": "study4_trustworthy_37",
+      "method": "vector",
+      "level": 1,
+      "sha256": "daa3f522bbae90964c8b1ee176e987ab0956315d06c0361044b2c636ea9cc038"
+    },
+    {
+      "face": "study4_trustworthy_37_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_vector_level_2.png",
+      "identity": "study4_trustworthy_37",
+      "method": "vector",
+      "level": 2,
+      "sha256": "3f2590bf74c2772b6c084758c94f7d0b6baa9d89462f52ab235a165911b53934"
+    },
+    {
+      "face": "study4_trustworthy_37_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_vector_level_3.png",
+      "identity": "study4_trustworthy_37",
+      "method": "vector",
+      "level": 3,
+      "sha256": "1f4086061ce89ae70953ad019d69a606a0c366236115dc2b916c1cae11e91f24"
+    },
+    {
+      "face": "study4_trustworthy_37_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_37_vector_level_4.png",
+      "identity": "study4_trustworthy_37",
+      "method": "vector",
+      "level": 4,
+      "sha256": "a285f48ab2758efc2d0ba8a9c72975d03712c301e23390f44b0ad2d60fabd3d1"
+    },
+    {
+      "face": "study4_trustworthy_38_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_flow_level_0.png",
+      "identity": "study4_trustworthy_38",
+      "method": "flow",
+      "level": 0,
+      "sha256": "239b16619186b3efe275f46f183ea029d11725be8850161121691e34050ac145"
+    },
+    {
+      "face": "study4_trustworthy_38_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_flow_level_1.png",
+      "identity": "study4_trustworthy_38",
+      "method": "flow",
+      "level": 1,
+      "sha256": "f44f188b03f65ac1915770ab286d1f65aa8d49e7b98920a7adc48bb76879fd22"
+    },
+    {
+      "face": "study4_trustworthy_38_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_flow_level_2.png",
+      "identity": "study4_trustworthy_38",
+      "method": "flow",
+      "level": 2,
+      "sha256": "fda505b25079c22827b2d45d7f4c3a3415f7cb7c4bbe11ed310ddbc6273756c1"
+    },
+    {
+      "face": "study4_trustworthy_38_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_flow_level_3.png",
+      "identity": "study4_trustworthy_38",
+      "method": "flow",
+      "level": 3,
+      "sha256": "602a4eabf3e8fcac56c8034e652d2ddede22be15d54aed096d995a2e80e729f7"
+    },
+    {
+      "face": "study4_trustworthy_38_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_flow_level_4.png",
+      "identity": "study4_trustworthy_38",
+      "method": "flow",
+      "level": 4,
+      "sha256": "41dc76444e30e183551849cb62a7bb52379e317c25ec7e1cc58fdc73a143d06e"
+    },
+    {
+      "face": "study4_trustworthy_38_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_vector_level_0.png",
+      "identity": "study4_trustworthy_38",
+      "method": "vector",
+      "level": 0,
+      "sha256": "239b16619186b3efe275f46f183ea029d11725be8850161121691e34050ac145"
+    },
+    {
+      "face": "study4_trustworthy_38_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_vector_level_1.png",
+      "identity": "study4_trustworthy_38",
+      "method": "vector",
+      "level": 1,
+      "sha256": "10ea9da3c9782bb419a863d5b8f349455f8e184b2eb1d335de564c402cf12db7"
+    },
+    {
+      "face": "study4_trustworthy_38_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_vector_level_2.png",
+      "identity": "study4_trustworthy_38",
+      "method": "vector",
+      "level": 2,
+      "sha256": "61e6c5fc7691213694d9d7ccf6f55e1a5a5ff616f8e0d2af75aa3fc8725200b4"
+    },
+    {
+      "face": "study4_trustworthy_38_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_vector_level_3.png",
+      "identity": "study4_trustworthy_38",
+      "method": "vector",
+      "level": 3,
+      "sha256": "aec9cf2995bfbd1dedf098bddf8ac92636ee8ce097adcd37b7d825ec6a8ccc72"
+    },
+    {
+      "face": "study4_trustworthy_38_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_38_vector_level_4.png",
+      "identity": "study4_trustworthy_38",
+      "method": "vector",
+      "level": 4,
+      "sha256": "b4a45e694eb41b979cee2e2123f997aa51355fde2f3c0fe88a5a6bacc374bffb"
+    },
+    {
+      "face": "study4_trustworthy_39_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_flow_level_0.png",
+      "identity": "study4_trustworthy_39",
+      "method": "flow",
+      "level": 0,
+      "sha256": "2fb726da25a414f10f56a5bdafcd9b1d23a3636cb0b10e1b1d0ec69d2da754a0"
+    },
+    {
+      "face": "study4_trustworthy_39_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_flow_level_1.png",
+      "identity": "study4_trustworthy_39",
+      "method": "flow",
+      "level": 1,
+      "sha256": "a7793f08cfe2dfbc50197a87add615e59449310c2cfcff4dc22c8e8a81786a42"
+    },
+    {
+      "face": "study4_trustworthy_39_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_flow_level_2.png",
+      "identity": "study4_trustworthy_39",
+      "method": "flow",
+      "level": 2,
+      "sha256": "b03aebb948154f6edda673b79e6d20c3a81a024a3ba20753177561078fc9e952"
+    },
+    {
+      "face": "study4_trustworthy_39_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_flow_level_3.png",
+      "identity": "study4_trustworthy_39",
+      "method": "flow",
+      "level": 3,
+      "sha256": "1fa4d76bd607fbff85e93dfb4374215188d3206d9518317a3fc5a4c034371ba6"
+    },
+    {
+      "face": "study4_trustworthy_39_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_flow_level_4.png",
+      "identity": "study4_trustworthy_39",
+      "method": "flow",
+      "level": 4,
+      "sha256": "552e50a933719f4a5695f8afdaacd815b259d8fbe0f76a983ec8e0d4a32ec605"
+    },
+    {
+      "face": "study4_trustworthy_39_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_vector_level_0.png",
+      "identity": "study4_trustworthy_39",
+      "method": "vector",
+      "level": 0,
+      "sha256": "2fb726da25a414f10f56a5bdafcd9b1d23a3636cb0b10e1b1d0ec69d2da754a0"
+    },
+    {
+      "face": "study4_trustworthy_39_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_vector_level_1.png",
+      "identity": "study4_trustworthy_39",
+      "method": "vector",
+      "level": 1,
+      "sha256": "ed5ed954664f868e38d46080161fc5e9a98c80fe8cc244d6198de864fe03a5a7"
+    },
+    {
+      "face": "study4_trustworthy_39_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_vector_level_2.png",
+      "identity": "study4_trustworthy_39",
+      "method": "vector",
+      "level": 2,
+      "sha256": "6dc8644ee88a2130ee994026585c9e62a0e0c6ada0a117863fd68568328f69ed"
+    },
+    {
+      "face": "study4_trustworthy_39_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_vector_level_3.png",
+      "identity": "study4_trustworthy_39",
+      "method": "vector",
+      "level": 3,
+      "sha256": "d2ee07c0c35981d74bcddb4dd137487931199f45b42b9b9ddd307e7afd3e87b9"
+    },
+    {
+      "face": "study4_trustworthy_39_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_39_vector_level_4.png",
+      "identity": "study4_trustworthy_39",
+      "method": "vector",
+      "level": 4,
+      "sha256": "f27f39a5f09e204ed8c63a213794b905c277d1bb72caecc1877437f41e2c9c4a"
+    },
+    {
+      "face": "study4_trustworthy_3_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_flow_level_0.png",
+      "identity": "study4_trustworthy_3",
+      "method": "flow",
+      "level": 0,
+      "sha256": "e90ee8cfe41e7454147b1fc706c45926c7401954069b8303eb0891b46bd606d9"
+    },
+    {
+      "face": "study4_trustworthy_3_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_flow_level_1.png",
+      "identity": "study4_trustworthy_3",
+      "method": "flow",
+      "level": 1,
+      "sha256": "b69216ceb6239aa457b86f06429efdc3e774951e1e2cfa9691ef9b523833eb48"
+    },
+    {
+      "face": "study4_trustworthy_3_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_flow_level_2.png",
+      "identity": "study4_trustworthy_3",
+      "method": "flow",
+      "level": 2,
+      "sha256": "0f95e9f5df04e4fb69d58a5c04bcb9c68ec76c2d41c490cb144716e33007d5ef"
+    },
+    {
+      "face": "study4_trustworthy_3_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_flow_level_3.png",
+      "identity": "study4_trustworthy_3",
+      "method": "flow",
+      "level": 3,
+      "sha256": "9cdc5a2ad061e7020eb5a54827723da15b3ad7e9eabd09e4bd6acd277e114bd6"
+    },
+    {
+      "face": "study4_trustworthy_3_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_flow_level_4.png",
+      "identity": "study4_trustworthy_3",
+      "method": "flow",
+      "level": 4,
+      "sha256": "6d4983d903c63f7c200666f5291e7c9f00e2784d7fe67e2e820858ccdc798b3a"
+    },
+    {
+      "face": "study4_trustworthy_3_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_vector_level_0.png",
+      "identity": "study4_trustworthy_3",
+      "method": "vector",
+      "level": 0,
+      "sha256": "e90ee8cfe41e7454147b1fc706c45926c7401954069b8303eb0891b46bd606d9"
+    },
+    {
+      "face": "study4_trustworthy_3_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_vector_level_1.png",
+      "identity": "study4_trustworthy_3",
+      "method": "vector",
+      "level": 1,
+      "sha256": "ff0d5b108f44d710826f9b43b1aaabbeb99dd15346f8851539f55287303070cd"
+    },
+    {
+      "face": "study4_trustworthy_3_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_vector_level_2.png",
+      "identity": "study4_trustworthy_3",
+      "method": "vector",
+      "level": 2,
+      "sha256": "0eeffa130b69d00492ca6cc10269de83bc89c5c9bafec51d62b34252dc6787ed"
+    },
+    {
+      "face": "study4_trustworthy_3_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_vector_level_3.png",
+      "identity": "study4_trustworthy_3",
+      "method": "vector",
+      "level": 3,
+      "sha256": "a46ce7aa982e899ba2c6495e954729cb4f9afe73cbf0ee742670f4e691d6dad9"
+    },
+    {
+      "face": "study4_trustworthy_3_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_3_vector_level_4.png",
+      "identity": "study4_trustworthy_3",
+      "method": "vector",
+      "level": 4,
+      "sha256": "86f61c5848d4e05926bd9e24f3a6e32523b46bd2b52cca2c2698150c7c66da4a"
+    },
+    {
+      "face": "study4_trustworthy_40_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_flow_level_0.png",
+      "identity": "study4_trustworthy_40",
+      "method": "flow",
+      "level": 0,
+      "sha256": "49a1ac68e027d243fd6b4e9c58bb4eea89425802327c3900b8a6c524ee9c8db1"
+    },
+    {
+      "face": "study4_trustworthy_40_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_flow_level_1.png",
+      "identity": "study4_trustworthy_40",
+      "method": "flow",
+      "level": 1,
+      "sha256": "87ea357b82b64ed922231f8320055e0fff1a621cbe184147d0b69b3f3e2525ca"
+    },
+    {
+      "face": "study4_trustworthy_40_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_flow_level_2.png",
+      "identity": "study4_trustworthy_40",
+      "method": "flow",
+      "level": 2,
+      "sha256": "9813bd730970f37ac1d6f01b7f75a9ca7be05510451156c25e042c287769d5ea"
+    },
+    {
+      "face": "study4_trustworthy_40_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_flow_level_3.png",
+      "identity": "study4_trustworthy_40",
+      "method": "flow",
+      "level": 3,
+      "sha256": "00b8e13acb269c298d9782f8cbab25eeae17a716d56a5285aa6ca597f59ea17e"
+    },
+    {
+      "face": "study4_trustworthy_40_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_flow_level_4.png",
+      "identity": "study4_trustworthy_40",
+      "method": "flow",
+      "level": 4,
+      "sha256": "ab572f6320a6181b4eeb62ce8380d7d47b991597c19eddd0ae21bdc61ff89d9a"
+    },
+    {
+      "face": "study4_trustworthy_40_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_vector_level_0.png",
+      "identity": "study4_trustworthy_40",
+      "method": "vector",
+      "level": 0,
+      "sha256": "49a1ac68e027d243fd6b4e9c58bb4eea89425802327c3900b8a6c524ee9c8db1"
+    },
+    {
+      "face": "study4_trustworthy_40_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_vector_level_1.png",
+      "identity": "study4_trustworthy_40",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c242ad7761f4a3c0958ddd0c53718df10ba206ad0d958f7bf0de8e45e0815681"
+    },
+    {
+      "face": "study4_trustworthy_40_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_vector_level_2.png",
+      "identity": "study4_trustworthy_40",
+      "method": "vector",
+      "level": 2,
+      "sha256": "206570263ea096040552fa233dc7435fbaa91d0245fe14540f29187a17bf74b7"
+    },
+    {
+      "face": "study4_trustworthy_40_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_vector_level_3.png",
+      "identity": "study4_trustworthy_40",
+      "method": "vector",
+      "level": 3,
+      "sha256": "3005e36b6ed5c25a45ae2ad7af2190181d81846852ccc3923fec07c41e14e0e2"
+    },
+    {
+      "face": "study4_trustworthy_40_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_40_vector_level_4.png",
+      "identity": "study4_trustworthy_40",
+      "method": "vector",
+      "level": 4,
+      "sha256": "9ac7902b7e60a10cceb78bb0f2817c92a4ce5852bdd1b9b3719221570e5fed00"
+    },
+    {
+      "face": "study4_trustworthy_41_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_flow_level_0.png",
+      "identity": "study4_trustworthy_41",
+      "method": "flow",
+      "level": 0,
+      "sha256": "21fdc766508fcab78ec83caa56051c41c39a7c9fcf5b6ee0d0c5c69e0487c0a3"
+    },
+    {
+      "face": "study4_trustworthy_41_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_flow_level_1.png",
+      "identity": "study4_trustworthy_41",
+      "method": "flow",
+      "level": 1,
+      "sha256": "4134580c53e72ace538f7479bf329a03c73d0fd769c98c1fdf7a80d924f689a7"
+    },
+    {
+      "face": "study4_trustworthy_41_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_flow_level_2.png",
+      "identity": "study4_trustworthy_41",
+      "method": "flow",
+      "level": 2,
+      "sha256": "25a84cfb97666c19bb2ee19b1d45b6ed54c45397e645655eeaed907712ecffef"
+    },
+    {
+      "face": "study4_trustworthy_41_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_flow_level_3.png",
+      "identity": "study4_trustworthy_41",
+      "method": "flow",
+      "level": 3,
+      "sha256": "61cd63d94f9ebfc498c1eaeaf878bff51dc8bdaf42d05cc5fa3da5d6a4ce0005"
+    },
+    {
+      "face": "study4_trustworthy_41_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_flow_level_4.png",
+      "identity": "study4_trustworthy_41",
+      "method": "flow",
+      "level": 4,
+      "sha256": "6431e64f6abcf4b4b44920cf72d2ff672cc99107c7d375808bc85f168d978814"
+    },
+    {
+      "face": "study4_trustworthy_41_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_vector_level_0.png",
+      "identity": "study4_trustworthy_41",
+      "method": "vector",
+      "level": 0,
+      "sha256": "21fdc766508fcab78ec83caa56051c41c39a7c9fcf5b6ee0d0c5c69e0487c0a3"
+    },
+    {
+      "face": "study4_trustworthy_41_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_vector_level_1.png",
+      "identity": "study4_trustworthy_41",
+      "method": "vector",
+      "level": 1,
+      "sha256": "4ba0f6b197adeca4869ae83a9016f93c20e7441e6b29e3d1ebb2a1cb37341a1e"
+    },
+    {
+      "face": "study4_trustworthy_41_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_vector_level_2.png",
+      "identity": "study4_trustworthy_41",
+      "method": "vector",
+      "level": 2,
+      "sha256": "d20acf50a05d6cd3deb486b07c55b064dafdb663f7462bb03d3fe160dfb10ef7"
+    },
+    {
+      "face": "study4_trustworthy_41_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_vector_level_3.png",
+      "identity": "study4_trustworthy_41",
+      "method": "vector",
+      "level": 3,
+      "sha256": "095e2b1e84b6b5314bd97e0ddb1621c2100c5b151cea01d6a14e317372fc1eed"
+    },
+    {
+      "face": "study4_trustworthy_41_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_41_vector_level_4.png",
+      "identity": "study4_trustworthy_41",
+      "method": "vector",
+      "level": 4,
+      "sha256": "7a2a6853914d1381533bbe14c061a46c3f2ef274848931a2e48f08a08efa5721"
+    },
+    {
+      "face": "study4_trustworthy_42_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_flow_level_0.png",
+      "identity": "study4_trustworthy_42",
+      "method": "flow",
+      "level": 0,
+      "sha256": "d9f00367f8c8ce6127d3707aa40fa532b7467e7763762acabcbf325babfda1f2"
+    },
+    {
+      "face": "study4_trustworthy_42_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_flow_level_1.png",
+      "identity": "study4_trustworthy_42",
+      "method": "flow",
+      "level": 1,
+      "sha256": "93f049b9e8fb2ef8ff39cfc6a111ebb5a43c7978edeed53c4c3d0edccebd0f22"
+    },
+    {
+      "face": "study4_trustworthy_42_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_flow_level_2.png",
+      "identity": "study4_trustworthy_42",
+      "method": "flow",
+      "level": 2,
+      "sha256": "ce66cfeff6cd441d77e28dacb1d2a57b1ac55c84ac77ad2f93d684350d3c80be"
+    },
+    {
+      "face": "study4_trustworthy_42_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_flow_level_3.png",
+      "identity": "study4_trustworthy_42",
+      "method": "flow",
+      "level": 3,
+      "sha256": "39b3786f1ca29a188c83b44d437fba6ef791c649c13388f783a120ad8031052f"
+    },
+    {
+      "face": "study4_trustworthy_42_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_flow_level_4.png",
+      "identity": "study4_trustworthy_42",
+      "method": "flow",
+      "level": 4,
+      "sha256": "09d4946e02dac5078884e3c1304cf72a38e19c6e421c2d4a7ef03fbfcf76b941"
+    },
+    {
+      "face": "study4_trustworthy_42_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_vector_level_0.png",
+      "identity": "study4_trustworthy_42",
+      "method": "vector",
+      "level": 0,
+      "sha256": "d9f00367f8c8ce6127d3707aa40fa532b7467e7763762acabcbf325babfda1f2"
+    },
+    {
+      "face": "study4_trustworthy_42_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_vector_level_1.png",
+      "identity": "study4_trustworthy_42",
+      "method": "vector",
+      "level": 1,
+      "sha256": "67c1d37fcf612cfdddee83f92f972beb8ddfce0cd2d283415d9b79e7b905a4cd"
+    },
+    {
+      "face": "study4_trustworthy_42_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_vector_level_2.png",
+      "identity": "study4_trustworthy_42",
+      "method": "vector",
+      "level": 2,
+      "sha256": "2d40740bbc66bc4a637a2e2a25f87734918bdb180a59fc63b6fbdd6b6a632b04"
+    },
+    {
+      "face": "study4_trustworthy_42_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_vector_level_3.png",
+      "identity": "study4_trustworthy_42",
+      "method": "vector",
+      "level": 3,
+      "sha256": "2797a06600e65f13dd4f6642e2aac8969f410ffd9d8f0cd2774c727c1f1755b4"
+    },
+    {
+      "face": "study4_trustworthy_42_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_42_vector_level_4.png",
+      "identity": "study4_trustworthy_42",
+      "method": "vector",
+      "level": 4,
+      "sha256": "de15afde8343870789fe60e5b16f43dab7a7c46e39775bfc25771a3a0fc231d4"
+    },
+    {
+      "face": "study4_trustworthy_43_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_flow_level_0.png",
+      "identity": "study4_trustworthy_43",
+      "method": "flow",
+      "level": 0,
+      "sha256": "0da3d71c7924c2b08fadcb7b2044bd9e7dbc77f681e064af455bb00f67c8e0c2"
+    },
+    {
+      "face": "study4_trustworthy_43_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_flow_level_1.png",
+      "identity": "study4_trustworthy_43",
+      "method": "flow",
+      "level": 1,
+      "sha256": "19716cb9c6c4f0bf83cf304b29ee69b03bbd6a96994aba52e96cb1b8cb8ff802"
+    },
+    {
+      "face": "study4_trustworthy_43_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_flow_level_2.png",
+      "identity": "study4_trustworthy_43",
+      "method": "flow",
+      "level": 2,
+      "sha256": "5a3d28151ace9b2da1b00beb725ce888f2b1b57aaa9b105216d45f0c4463fef9"
+    },
+    {
+      "face": "study4_trustworthy_43_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_flow_level_3.png",
+      "identity": "study4_trustworthy_43",
+      "method": "flow",
+      "level": 3,
+      "sha256": "3842f91c7ef7950bce073d9ab61569e0ea5117eb2f7a69f1162f11656486c984"
+    },
+    {
+      "face": "study4_trustworthy_43_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_flow_level_4.png",
+      "identity": "study4_trustworthy_43",
+      "method": "flow",
+      "level": 4,
+      "sha256": "60be3eb703fb4eba995668883950837d21b082bef31eefb5fd297023006efe4c"
+    },
+    {
+      "face": "study4_trustworthy_43_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_vector_level_0.png",
+      "identity": "study4_trustworthy_43",
+      "method": "vector",
+      "level": 0,
+      "sha256": "0da3d71c7924c2b08fadcb7b2044bd9e7dbc77f681e064af455bb00f67c8e0c2"
+    },
+    {
+      "face": "study4_trustworthy_43_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_vector_level_1.png",
+      "identity": "study4_trustworthy_43",
+      "method": "vector",
+      "level": 1,
+      "sha256": "676e0e3ace3640c208b2e7502b6543c3a7537b12a6b07ab805cfbaec2993f1f5"
+    },
+    {
+      "face": "study4_trustworthy_43_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_vector_level_2.png",
+      "identity": "study4_trustworthy_43",
+      "method": "vector",
+      "level": 2,
+      "sha256": "c79227352777e0171cd6dde6d4dd344c36da440040dea63ed0004df7eb1bca98"
+    },
+    {
+      "face": "study4_trustworthy_43_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_vector_level_3.png",
+      "identity": "study4_trustworthy_43",
+      "method": "vector",
+      "level": 3,
+      "sha256": "abf128ac82aed8ffbe0bf30472d4b22843ab6b4285cf39642c337f8e02029df8"
+    },
+    {
+      "face": "study4_trustworthy_43_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_43_vector_level_4.png",
+      "identity": "study4_trustworthy_43",
+      "method": "vector",
+      "level": 4,
+      "sha256": "95a3c6ada8561273f6f7df7b837b0afba2edf5ff6931883d659c7dfe436a6e0e"
+    },
+    {
+      "face": "study4_trustworthy_44_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_flow_level_0.png",
+      "identity": "study4_trustworthy_44",
+      "method": "flow",
+      "level": 0,
+      "sha256": "cab84ca80b05fec08f3ef10287dd2bf014f78bffb9c7574baf919be780815d37"
+    },
+    {
+      "face": "study4_trustworthy_44_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_flow_level_1.png",
+      "identity": "study4_trustworthy_44",
+      "method": "flow",
+      "level": 1,
+      "sha256": "4da9d40620fb67e901aaf4ee8a195abf5806857a44567aa724f85f80882c367b"
+    },
+    {
+      "face": "study4_trustworthy_44_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_flow_level_2.png",
+      "identity": "study4_trustworthy_44",
+      "method": "flow",
+      "level": 2,
+      "sha256": "637a5d196b51413b92dca35417149def20334cc3316458034460cd05afc7508e"
+    },
+    {
+      "face": "study4_trustworthy_44_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_flow_level_3.png",
+      "identity": "study4_trustworthy_44",
+      "method": "flow",
+      "level": 3,
+      "sha256": "8f56fa57bd404951147259f8ad1d83d7758f8c6783de748aa4d8a46ecce1b3b9"
+    },
+    {
+      "face": "study4_trustworthy_44_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_flow_level_4.png",
+      "identity": "study4_trustworthy_44",
+      "method": "flow",
+      "level": 4,
+      "sha256": "00456f3ab28a0f82598fb1dc740ee60f8feda2bf6fe6b07d095f75c4d921624f"
+    },
+    {
+      "face": "study4_trustworthy_44_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_vector_level_0.png",
+      "identity": "study4_trustworthy_44",
+      "method": "vector",
+      "level": 0,
+      "sha256": "cab84ca80b05fec08f3ef10287dd2bf014f78bffb9c7574baf919be780815d37"
+    },
+    {
+      "face": "study4_trustworthy_44_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_vector_level_1.png",
+      "identity": "study4_trustworthy_44",
+      "method": "vector",
+      "level": 1,
+      "sha256": "20cb709ac170b45aa5179ed613db225ce4a1d407898b403c8d4190c9dfb4375e"
+    },
+    {
+      "face": "study4_trustworthy_44_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_vector_level_2.png",
+      "identity": "study4_trustworthy_44",
+      "method": "vector",
+      "level": 2,
+      "sha256": "959b48a47cc0e126d1f8dcd319e724132a14812b834786fa19e5a62ef3e98fe7"
+    },
+    {
+      "face": "study4_trustworthy_44_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_vector_level_3.png",
+      "identity": "study4_trustworthy_44",
+      "method": "vector",
+      "level": 3,
+      "sha256": "e6e261665fc0b81f09a9b2518d0dbe3dba49a6748eb6474ee18571c3b5cd31e3"
+    },
+    {
+      "face": "study4_trustworthy_44_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_44_vector_level_4.png",
+      "identity": "study4_trustworthy_44",
+      "method": "vector",
+      "level": 4,
+      "sha256": "4c468f92a08212f1c5ce0ff24f3c3056a16701bed6bad108a92870e61b1487e4"
+    },
+    {
+      "face": "study4_trustworthy_45_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_flow_level_0.png",
+      "identity": "study4_trustworthy_45",
+      "method": "flow",
+      "level": 0,
+      "sha256": "c8ca794f5a2191f08be399447702c9760cb0e45d5008a1789dfb12a0382d6a17"
+    },
+    {
+      "face": "study4_trustworthy_45_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_flow_level_1.png",
+      "identity": "study4_trustworthy_45",
+      "method": "flow",
+      "level": 1,
+      "sha256": "154ce642aea8869082dbf2a2b7c0265cf0b0a2a381a90ba312af0ba364f5992d"
+    },
+    {
+      "face": "study4_trustworthy_45_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_flow_level_2.png",
+      "identity": "study4_trustworthy_45",
+      "method": "flow",
+      "level": 2,
+      "sha256": "8fa0f9e8b127e782dc293430f1c507e577a37da024c2a18df297450940825f95"
+    },
+    {
+      "face": "study4_trustworthy_45_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_flow_level_3.png",
+      "identity": "study4_trustworthy_45",
+      "method": "flow",
+      "level": 3,
+      "sha256": "b2df0ee5a5eb8f3423a4df48bcbbb29bad91919d851fb6d89dcf17d8ab7b5c5c"
+    },
+    {
+      "face": "study4_trustworthy_45_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_flow_level_4.png",
+      "identity": "study4_trustworthy_45",
+      "method": "flow",
+      "level": 4,
+      "sha256": "af331a84a4b2867d8adf6313e332d553300f22f99744d369ecf6654e6cc60c08"
+    },
+    {
+      "face": "study4_trustworthy_45_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_vector_level_0.png",
+      "identity": "study4_trustworthy_45",
+      "method": "vector",
+      "level": 0,
+      "sha256": "c8ca794f5a2191f08be399447702c9760cb0e45d5008a1789dfb12a0382d6a17"
+    },
+    {
+      "face": "study4_trustworthy_45_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_vector_level_1.png",
+      "identity": "study4_trustworthy_45",
+      "method": "vector",
+      "level": 1,
+      "sha256": "4a7b08ba772f2c4071c2bab8bc84622bf7eb5fc3a9ec9dedf5562b0adcb2ea78"
+    },
+    {
+      "face": "study4_trustworthy_45_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_vector_level_2.png",
+      "identity": "study4_trustworthy_45",
+      "method": "vector",
+      "level": 2,
+      "sha256": "ca3fcdb4392c4bdc4ffaf96ed70311c2ddf012ffd24a32fc098338609b2c311f"
+    },
+    {
+      "face": "study4_trustworthy_45_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_vector_level_3.png",
+      "identity": "study4_trustworthy_45",
+      "method": "vector",
+      "level": 3,
+      "sha256": "bdcde0a010d80187ae90ef46870b889cbf16892ca615aa57cbac870e28a62349"
+    },
+    {
+      "face": "study4_trustworthy_45_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_45_vector_level_4.png",
+      "identity": "study4_trustworthy_45",
+      "method": "vector",
+      "level": 4,
+      "sha256": "78e2296953f61dd546a403646527d12b144d9270182f543d6c16b1941eb3b29d"
+    },
+    {
+      "face": "study4_trustworthy_46_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_flow_level_0.png",
+      "identity": "study4_trustworthy_46",
+      "method": "flow",
+      "level": 0,
+      "sha256": "a8fa0a9d5b7dc3209c6f06f3c725566fe8e22d84a5ac53ab8a2aec8d0f2be2c7"
+    },
+    {
+      "face": "study4_trustworthy_46_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_flow_level_1.png",
+      "identity": "study4_trustworthy_46",
+      "method": "flow",
+      "level": 1,
+      "sha256": "af56da8832de045e55e572c47024ff66614ac1736dd60e2213be9e3969c5341d"
+    },
+    {
+      "face": "study4_trustworthy_46_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_flow_level_2.png",
+      "identity": "study4_trustworthy_46",
+      "method": "flow",
+      "level": 2,
+      "sha256": "1fd5c234f3ce5ccc4a6a80db77d23d38fdf01621d178660d5a1fa851ee2aefe5"
+    },
+    {
+      "face": "study4_trustworthy_46_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_flow_level_3.png",
+      "identity": "study4_trustworthy_46",
+      "method": "flow",
+      "level": 3,
+      "sha256": "14596932440e101a2c12087726647642695836a83ff27254ae2bd99ebe970d35"
+    },
+    {
+      "face": "study4_trustworthy_46_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_flow_level_4.png",
+      "identity": "study4_trustworthy_46",
+      "method": "flow",
+      "level": 4,
+      "sha256": "a705ec89563b8e219dba6cec54aacf9374b97e43affcb5145e83836ab9047035"
+    },
+    {
+      "face": "study4_trustworthy_46_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_vector_level_0.png",
+      "identity": "study4_trustworthy_46",
+      "method": "vector",
+      "level": 0,
+      "sha256": "a8fa0a9d5b7dc3209c6f06f3c725566fe8e22d84a5ac53ab8a2aec8d0f2be2c7"
+    },
+    {
+      "face": "study4_trustworthy_46_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_vector_level_1.png",
+      "identity": "study4_trustworthy_46",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c9139b905364e05f2fd9c9871d15e556ac3faadf17be733394d3373020b3daf7"
+    },
+    {
+      "face": "study4_trustworthy_46_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_vector_level_2.png",
+      "identity": "study4_trustworthy_46",
+      "method": "vector",
+      "level": 2,
+      "sha256": "6b0c83bb67e4591aeaa926322fb10cd9e0a7afd98fd253496d72749542d6b3b8"
+    },
+    {
+      "face": "study4_trustworthy_46_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_vector_level_3.png",
+      "identity": "study4_trustworthy_46",
+      "method": "vector",
+      "level": 3,
+      "sha256": "7a267e49ffaa42a80db3a0b097fcbd371965653399c79b4e4f15e4390f8cf0e0"
+    },
+    {
+      "face": "study4_trustworthy_46_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_46_vector_level_4.png",
+      "identity": "study4_trustworthy_46",
+      "method": "vector",
+      "level": 4,
+      "sha256": "c74de48bbc008f2b44abd8beab3cd1380b9af32aa189bbd7b558ee1c513ffe4e"
+    },
+    {
+      "face": "study4_trustworthy_47_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_flow_level_0.png",
+      "identity": "study4_trustworthy_47",
+      "method": "flow",
+      "level": 0,
+      "sha256": "a26e3e5b86ff2777c6c47152282d8ffb980e53a48976e7393cf23c96d38404fd"
+    },
+    {
+      "face": "study4_trustworthy_47_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_flow_level_1.png",
+      "identity": "study4_trustworthy_47",
+      "method": "flow",
+      "level": 1,
+      "sha256": "2491c58e6ad4b9d165b5132566434555c940d5fda96350e53217b2206444d357"
+    },
+    {
+      "face": "study4_trustworthy_47_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_flow_level_2.png",
+      "identity": "study4_trustworthy_47",
+      "method": "flow",
+      "level": 2,
+      "sha256": "0ade87d9b38d8d5ee7ac1cdd917504191a262353b1b71e134deda0a7dd7c8e69"
+    },
+    {
+      "face": "study4_trustworthy_47_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_flow_level_3.png",
+      "identity": "study4_trustworthy_47",
+      "method": "flow",
+      "level": 3,
+      "sha256": "c7bbc00f42d5bb79f79f983b2e030240122488a755cff9e83d41a2812922a05b"
+    },
+    {
+      "face": "study4_trustworthy_47_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_flow_level_4.png",
+      "identity": "study4_trustworthy_47",
+      "method": "flow",
+      "level": 4,
+      "sha256": "b67182f7d6e9dd1598d747e1ddd418a47ee9e846b2680f5d8d8150bf4864bd5e"
+    },
+    {
+      "face": "study4_trustworthy_47_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_vector_level_0.png",
+      "identity": "study4_trustworthy_47",
+      "method": "vector",
+      "level": 0,
+      "sha256": "a26e3e5b86ff2777c6c47152282d8ffb980e53a48976e7393cf23c96d38404fd"
+    },
+    {
+      "face": "study4_trustworthy_47_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_vector_level_1.png",
+      "identity": "study4_trustworthy_47",
+      "method": "vector",
+      "level": 1,
+      "sha256": "59a15bd2b25ff6f3cb32004441779c7c5afb185f4894fc4870f1ee722f006053"
+    },
+    {
+      "face": "study4_trustworthy_47_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_vector_level_2.png",
+      "identity": "study4_trustworthy_47",
+      "method": "vector",
+      "level": 2,
+      "sha256": "724dac94d9dabb142b0dfe10d8cd166cec9ed97dd68ee7fb962162b24118131d"
+    },
+    {
+      "face": "study4_trustworthy_47_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_vector_level_3.png",
+      "identity": "study4_trustworthy_47",
+      "method": "vector",
+      "level": 3,
+      "sha256": "9b772500cb0179b0efc666bede75cbc104cc74022b9ddfae1c51126bd40ddc19"
+    },
+    {
+      "face": "study4_trustworthy_47_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_47_vector_level_4.png",
+      "identity": "study4_trustworthy_47",
+      "method": "vector",
+      "level": 4,
+      "sha256": "b2c6a623a42abe000e9feaa46bc35afcde5497a8bfaf53c47536960eca5ccdb1"
+    },
+    {
+      "face": "study4_trustworthy_48_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_flow_level_0.png",
+      "identity": "study4_trustworthy_48",
+      "method": "flow",
+      "level": 0,
+      "sha256": "82d830d69a0f697eb294cb4d42c74d3dd50b65eeda4ea54f06775b5fafcc23ac"
+    },
+    {
+      "face": "study4_trustworthy_48_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_flow_level_1.png",
+      "identity": "study4_trustworthy_48",
+      "method": "flow",
+      "level": 1,
+      "sha256": "ab16ea1e765a81d7de9d446b6954ba71a0ab2498f6f9d336e5f5dfadc0c8ac24"
+    },
+    {
+      "face": "study4_trustworthy_48_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_flow_level_2.png",
+      "identity": "study4_trustworthy_48",
+      "method": "flow",
+      "level": 2,
+      "sha256": "98e526be2ade4819407d6ba9ce6b944defedfc3eac60d926165b05d7fdb9718c"
+    },
+    {
+      "face": "study4_trustworthy_48_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_flow_level_3.png",
+      "identity": "study4_trustworthy_48",
+      "method": "flow",
+      "level": 3,
+      "sha256": "dab8ddf5c5607dff79b36279037c44df3727a3c7dfdefba8ec1b1e8d767acfc0"
+    },
+    {
+      "face": "study4_trustworthy_48_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_flow_level_4.png",
+      "identity": "study4_trustworthy_48",
+      "method": "flow",
+      "level": 4,
+      "sha256": "2746a75bddb031a88fb880139b23420cbf7d10c72a836c71d6dbd50c341eb91e"
+    },
+    {
+      "face": "study4_trustworthy_48_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_vector_level_0.png",
+      "identity": "study4_trustworthy_48",
+      "method": "vector",
+      "level": 0,
+      "sha256": "82d830d69a0f697eb294cb4d42c74d3dd50b65eeda4ea54f06775b5fafcc23ac"
+    },
+    {
+      "face": "study4_trustworthy_48_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_vector_level_1.png",
+      "identity": "study4_trustworthy_48",
+      "method": "vector",
+      "level": 1,
+      "sha256": "a3cda97b9dec55f0235b03188eb419aa537b10093db51e2b2dc4591ec2491847"
+    },
+    {
+      "face": "study4_trustworthy_48_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_vector_level_2.png",
+      "identity": "study4_trustworthy_48",
+      "method": "vector",
+      "level": 2,
+      "sha256": "0faed03e6ea63ac1c1278f9492f7dbd3001e71141fd5a2b6e13a96db7a9357a8"
+    },
+    {
+      "face": "study4_trustworthy_48_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_vector_level_3.png",
+      "identity": "study4_trustworthy_48",
+      "method": "vector",
+      "level": 3,
+      "sha256": "d0c890d39f8c4b12026505ace7de1a0587ab772c7920297809a940d8d006670a"
+    },
+    {
+      "face": "study4_trustworthy_48_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_48_vector_level_4.png",
+      "identity": "study4_trustworthy_48",
+      "method": "vector",
+      "level": 4,
+      "sha256": "1f875fdb073a7422bd455bbbe9d809f6487f7d694f16e7da470e8f96e04da195"
+    },
+    {
+      "face": "study4_trustworthy_49_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_flow_level_0.png",
+      "identity": "study4_trustworthy_49",
+      "method": "flow",
+      "level": 0,
+      "sha256": "5df5abb1ddcceb1351e847dd74dbcba983b071ee1c2af89a176cfe8a33040f65"
+    },
+    {
+      "face": "study4_trustworthy_49_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_flow_level_1.png",
+      "identity": "study4_trustworthy_49",
+      "method": "flow",
+      "level": 1,
+      "sha256": "ccd473c40cebf1dd40759afdf8c18490ab5db95a215142fe3796a23ef55899d7"
+    },
+    {
+      "face": "study4_trustworthy_49_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_flow_level_2.png",
+      "identity": "study4_trustworthy_49",
+      "method": "flow",
+      "level": 2,
+      "sha256": "68c419e1d88cea9d4a81152ef2dd0e4104d06759cef317459981a62315b2bbde"
+    },
+    {
+      "face": "study4_trustworthy_49_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_flow_level_3.png",
+      "identity": "study4_trustworthy_49",
+      "method": "flow",
+      "level": 3,
+      "sha256": "780cb08044eb15b63575bc6b3439017dcd477dc5250a733dd64cafc4f83792bb"
+    },
+    {
+      "face": "study4_trustworthy_49_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_flow_level_4.png",
+      "identity": "study4_trustworthy_49",
+      "method": "flow",
+      "level": 4,
+      "sha256": "7a744321ad3e12052ec8a2d26f12de7587f22cfbc8887042f00102b0fc7887a7"
+    },
+    {
+      "face": "study4_trustworthy_49_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_vector_level_0.png",
+      "identity": "study4_trustworthy_49",
+      "method": "vector",
+      "level": 0,
+      "sha256": "5df5abb1ddcceb1351e847dd74dbcba983b071ee1c2af89a176cfe8a33040f65"
+    },
+    {
+      "face": "study4_trustworthy_49_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_vector_level_1.png",
+      "identity": "study4_trustworthy_49",
+      "method": "vector",
+      "level": 1,
+      "sha256": "cfc9f06dc5b2e497c6c18edcbe40aa7ff85646c7f2f6862929ae1f893432bd70"
+    },
+    {
+      "face": "study4_trustworthy_49_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_vector_level_2.png",
+      "identity": "study4_trustworthy_49",
+      "method": "vector",
+      "level": 2,
+      "sha256": "4b953fb527072f0e33c133f1a733e64968cdfeb7e0d66be88a4af82ab82c87e6"
+    },
+    {
+      "face": "study4_trustworthy_49_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_vector_level_3.png",
+      "identity": "study4_trustworthy_49",
+      "method": "vector",
+      "level": 3,
+      "sha256": "2b24ab33db6a164fac233fa57add9a74aca9eb933a081d4d2457afdc83458a25"
+    },
+    {
+      "face": "study4_trustworthy_49_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_49_vector_level_4.png",
+      "identity": "study4_trustworthy_49",
+      "method": "vector",
+      "level": 4,
+      "sha256": "a9d56a97be743b78736b26e7496e93fda600ed92c3814d6a48938bd3ffba4fae"
+    },
+    {
+      "face": "study4_trustworthy_4_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_flow_level_0.png",
+      "identity": "study4_trustworthy_4",
+      "method": "flow",
+      "level": 0,
+      "sha256": "c0006800e1fd5df754b22803697dd73d0f94a578fc448c93086c97ab226c54cf"
+    },
+    {
+      "face": "study4_trustworthy_4_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_flow_level_1.png",
+      "identity": "study4_trustworthy_4",
+      "method": "flow",
+      "level": 1,
+      "sha256": "c691ce523abdd420efdf12eeb55537b879a12de5b53d84d8908db862535e26e0"
+    },
+    {
+      "face": "study4_trustworthy_4_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_flow_level_2.png",
+      "identity": "study4_trustworthy_4",
+      "method": "flow",
+      "level": 2,
+      "sha256": "4c055752246a658bcf3bcbefcc4aeb423fd28dd05be328e833b0f06e8eabe7b0"
+    },
+    {
+      "face": "study4_trustworthy_4_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_flow_level_3.png",
+      "identity": "study4_trustworthy_4",
+      "method": "flow",
+      "level": 3,
+      "sha256": "8d404201ae4d1f682847ca9fc1718afc42a197afc24e94f296dc1bcec8c1f156"
+    },
+    {
+      "face": "study4_trustworthy_4_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_flow_level_4.png",
+      "identity": "study4_trustworthy_4",
+      "method": "flow",
+      "level": 4,
+      "sha256": "842d21b0da4f6d178a83b4e2f0b25185644ce294f256f0411f0d15b75020eeb4"
+    },
+    {
+      "face": "study4_trustworthy_4_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_vector_level_0.png",
+      "identity": "study4_trustworthy_4",
+      "method": "vector",
+      "level": 0,
+      "sha256": "c0006800e1fd5df754b22803697dd73d0f94a578fc448c93086c97ab226c54cf"
+    },
+    {
+      "face": "study4_trustworthy_4_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_vector_level_1.png",
+      "identity": "study4_trustworthy_4",
+      "method": "vector",
+      "level": 1,
+      "sha256": "8d9a0713b9cb79a461fb7e63dbe073cf5e038bea0dcf6b7f089e80ac2013a37e"
+    },
+    {
+      "face": "study4_trustworthy_4_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_vector_level_2.png",
+      "identity": "study4_trustworthy_4",
+      "method": "vector",
+      "level": 2,
+      "sha256": "e5cae7564fba53ea9061812c7d1119b0fd1929e92f6f114f28e0242c99444393"
+    },
+    {
+      "face": "study4_trustworthy_4_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_vector_level_3.png",
+      "identity": "study4_trustworthy_4",
+      "method": "vector",
+      "level": 3,
+      "sha256": "acd27f53c2c0b473fed6a8857af2ef222255fc2bd3d48a94a4954f805148d990"
+    },
+    {
+      "face": "study4_trustworthy_4_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_4_vector_level_4.png",
+      "identity": "study4_trustworthy_4",
+      "method": "vector",
+      "level": 4,
+      "sha256": "2d619c7d1abeec8f162a30ac35091db35770f1c0ca09f5a725f42749ef2fd6ef"
+    },
+    {
+      "face": "study4_trustworthy_5_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_flow_level_0.png",
+      "identity": "study4_trustworthy_5",
+      "method": "flow",
+      "level": 0,
+      "sha256": "3ac4c843936afe6aea2020882857cac857e7189b439286d9bb55dcc4c1defac2"
+    },
+    {
+      "face": "study4_trustworthy_5_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_flow_level_1.png",
+      "identity": "study4_trustworthy_5",
+      "method": "flow",
+      "level": 1,
+      "sha256": "b936bbc203c3e3199369034e03d33ecca606b4bb85d544e63d41e2309f4cd5d0"
+    },
+    {
+      "face": "study4_trustworthy_5_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_flow_level_2.png",
+      "identity": "study4_trustworthy_5",
+      "method": "flow",
+      "level": 2,
+      "sha256": "d628d470587d0937cd2ba85e6c9dfa1126fee635c7b6483aa2e38f7b0af3ceca"
+    },
+    {
+      "face": "study4_trustworthy_5_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_flow_level_3.png",
+      "identity": "study4_trustworthy_5",
+      "method": "flow",
+      "level": 3,
+      "sha256": "d98765d98e857f93ca4281772aa241a12baffa641f6811eb1fa59cca35aa3f5b"
+    },
+    {
+      "face": "study4_trustworthy_5_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_flow_level_4.png",
+      "identity": "study4_trustworthy_5",
+      "method": "flow",
+      "level": 4,
+      "sha256": "61f0d1680f1d17258c35842c614c084628551217b27bbce95e547e3b37658185"
+    },
+    {
+      "face": "study4_trustworthy_5_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_vector_level_0.png",
+      "identity": "study4_trustworthy_5",
+      "method": "vector",
+      "level": 0,
+      "sha256": "3ac4c843936afe6aea2020882857cac857e7189b439286d9bb55dcc4c1defac2"
+    },
+    {
+      "face": "study4_trustworthy_5_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_vector_level_1.png",
+      "identity": "study4_trustworthy_5",
+      "method": "vector",
+      "level": 1,
+      "sha256": "1f0a024004aaf9cb08ff4e2c30fd2de9c54555a074030563704d3dbed08c44c7"
+    },
+    {
+      "face": "study4_trustworthy_5_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_vector_level_2.png",
+      "identity": "study4_trustworthy_5",
+      "method": "vector",
+      "level": 2,
+      "sha256": "91a8448b74ed0dbfbdb685d74ed48550ae7d2158ec015101d45111a6f292d0fe"
+    },
+    {
+      "face": "study4_trustworthy_5_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_vector_level_3.png",
+      "identity": "study4_trustworthy_5",
+      "method": "vector",
+      "level": 3,
+      "sha256": "cf32beb1c999db05055b76d1764e1d99395c8e4a8817f548dcfd237ea7e04406"
+    },
+    {
+      "face": "study4_trustworthy_5_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_5_vector_level_4.png",
+      "identity": "study4_trustworthy_5",
+      "method": "vector",
+      "level": 4,
+      "sha256": "1ece86374cdbc738e315a7e0d9a6e7105fdb6c27bba030f2a990d5734d46ca5d"
+    },
+    {
+      "face": "study4_trustworthy_6_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_flow_level_0.png",
+      "identity": "study4_trustworthy_6",
+      "method": "flow",
+      "level": 0,
+      "sha256": "d263204032165f36549a9ed46cc85fd578df2cc4665dc6bba61fdbe1bb663d0c"
+    },
+    {
+      "face": "study4_trustworthy_6_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_flow_level_1.png",
+      "identity": "study4_trustworthy_6",
+      "method": "flow",
+      "level": 1,
+      "sha256": "2cbe962af3cd5baec3b80ed48184853eab38f0056dce9fd85678aa52b2a0c4ff"
+    },
+    {
+      "face": "study4_trustworthy_6_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_flow_level_2.png",
+      "identity": "study4_trustworthy_6",
+      "method": "flow",
+      "level": 2,
+      "sha256": "83d50e75d69282be44c3f49a1879d26250b544aa9d080301b08dfde431c07aab"
+    },
+    {
+      "face": "study4_trustworthy_6_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_flow_level_3.png",
+      "identity": "study4_trustworthy_6",
+      "method": "flow",
+      "level": 3,
+      "sha256": "8c590e5362549af8a928c4be6208243b6a1b710547f145366ad9c650d0f16af3"
+    },
+    {
+      "face": "study4_trustworthy_6_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_flow_level_4.png",
+      "identity": "study4_trustworthy_6",
+      "method": "flow",
+      "level": 4,
+      "sha256": "48be99593ee818d8f240d719d536e9fd9331eef93118e942882c5c297d96c0e6"
+    },
+    {
+      "face": "study4_trustworthy_6_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_vector_level_0.png",
+      "identity": "study4_trustworthy_6",
+      "method": "vector",
+      "level": 0,
+      "sha256": "d263204032165f36549a9ed46cc85fd578df2cc4665dc6bba61fdbe1bb663d0c"
+    },
+    {
+      "face": "study4_trustworthy_6_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_vector_level_1.png",
+      "identity": "study4_trustworthy_6",
+      "method": "vector",
+      "level": 1,
+      "sha256": "c993f12a7f438c1e2e87652057d4dd0a424f65098231fbae9e462ef24ba53355"
+    },
+    {
+      "face": "study4_trustworthy_6_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_vector_level_2.png",
+      "identity": "study4_trustworthy_6",
+      "method": "vector",
+      "level": 2,
+      "sha256": "bee5692b3292ff61d946389ebb5e90beb76a0122dc962c7586a5b175e0c30051"
+    },
+    {
+      "face": "study4_trustworthy_6_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_vector_level_3.png",
+      "identity": "study4_trustworthy_6",
+      "method": "vector",
+      "level": 3,
+      "sha256": "2aeee098a9ad504600772a44117140c000b56521deba7f35a0f5f0691f12ac8d"
+    },
+    {
+      "face": "study4_trustworthy_6_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_6_vector_level_4.png",
+      "identity": "study4_trustworthy_6",
+      "method": "vector",
+      "level": 4,
+      "sha256": "8d54b6a722697c32429e64586299994219890af3e2759191ea4a65e5e153a637"
+    },
+    {
+      "face": "study4_trustworthy_7_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_flow_level_0.png",
+      "identity": "study4_trustworthy_7",
+      "method": "flow",
+      "level": 0,
+      "sha256": "1f13ceeb2c493b662f0a8631f1bea286df6b93e3dc6f4bb3a324cdd38b50161a"
+    },
+    {
+      "face": "study4_trustworthy_7_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_flow_level_1.png",
+      "identity": "study4_trustworthy_7",
+      "method": "flow",
+      "level": 1,
+      "sha256": "d219f56f2f5fee4bea3e2bf823665ed0675f72e4e20c206e7b4160659e11bec2"
+    },
+    {
+      "face": "study4_trustworthy_7_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_flow_level_2.png",
+      "identity": "study4_trustworthy_7",
+      "method": "flow",
+      "level": 2,
+      "sha256": "f2928d2962a9af822f5504d7166c07e3713c8755d2a8950ff8817c7667796531"
+    },
+    {
+      "face": "study4_trustworthy_7_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_flow_level_3.png",
+      "identity": "study4_trustworthy_7",
+      "method": "flow",
+      "level": 3,
+      "sha256": "bcad4eb9f018ce02431970ec450d5c2c78c1b2830d7370fc231f1c2a2ef2f6ca"
+    },
+    {
+      "face": "study4_trustworthy_7_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_flow_level_4.png",
+      "identity": "study4_trustworthy_7",
+      "method": "flow",
+      "level": 4,
+      "sha256": "f8ab3d0031ddb264fc374c2c50309c0430eb979c82b25db6739d6b26250cca48"
+    },
+    {
+      "face": "study4_trustworthy_7_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_vector_level_0.png",
+      "identity": "study4_trustworthy_7",
+      "method": "vector",
+      "level": 0,
+      "sha256": "1f13ceeb2c493b662f0a8631f1bea286df6b93e3dc6f4bb3a324cdd38b50161a"
+    },
+    {
+      "face": "study4_trustworthy_7_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_vector_level_1.png",
+      "identity": "study4_trustworthy_7",
+      "method": "vector",
+      "level": 1,
+      "sha256": "2483f1a23b0ebac4be96eac2f93c342c32ef7894c330748c9772e662a3116f11"
+    },
+    {
+      "face": "study4_trustworthy_7_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_vector_level_2.png",
+      "identity": "study4_trustworthy_7",
+      "method": "vector",
+      "level": 2,
+      "sha256": "7efff0a7b67d4e2b1c881b36e388e10fbf599bf3ce382c0d42bb8a7d78cc4ee5"
+    },
+    {
+      "face": "study4_trustworthy_7_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_vector_level_3.png",
+      "identity": "study4_trustworthy_7",
+      "method": "vector",
+      "level": 3,
+      "sha256": "73a860bf2a58f8e0b500d784c719cf65739ed0bc6c809e6c2f60e64c8fcae51a"
+    },
+    {
+      "face": "study4_trustworthy_7_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_7_vector_level_4.png",
+      "identity": "study4_trustworthy_7",
+      "method": "vector",
+      "level": 4,
+      "sha256": "8c24415df0e005795b323a1e35e405b5df474fd2b8d3cf1dfd3db843452733ba"
+    },
+    {
+      "face": "study4_trustworthy_8_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_flow_level_0.png",
+      "identity": "study4_trustworthy_8",
+      "method": "flow",
+      "level": 0,
+      "sha256": "60425e80b53f5b27fbb4e25c4ed99bda67b077b15159b4893c04e21b583996a0"
+    },
+    {
+      "face": "study4_trustworthy_8_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_flow_level_1.png",
+      "identity": "study4_trustworthy_8",
+      "method": "flow",
+      "level": 1,
+      "sha256": "ed23168cbb6614ab4cc8c23c7474218ec46765bb7299ada0052e7211ab1e6876"
+    },
+    {
+      "face": "study4_trustworthy_8_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_flow_level_2.png",
+      "identity": "study4_trustworthy_8",
+      "method": "flow",
+      "level": 2,
+      "sha256": "846f1192e6b8d96eb47d6b4d5135c6da405ac93381b48edf49df80cf011df5e2"
+    },
+    {
+      "face": "study4_trustworthy_8_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_flow_level_3.png",
+      "identity": "study4_trustworthy_8",
+      "method": "flow",
+      "level": 3,
+      "sha256": "4ecd153e1f7717bd83dd2cd415026faab32258edf5cda07dce7912587cb489ac"
+    },
+    {
+      "face": "study4_trustworthy_8_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_flow_level_4.png",
+      "identity": "study4_trustworthy_8",
+      "method": "flow",
+      "level": 4,
+      "sha256": "2a1d14a3ee4af7e070ffebc6355f7c9cf11663d5806ca62ebf0e9d6b166c3148"
+    },
+    {
+      "face": "study4_trustworthy_8_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_vector_level_0.png",
+      "identity": "study4_trustworthy_8",
+      "method": "vector",
+      "level": 0,
+      "sha256": "60425e80b53f5b27fbb4e25c4ed99bda67b077b15159b4893c04e21b583996a0"
+    },
+    {
+      "face": "study4_trustworthy_8_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_vector_level_1.png",
+      "identity": "study4_trustworthy_8",
+      "method": "vector",
+      "level": 1,
+      "sha256": "70b6c38725e4591a4bb6842a37c10156205d3f74d165b8015f2eaef46dc5cf82"
+    },
+    {
+      "face": "study4_trustworthy_8_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_vector_level_2.png",
+      "identity": "study4_trustworthy_8",
+      "method": "vector",
+      "level": 2,
+      "sha256": "7449236f3f243739b32f35066af777e392b1e0d168da1e2279141e4fe38426ba"
+    },
+    {
+      "face": "study4_trustworthy_8_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_vector_level_3.png",
+      "identity": "study4_trustworthy_8",
+      "method": "vector",
+      "level": 3,
+      "sha256": "9e99442ca0801fc5e4fbf6351446c60bf4fb3a2ffcff9d23be2fe003dee0b262"
+    },
+    {
+      "face": "study4_trustworthy_8_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_8_vector_level_4.png",
+      "identity": "study4_trustworthy_8",
+      "method": "vector",
+      "level": 4,
+      "sha256": "a64d66a1660ac429eea32966c10e0541bedde17e81bfd2f8b8067ec4ebe71c31"
+    },
+    {
+      "face": "study4_trustworthy_9_flow_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_flow_level_0.png",
+      "identity": "study4_trustworthy_9",
+      "method": "flow",
+      "level": 0,
+      "sha256": "66b9e059771f0b443dcd77b2e309be083cf885b6e56b4a80608e4235dda56627"
+    },
+    {
+      "face": "study4_trustworthy_9_flow_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_flow_level_1.png",
+      "identity": "study4_trustworthy_9",
+      "method": "flow",
+      "level": 1,
+      "sha256": "8a8de74109cc7456f7ee987fd4a12e84c382cbc017e6dca5c53bf0360ede3bd3"
+    },
+    {
+      "face": "study4_trustworthy_9_flow_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_flow_level_2.png",
+      "identity": "study4_trustworthy_9",
+      "method": "flow",
+      "level": 2,
+      "sha256": "847130c42b5bb15dc0f5687bee38f5c7e5e87b85a26e2ef947b359f6ba97c777"
+    },
+    {
+      "face": "study4_trustworthy_9_flow_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_flow_level_3.png",
+      "identity": "study4_trustworthy_9",
+      "method": "flow",
+      "level": 3,
+      "sha256": "f5f99a7aea50f46713b62c4a653e825b2ead20e40d17fd7d7c2598efb8a6ed6a"
+    },
+    {
+      "face": "study4_trustworthy_9_flow_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_flow_level_4.png",
+      "identity": "study4_trustworthy_9",
+      "method": "flow",
+      "level": 4,
+      "sha256": "819110779ad4ad4a888f841b101d7725bc94aaf760a1c868bcbae9037f99cd73"
+    },
+    {
+      "face": "study4_trustworthy_9_vector_level_0.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_vector_level_0.png",
+      "identity": "study4_trustworthy_9",
+      "method": "vector",
+      "level": 0,
+      "sha256": "66b9e059771f0b443dcd77b2e309be083cf885b6e56b4a80608e4235dda56627"
+    },
+    {
+      "face": "study4_trustworthy_9_vector_level_1.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_vector_level_1.png",
+      "identity": "study4_trustworthy_9",
+      "method": "vector",
+      "level": 1,
+      "sha256": "f641ebbae90d7f674ed5a4b1d8e674b28b530252316cf0472892a60b788d6ec9"
+    },
+    {
+      "face": "study4_trustworthy_9_vector_level_2.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_vector_level_2.png",
+      "identity": "study4_trustworthy_9",
+      "method": "vector",
+      "level": 2,
+      "sha256": "54edb86e433ee1e006a2a0f9cbf279df57751ea4c3d9ebe3472ccb38e0a02967"
+    },
+    {
+      "face": "study4_trustworthy_9_vector_level_3.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_vector_level_3.png",
+      "identity": "study4_trustworthy_9",
+      "method": "vector",
+      "level": 3,
+      "sha256": "f9e509822bf04cd8908331f5fbec9767b485eae583ba0f821965ce6476a3e82b"
+    },
+    {
+      "face": "study4_trustworthy_9_vector_level_4.png",
+      "path": "/Users/adamsobieszek/Deixis/fgclip_testset/study4_trustworthy_9_vector_level_4.png",
+      "identity": "study4_trustworthy_9",
+      "method": "vector",
+      "level": 4,
+      "sha256": "26f197048a7b80bcecfcf4fc49ffebf9d88e4b4061a7c5dd1311e96e193d5cec"
+    }
+  ],
+  "batch_size": 16,
+  "source_sha256": "ac79d5e712dc2907789e76d4904f42c4e2c3fa8d25128eec990b5c432930650c"
+}

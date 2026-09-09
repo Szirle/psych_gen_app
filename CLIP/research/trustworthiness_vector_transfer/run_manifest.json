@@ -1,0 +1,13 @@
+{
+  "python": "3.11.8",
+  "sklearn": "1.8.0",
+  "training_seconds": 8.175671167002292,
+  "source_sha256": "04b94c8b3c62ecb1a06ccaa6d7997b2e82d139ad7d291adb10ecc2271b1896de",
+  "inputs_sha256": {
+    "CLIP/research/trustworthiness/p128/trustworthy-features.npz": "76470c7a9338dce04eb7836ab8343d5eb87ea39d18ebf7c0ac38b428275363a4",
+    "CLIP/research/trustworthiness/p256/trustworthy-features.npz": "dffbfcf8447d2af864fcfa25c7f162c74cca46116046ceeabacc15dec77b85b9",
+    "CLIP/research/trustworthiness_hidden_test/frozen_predictions.npz": "1367046bfcecc896e4c0b2b8b134e11e1583424dd1ec48c73fe8d15700f85e55"
+  },
+  "selected_model_sha256": "a72e1b4b0040775ca24b58436082dc78002ff84e9479052d7dfb039c6925166b",
+  "validation_only_revision": true
+}

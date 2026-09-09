@@ -17,6 +17,9 @@ class FaceManipulationBloc
     on<LoadFaceImages>(_onLoadFaceImages);
   }
 
+  /// Invalidate synchronously when leaving this workspace, including debounce.
+  void cancelPendingPreview() => _latestRequest++;
+
   Future<void> _onLoadFaceImages(
     LoadFaceImages event,
     Emitter<FaceManipulationState> emit,

@@ -1,0 +1,10 @@
+{
+  "runtime_source_sha256": "ac79d5e712dc2907789e76d4904f42c4e2c3fa8d25128eec990b5c432930650c",
+  "frozen_bundle_sha256": "36903e01982b44ea1c33c6fbe70c055e549f069b471325f5173a7b5aa4e41ecd",
+  "artifacts_sha256": {
+    "test_results.json": "6472dbed83bcdaeb70d1db1729b071abd4a195dfd863e2e6774bbab909f9ff5e",
+    "rated_predictions.csv": "5418dff1260b625a6fd5ed44fce40c5a0074859c6561de8040b221fcd9ce6a54",
+    "image_predictions.csv": "a8bb0694a31b2d944b2ac5c7da0acc97f1057e5c8f5a1c571c1a2c55485ce007",
+    "report.html": "9dd6c07bffa9ba96d9f9a1155df55c53f49dcff22b6d250d4b3e71e9f8a507f2"
+  }
+}

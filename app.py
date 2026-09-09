@@ -19,6 +19,7 @@ import cv2
 from flask import Flask, send_from_directory, request, jsonify
 from flask_cors import CORS
 from early_output_backend import EarlyOutputStyleGAN
+from stimuli_selection_backend import StimuliSelectionBackend, stored_photo_w
 from adaptive_batching import (
     balanced_batch_size,
     calibrated_batch_capacity,
@@ -37,6 +38,8 @@ from api_contract import (
     parse_image_request,
     parse_num_points,
     parse_requested_dimensions,
+    parse_selection_request,
+    SELECTION_GRID_SIDE,
     reshape_image_grid_for_api,
 )
 
@@ -88,7 +91,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 def _configured_early_output_path() -> Optional[str]:
-    """Resolve the fixed pointwise_style32 preview checkpoint, or disable it."""
+    """Resolve the selected pointwise_style32 preview checkpoint, or disable it."""
     explicit_path = os.environ.get("STYLEGAN_EARLY_OUTPUT_PATH")
     if explicit_path:
         return explicit_path
@@ -103,13 +106,13 @@ def _configured_early_output_path() -> Optional[str]:
         resolution = int(configured_resolution)
     except (TypeError, ValueError) as error:
         raise ValueError(
-            "stylegan_early_output_resolution must be 128 or null"
+            "stylegan_early_output_resolution must be 128, 256 or null"
         ) from error
-    if resolution != 128:
-        raise ValueError("pointwise_style32 previews require resolution 128")
+    if resolution not in (128, 256):
+        raise ValueError("pointwise_style32 previews require resolution 128 or 256")
     return config.get(
-        "stylegan_early_output_128_path",
-        os.path.join(MODELS_PATH, "sg128_pointwise_style32.pt"),
+        f"stylegan_early_output_{resolution}_path",
+        os.path.join(MODELS_PATH, f"sg{resolution}_pointwise_style32.pt"),
     )
 
 
@@ -238,7 +241,7 @@ def _require_current_preview_revision(payload: Any) -> int:
     with _preview_revision_lock:
         if revision != _active_preview_revision:
             raise ApiValidationError(
-                "This full-resolution request belongs to an obsolete preview.",
+                "This request belongs to an obsolete preview.",
                 status_code=409,
             )
     return revision
@@ -295,18 +298,10 @@ class FastStyleGANBackend:
         self._current_photo_id = None
 
     def _set_photo_base(self, photo_id: str) -> None:
-        coords = self.photo_to_coords[photo_id]
-        if isinstance(coords, np.ndarray):
-            coords = torch.from_numpy(coords)
-        if not isinstance(coords, torch.Tensor):
-            coords = torch.tensor(coords)
-        coords = coords.to(device=self.device, dtype=self.dtype).reshape(1, 1, -1)
-        if coords.shape[-1] != self.curr_w.shape[-1]:
-            raise ApiValidationError(
-                f"Stored latent for {photo_id} has an incompatible shape.",
-                status_code=422,
-            )
-        self.curr_w = coords.repeat(1, NUM_WS, 1)
+        self.curr_w = stored_photo_w(
+            self.photo_to_coords[photo_id], device=self.device, dtype=self.dtype,
+            num_ws=NUM_WS, w_dim=self.curr_w.shape[-1],
+        )
         self._face_hash = self._hash_w(self.curr_w)
         self._current_photo_id = photo_id
 
@@ -449,6 +444,7 @@ class FastStyleGANBackend:
         return images, labels
 
 backend = FastStyleGANBackend(bm)
+selection_backend = StimuliSelectionBackend(bm, backend.photo_to_coords)
 _full_resolution_builder: Optional[Any] = None
 
 
@@ -1092,6 +1088,7 @@ def generate_images():
 
         t0 = time.time()
         with gpu_lock, torch.inference_mode(), torch.no_grad():
+            _require_current_preview_revision(payload)
             _release_full_resolution_builder()
             backend.select_base_face(filters, eligible, change_face)
             images, _labels = backend(**config)
@@ -1112,6 +1109,52 @@ def generate_images():
     except Exception as error:
         print(f"/images failed: {error}")
         return _api_error(RuntimeError("Image generation failed."), 500)
+
+
+@app.route("/stimuli/preview", methods=["POST"])
+def generate_selection_preview():
+    """Return nine unmanipulated draws without mutating backend.curr_w."""
+    try:
+        payload = request.get_json(force=True, silent=True)
+        selection = parse_selection_request(
+            payload, backend.dim_to_photo_to_ratings.keys()
+        )
+        out_fmt, quality = parse_image_encoding(
+            request.args.get("format"), request.args.get("quality")
+        )
+        eligible = _filter_photos(selection.filters, require_coordinates=True)
+        _activate_preview_revision(payload)
+        _cancel_active_full_resolution_jobs(
+            "A stimuli-selection preview superseded the old preview."
+        )
+        _wait_for_cancelled_full_resolution_jobs()
+        with gpu_lock, torch.inference_mode():
+            _require_current_preview_revision(payload)
+            _release_full_resolution_builder()
+            images, sampling = selection_backend.preview(
+                selection,
+                eligible,
+                lambda: _require_current_preview_revision(payload),
+            )
+        encoded = [
+            encode_image_b64(image, fmt=out_fmt, quality=quality) for image in images
+        ]
+        _require_current_preview_revision(payload)
+        return jsonify(
+            {
+                "preview_revision": selection.preview_revision,
+                "images": [
+                    encoded[i : i + SELECTION_GRID_SIDE]
+                    for i in range(0, len(encoded), SELECTION_GRID_SIDE)
+                ],
+                "sampling": sampling,
+            }
+        )
+    except ApiValidationError as error:
+        return _api_error(error)
+    except Exception as error:
+        print(f"/stimuli/preview failed: {error}")
+        return _api_error(RuntimeError("Stimuli preview generation failed."), 500)
 
 
 @app.route("/images/full", methods=["POST"])

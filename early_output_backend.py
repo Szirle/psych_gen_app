@@ -1,4 +1,4 @@
-"""Web preview adapter for the fixed StyleGAN2 pointwise_style32 model."""
+"""Web preview adapter for the 128/256 StyleGAN2 pointwise_style32 models."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def select_accelerator(
 
 
 class EarlyOutputStyleGAN:
-    """Run the trained 128x128 pointwise_style32 generator.
+    """Run a trained 128x128 or 256x256 pointwise_style32 generator.
 
     ``device='auto'`` selects CUDA, then MPS, then CPU. ``precision='auto'``
     uses FP16 high-resolution blocks on CUDA/MPS and FP32 on CPU. Mapping stays

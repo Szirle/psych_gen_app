@@ -1,0 +1,11 @@
+{
+  "report_source_sha256": "ac79d5e712dc2907789e76d4904f42c4e2c3fa8d25128eec990b5c432930650c",
+  "artifacts_sha256": {
+    "transfer_model.joblib": "a72e1b4b0040775ca24b58436082dc78002ff84e9479052d7dfb039c6925166b",
+    "pooled_model.joblib": "8dc7875a61336e47c9eddcda1c63024ad6ffb80a3f2191d474b46b3e9da8407e",
+    "contrast_model.joblib": "42305151f3b7f3ac27545d6fa1c06189615e8f64927f26638d0cafb06433ef7a",
+    "test_results.json": "fd138ef3ce3b354bfd2ff9f6f5f4d9c911bbcb21989d78fdb280f20b32ebc878",
+    "validation.json": "31ffda2af23ef4bd282deed455596a0aaf43ae66c8cd1e1527d222d65966dd40",
+    "report.html": "9fea7b3be4a554b0126731e71087bc7cd8b156e8b9c9687af5c87c269668610a"
+  }
+}

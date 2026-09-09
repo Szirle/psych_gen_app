@@ -23,6 +23,7 @@ Backend handler: `app.py@app.route('/images', methods=['POST'])`
 Request body
 ```
 {
+  "preview_revision": 1750000000000000, // required non-negative integer; see revision protocol
   "manipulated_dimensions": [
     {
       "name": "dominant",          // string; must match Flutter enum names (see below)
@@ -38,7 +39,7 @@ Request body
   "preserve_identity": false,       // bool; reserved, ignored by preview generation
   "change_face": false,             // bool; when true, backend resamples the base face latent
   "mode": "shape",                 // "shape" | "color" | "both"; maps to W-slice on backend
-  "filters": {                      // optional; selects a stored base-face latent
+  "filters": {                      // committed in Stimuli selection; selects a stored base-face latent
     "dominant": [0.2, 0.8],
     "trustworthy": [0.1, 0.9]
   },
@@ -101,6 +102,117 @@ Errors
 - Validation failures return HTTP 400 with `{ "error": "...", "details": ... }`.
 - When filters match no stored latent, the endpoint returns HTTP 422 with the same error shape.
 - Unexpected generation failures return a non-diagnostic HTTP 500 error to the client.
+
+---
+
+### POST /stimuli/preview
+Samples the **control-condition distribution**, with no experimental manipulation.
+The first Flutter tab is **Stimuli selection** (filters + truncation + its own
+3×3 preview). **Experimental manipulation** remains the second tab, with its
+existing single-base-face grid, design controls, and full-resolution Quick Look.
+The separate traversal entry point keeps its existing single-workspace UI.
+
+Flutter request: `domain/entities/stimuli_selection_request.dart`
+Flutter transport/state: `data/datasources/stimuli_selection_api_datasource.dart`,
+`presentation/bloc/stimuli_selection_cubit.dart` (under `lib/features/face_generation/`).
+Backend route: `app.py@generate_selection_preview`.
+Sampling/rendering policy: `stimuli_selection_backend.py@StimuliSelectionBackend`.
+
+Request body:
+```json
+{
+  "preview_revision": 1750000000000001,
+  "sample_count": 9,
+  "truncation_psi": 0.6,
+  "selection": {
+    "filters": {
+      "dominant": [0.2, 0.8],
+      "wellGroomed": [0.1, 0.9]
+    }
+  }
+}
+```
+
+- `preview_revision` is required, non-negative and integer. `sample_count`
+  defaults to 9 and currently must equal 9. `truncation_psi` defaults to 0.6
+  and must be finite and within 0.1–1.0.
+- `selection` defaults to `{}`. `selection.filters` uses the **same** inclusive
+  average-rating ranges, camelCase normalization, validation, and intersection
+  with stored latent IDs as `/images`. No filters means independent Gaussian Z
+  draws mapped to W. Active filters mean uniform sampling from eligible stored W
+  vectors. Sample without replacement when at least nine are eligible; otherwise
+  sample with replacement to keep nine tiles and explicitly report that fact.
+- Apply truncation to each sampled W using the same W-average formula as the
+  manipulation preview. Empirical ratings refer to the original stored faces;
+  they are not re-estimated after truncation.
+- Synthesize with the **same loaded preview generator**, under the same GPU lock,
+  in bounded batches (one image by default). Do not load another generator or
+  FG-CLIP model. Do not apply directions, strength levels, layer edits, or mutate
+  the manipulation backend's current W, photo ID, or filter signature.
+- Each submitted selection request draws a fresh sample. Opening the tab,
+  committing filters, changing truncation, or pressing **Resample 9** submits one.
+  The manipulation tab independently previews a base from this same sampling
+  definition; the nine displayed faces are not a fixed export dataset.
+- `selection` is the extension boundary for future text-based selection. Candidate
+  sampling is separate from rendering, allowing a later policy to generate/rank
+  candidate batches and return nine accepted faces. **Text selection is not
+  implemented yet**; unknown criteria and request fields are rejected with 400,
+  never ignored (including filters accidentally sent outside `selection`).
+
+Response body:
+```json
+{
+  "preview_revision": 1750000000000001,
+  "images": [
+    ["<b64>", "<b64>", "<b64>"],
+    ["<b64>", "<b64>", "<b64>"],
+    ["<b64>", "<b64>", "<b64>"]
+  ],
+  "sampling": {
+    "source": "ratings",
+    "eligible_count": 17,
+    "sampled_with_replacement": false
+  }
+}
+```
+
+- `images` is exactly 3×3 in row-major order, decoded through the shared Flutter
+  `preview_image_codec.dart` helper. There are no manipulation axes or level
+  coordinates. `source` is `generator` or `ratings`; `eligible_count` is null for
+  generator draws, otherwise a positive integer. Fewer than nine eligible stored
+  faces produce `sampled_with_replacement: true` and an explanatory UI message.
+- Encoding matches `/images`: WEBP by default, `?format=png|jpg|webp&quality=90`.
+- No eligible stored faces: **422** with `{ "error": "..." }`, never an
+  unfiltered fallback. Invalid input: **400**, obsolete revision: **409**,
+  unexpected generation failure: non-diagnostic **500**.
+- Flutter snapshots criteria immutably, debounces requests by 500 ms, and discards
+  stale successes/errors. Previous images remain under loading shimmer while a
+  replacement arrives. On error the sample clears, so excluded faces cannot be
+  mistaken for the new distribution. Histogram loading cannot erase committed
+  filters. The manipulation request still sends those committed filters in its
+  existing top-level `filters` field.
+
+### Shared preview revisions and full-resolution cancellation
+Both preview routes participate in the existing process-wide revision protocol:
+
+1. Flutter assigns a monotonically increasing microsecond-based `preview_revision`
+   for each new preview intent and immediately posts it to
+   `POST /images/full/cancel` before the debounced preview request.
+2. `/images/full/cancel` activates that revision, cancels older full-resolution
+   jobs, and returns `{ "preview_revision": ..., "cancelled_jobs": ... }`.
+3. `/images` and `/stimuli/preview` activate their revision, cancel obsolete
+   full-resolution work, wait for it to relinquish the accelerator, acquire the
+   same GPU lock, and check freshness again before generating. Selection checks
+   between batches and before returning the encoded response.
+4. `/images/full` requires the active revision. Changing tabs cancels pending
+   client work, invalidates Quick Look/cache polling, and starts the active tab's
+   preview. Sampling does not overwrite the manipulation's base latent.
+
+This is a **single-user, single-process shared-generator protocol**, as before;
+revisions and the current manipulation face are not scoped by browser/session.
+The selection preview does not schedule full-resolution upgrades. Existing
+`/images/full`, `/images/full/status`, and `/images/full/prioritize` remain
+manipulation-only.
 
 ---
 
@@ -216,7 +328,11 @@ When changing the API request/response or endpoint behavior on either side:
    - If editing Python (Flask routes/shape), update Flutter datasources/entities and client decoding.
 3) Build and verify:
    - `flutter build web --release`
-   - Manually test `/images` and `/distributions` with representative payloads.
+   - Exercise representative requests with Flask contract tests without loading
+     models: `python -m pytest tests/test_api_contract.py tests/test_stimuli_selection.py`.
+   - Run `flutter test` for decoding, stale results, and tab/filter state.
+   - Launch a live app only when requested by the user or necessary to diagnose a
+     UI error, per the workspace instructions.
 
 Affected code paths
 - Frontend:

@@ -1,0 +1,100 @@
+[
+  {
+    "id": "valence",
+    "citation": "Oosterhof & Todorov (2008), The functional basis of face evaluation",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2516255/",
+    "finding": "Behavioral studies and a generative face-shape model relate perceived trustworthiness to approach/avoidance valence and resemblance to happy versus angry expressions; dominance is a distinct dimension.",
+    "model_implication": "Positive/negative affect, brows, mouth curvature, strength and combined cues. These concern impressions, not actual honesty."
+  },
+  {
+    "id": "ambient",
+    "citation": "Vernon et al. (2014), Modeling first impressions from highly variable facial images",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4136614/",
+    "finding": "A model using measured facial attributes predicted a substantial portion of variation in impressions of ambient photographs, including approachability; image properties as well as face structure matter.",
+    "model_implication": "Mouth, eye, shape, pose and image-condition descriptions; do not treat one expression-independent adjective as sufficient."
+  },
+  {
+    "id": "smiles",
+    "citation": "Gunnery & Ruben (2016), Perceptions of Duchenne and non-Duchenne smiles: A meta-analysis",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/25787714/",
+    "finding": "Duchenne smiles were evaluated more positively overall, including authenticity and trustworthiness; effects depended on stimulus and methodological differences.",
+    "model_implication": "Cheek raising, eye wrinkles, genuine versus posed or insincere smiles. A visual marker does not prove actual sincerity."
+  },
+  {
+    "id": "authenticity",
+    "citation": "Korb et al. (2014), The Perception and Mimicry of Facial Movements Predict Judgments of Smile Authenticity",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4053432/",
+    "finding": "Perceived authenticity depends on multiple facial actions and their dynamics, rather than a single static cue.",
+    "model_implication": "Conflicting eye/mouth expressions and smile qualifiers; motion-related conclusions cannot be tested directly in static faces."
+  },
+  {
+    "id": "smile_geometry",
+    "citation": "Helwig et al. (2017), Dynamic properties of successful smiles",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5489184/",
+    "finding": "Judgments of effective, genuine and pleasant smiles depended on combinations of mouth angle, extent, dental show and timing. This is adjacent evidence, not a direct trustworthiness-rating experiment.",
+    "model_implication": "Dental show, mouth opening, asymmetry and explicit combinations; nonlinear rather than monotonic smile intensity hypotheses."
+  },
+  {
+    "id": "typicality",
+    "citation": "Sofer et al. (2015), What is typical is good",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/25512052/",
+    "finding": "Along a controlled typicality-attractiveness continuum, trustworthiness peaked around the typical face while attractiveness increased further.",
+    "model_implication": "Typical, familiar, distinctive and highly attractive captions; smooth nonlinear models and interaction terms."
+  },
+  {
+    "id": "nonlinear",
+    "citation": "The Nonlinear and Gender-Related Relationships of Face Attractiveness and Typicality With Perceived Trustworthiness (2021)",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8316726/",
+    "finding": "This study modeled nonlinear relationships between typicality, attractiveness and trustworthiness and examined differences by gender.",
+    "model_implication": "Separate attractiveness, typicality and feminine/masculine appearance cues; allow their effects to interact rather than impose fixed signs."
+  },
+  {
+    "id": "eyewear",
+    "citation": "Graham & Ritchie (2019), Making a Spectacle of Yourself",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/31006340/",
+    "finding": "In their experiment sunglasses reduced perceived trustworthiness. Clear glasses and sunglasses should not be treated as equivalent occlusions.",
+    "model_implication": "Glasses, sunglasses, transparent or dark lenses, visible versus hidden eyes, smiling with eyewear."
+  },
+  {
+    "id": "occlusion",
+    "citation": "Impact of face masks and sunglasses on attractiveness, trustworthiness, and familiarity, and limited time effect: a Japanese sample (2023)",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9872742/",
+    "finding": "Occlusion and base attractiveness interacted in evaluations in a Japanese sample; eye and mouth coverage have different informational and cultural implications.",
+    "model_implication": "Occlusion by hair, eyewear and shadows; these experimental and cultural effects are not universal causal coefficients."
+  },
+  {
+    "id": "within_person",
+    "citation": "Sutherland et al. (2017), Facial first impressions from another angle",
+    "url": "https://bpspsychub.onlinelibrary.wiley.com/doi/10.1111/bjop.12206",
+    "finding": "Expression and viewpoint affected impressions, with substantial within-person image variability.",
+    "model_implication": "Pose and expression conjunctions; random-face validation cannot establish accuracy on same-identity latent neighbors."
+  },
+  {
+    "id": "tilt",
+    "citation": "Witkower & Tracy (2019), A Facial-Action Imposter",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/31009583/",
+    "finding": "Downward head tilt increased perceived dominance in their studies through apparent lowered, V-shaped brows. This is evidence about dominance, not a direct universal effect on trust.",
+    "model_implication": "Head tilt, lowered brows and dominance interactions as exploratory predictors."
+  },
+  {
+    "id": "image_variability",
+    "citation": "Todorov & Porter (2014), Misleading first impressions",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/24866921/",
+    "finding": "Different photographs of the same person produced substantially different first impressions, and image preferences depended on context.",
+    "model_implication": "Image quality, lighting, view and expression controls; hidden same-person comparisons remain a distinct validation problem."
+  },
+  {
+    "id": "review",
+    "citation": "Todorov et al. (2025), Face evaluation: Findings, methods, and challenges",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11918531/",
+    "finding": "This review describes contributions from expression resemblance, feminine and baby-faced appearance, shape and reflectance, and substantial perceiver-specific variance in complex judgments.",
+    "model_implication": "Age, facial maturity, sex-typical appearance, skin reflectance and geometry; interpret group mean prediction without claiming objective personality."
+  },
+  {
+    "id": "culture",
+    "citation": "Sofer et al. (2017), For Your Local Eyes Only",
+    "url": "https://journals.sagepub.com/doi/abs/10.1177/0301006617691786",
+    "finding": "The paper examines culture-specific typicality in perceived trustworthiness.",
+    "model_implication": "Typicality and familiarity may be observer dependent; the model targets this participant sample rather than universal trust judgments."
+  }
+]

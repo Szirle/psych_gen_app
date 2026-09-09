@@ -83,8 +83,7 @@ def load_psychGAN_data(data_path):
     if not data_path.endswith("/"):
         data_path += "/"
     with open(data_path+"photo_to_coords.pkl", "rb") as f:
-        photo,coords = pickle.load(f)
-    photo_coords = {k: v for k, v in zip(photo, coords)}
+        photo_coords = pickle.load(f)
     with open(data_path+"dim_to_photo_to_ratings.pkl", "rb") as f: 
         dim_to_photo_to_ratings = pickle.load(f)
     print(*dim_to_photo_to_ratings.keys())

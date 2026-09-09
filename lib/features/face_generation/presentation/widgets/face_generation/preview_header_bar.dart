@@ -19,12 +19,18 @@ class PreviewHeaderBar extends StatelessWidget {
   final VoidCallback onChangeFacePressed;
   final bool isDark;
   final ValueChanged<bool>? onThemeModeChanged;
+  final String? title;
+  final String? actionLabel;
+  final String? actionTooltip;
 
   const PreviewHeaderBar({
     super.key,
     required this.onChangeFacePressed,
     required this.isDark,
     this.onThemeModeChanged,
+    this.title,
+    this.actionLabel,
+    this.actionTooltip,
   });
 
   @override
@@ -39,7 +45,7 @@ class PreviewHeaderBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 12),
             child: Text(
-              'preview.title'.tr(),
+              title ?? 'preview.title'.tr(),
               style: TextStyle(
                 fontFamily: 'WorkSans',
                 fontSize: 28,
@@ -63,11 +69,11 @@ class PreviewHeaderBar extends StatelessWidget {
           SizedBox(
             width: 140,
             child: Tooltip(
-              message: 'tooltip.change_face'.tr(),
+              message: actionTooltip ?? 'tooltip.change_face'.tr(),
               child: FilledButton(
                 style: previewCanvasPillStyle(isDark),
                 onPressed: onChangeFacePressed,
-                child: Text('button.change_face'.tr()),
+                child: Text(actionLabel ?? 'button.change_face'.tr()),
               ),
             ),
           ),
