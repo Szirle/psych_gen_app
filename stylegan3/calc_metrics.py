@@ -17,6 +17,7 @@ import torch
 
 import dnnlib
 import legacy
+from torch_utils.device import get_device
 from metrics import metric_main
 from metrics import metric_utils
 from torch_utils import training_stats
@@ -46,10 +47,11 @@ def subprocess_fn(rank, args, temp_dir):
         custom_ops.verbosity = 'none'
 
     # Configure torch.
-    device = torch.device('cuda', rank)
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
-    conv2d_gradfix.enabled = True
+    device = torch.device('cuda', rank) if args.num_gpus > 1 else get_device()
+    if device.type == 'cuda':
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        conv2d_gradfix.enabled = True
 
     # Print network summary.
     G = copy.deepcopy(args.G).eval().requires_grad_(False).to(device)

@@ -43,6 +43,8 @@ def use_native_ops(
 ) -> Iterator[None]:
     """Temporarily force op backends for generator benchmarks.
 
+    ``mps`` selects custom Metal kernels; ``native`` retains pure PyTorch.
+
     Does not change the default ``impl='cuda'`` when the context is inactive.
     """
     global _COMPILE_UPFIRDN_IMPL, _COMPILE_BIAS_ACT_IMPL

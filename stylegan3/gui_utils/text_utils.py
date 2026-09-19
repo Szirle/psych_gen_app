@@ -8,6 +8,7 @@
 
 import functools
 from typing import Optional
+import os
 
 import dnnlib
 import numpy as np
@@ -20,6 +21,17 @@ from . import gl_utils
 #----------------------------------------------------------------------------
 
 def get_default_font():
+    candidates = [
+        '/System/Library/Fonts/Supplemental/Arial.ttf',
+        '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+        '/Library/Fonts/Arial.ttf',
+        '/System/Library/Fonts/Helvetica.ttc',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
     url = 'http://fonts.gstatic.com/s/opensans/v17/mem8YaGs126MiZpBA-U1UpcaXcl0Aw.ttf' # Open Sans regular
     return dnnlib.util.open_url(url, return_filename=True)
 

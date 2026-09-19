@@ -7,16 +7,20 @@
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
 import sys
+import os
 import copy
+import inspect
 import traceback
 import numpy as np
 import torch
 import torch.fft
 import torch.nn
-import matplotlib.cm
+import matplotlib
 import dnnlib
+from torch_utils.device import DeviceTimer, get_device, pin_memory_supported
 from torch_utils.ops import upfirdn2d
 import legacy # pylint: disable=import-error
+from . import local_models
 
 #----------------------------------------------------------------------------
 
@@ -58,7 +62,7 @@ def _construct_affine_bandlimit_filter(mat, a=3, amax=16, aflt=64, up=4, cutoff_
 
     # Construct 2D filter taps in input & output coordinate spaces.
     taps = ((torch.arange(aflt * up * 2 - 1, device=mat.device) + 1) / up - aflt).roll(1 - aflt * up)
-    yi, xi = torch.meshgrid(taps, taps)
+    yi, xi = torch.meshgrid(taps, taps, indexing='ij')
     xo, yo = (torch.stack([xi, yi], dim=2) @ mat[:2, :2].t()).unbind(2)
 
     # Convolution of two oriented 2D sinc filters.
@@ -117,26 +121,25 @@ def _apply_affine_transformation(x, mat, up=4, **filter_kwargs):
 #----------------------------------------------------------------------------
 
 class Renderer:
-    def __init__(self):
-        self._device        = torch.device('cuda')
+    def __init__(self, device=None):
+        self._device        = get_device(device)
         self._pkl_data      = dict()    # {pkl: dict | CapturedException, ...}
         self._networks      = dict()    # {cache_key: torch.nn.Module, ...}
         self._pinned_bufs   = dict()    # {(shape, dtype): torch.Tensor, ...}
         self._cmaps         = dict()    # {name: torch.Tensor, ...}
         self._is_timing     = False
-        self._start_event   = torch.cuda.Event(enable_timing=True)
-        self._end_event     = torch.cuda.Event(enable_timing=True)
+        self._timer         = DeviceTimer(self._device)
         self._net_layers    = dict()    # {cache_key: [dnnlib.EasyDict, ...], ...}
 
     def render(self, **args):
         self._is_timing = True
-        self._start_event.record(torch.cuda.current_stream(self._device))
+        self._timer.start()
         res = dnnlib.EasyDict()
         try:
             self._render_impl(res, **args)
         except:
             res.error = CapturedException()
-        self._end_event.record(torch.cuda.current_stream(self._device))
+        self._timer.stop()
         if 'image' in res:
             res.image = self.to_cpu(res.image).numpy()
         if 'stats' in res:
@@ -144,8 +147,7 @@ class Renderer:
         if 'error' in res:
             res.error = str(res.error)
         if self._is_timing:
-            self._end_event.synchronize()
-            res.render_time = self._start_event.elapsed_time(self._end_event) * 1e-3
+            res.render_time = self._timer.elapsed_seconds()
             self._is_timing = False
         return res
 
@@ -154,8 +156,7 @@ class Renderer:
         if data is None:
             print(f'Loading "{pkl}"... ', end='', flush=True)
             try:
-                with dnnlib.util.open_url(pkl, verbose=False) as f:
-                    data = legacy.load_network_pkl(f)
+                data = self._load_network_data(pkl)
                 print('Done.')
             except:
                 data = CapturedException()
@@ -166,13 +167,17 @@ class Renderer:
             raise data
 
         orig_net = data[key]
-        cache_key = (orig_net, self._device, tuple(sorted(tweak_kwargs.items())))
+        already_on_device = bool(data.get('_local', False))
+        cache_key = (id(orig_net), self._device, tuple(sorted(tweak_kwargs.items())))
         net = self._networks.get(cache_key, None)
         if net is None:
             try:
-                net = copy.deepcopy(orig_net)
+                if already_on_device:
+                    net = orig_net
+                else:
+                    net = copy.deepcopy(orig_net)
+                    net.to(self._device)
                 net = self._tweak_network(net, **tweak_kwargs)
-                net.to(self._device)
             except:
                 net = CapturedException()
             self._networks[cache_key] = net
@@ -180,6 +185,15 @@ class Renderer:
         if isinstance(net, CapturedException):
             raise net
         return net
+
+    def _load_network_data(self, pkl):
+        local_path = os.path.abspath(pkl) if isinstance(pkl, str) else None
+        if local_path and os.path.isfile(local_path):
+            data = local_models.load_network_dict(local_path, self._device)
+            data['_local'] = True
+            return data
+        with dnnlib.util.open_url(pkl, verbose=False) as f:
+            return legacy.load_network_pkl(f)
 
     def _tweak_network(self, net):
         # Print diagnostics.
@@ -196,15 +210,20 @@ class Renderer:
         key = (tuple(ref.shape), ref.dtype)
         buf = self._pinned_bufs.get(key, None)
         if buf is None:
-            buf = torch.empty(ref.shape, dtype=ref.dtype).pin_memory()
+            buf = torch.empty(ref.shape, dtype=ref.dtype)
+            if pin_memory_supported(self._device):
+                buf = buf.pin_memory()
             self._pinned_bufs[key] = buf
         return buf
 
     def to_device(self, buf):
-        return self._get_pinned_buf(buf).copy_(buf).to(self._device)
+        buf = torch.as_tensor(buf)
+        if pin_memory_supported(self._device):
+            return self._get_pinned_buf(buf).copy_(buf).to(self._device)
+        return buf.to(self._device)
 
     def to_cpu(self, buf):
-        return self._get_pinned_buf(buf).copy_(buf).clone()
+        return buf.detach().to('cpu').contiguous()
 
     def _ignore_timing(self):
         self._is_timing = False
@@ -212,7 +231,10 @@ class Renderer:
     def _apply_cmap(self, x, name='viridis'):
         cmap = self._cmaps.get(name, None)
         if cmap is None:
-            cmap = matplotlib.cm.get_cmap(name)
+            try:
+                cmap = matplotlib.colormaps[name]
+            except (AttributeError, KeyError):
+                cmap = matplotlib.cm.get_cmap(name)
             cmap = cmap(np.linspace(0, 1, num=1024), bytes=True)[:, :3]
             cmap = self.to_device(torch.from_numpy(cmap))
             self._cmaps[name] = cmap
@@ -258,24 +280,24 @@ class Renderer:
                     m = np.linalg.inv(np.asarray(input_transform))
             except np.linalg.LinAlgError:
                 res.error = CapturedException()
-            G.synthesis.input.transform.copy_(torch.from_numpy(m))
+            G.synthesis.input.transform.copy_(torch.from_numpy(m).to(G.synthesis.input.transform.device))
 
         # Generate random latents.
         all_seeds = [seed for seed, _weight in w0_seeds] + [stylemix_seed]
         all_seeds = list(set(all_seeds))
         all_zs = np.zeros([len(all_seeds), G.z_dim], dtype=np.float32)
-        all_cs = np.zeros([len(all_seeds), G.c_dim], dtype=np.float32)
+        all_cs = np.zeros([len(all_seeds), getattr(G, 'c_dim', 0)], dtype=np.float32)
         for idx, seed in enumerate(all_seeds):
             rnd = np.random.RandomState(seed)
             all_zs[idx] = rnd.randn(G.z_dim)
-            if G.c_dim > 0:
+            if getattr(G, 'c_dim', 0) > 0:
                 all_cs[idx, rnd.randint(G.c_dim)] = 1
 
         # Run mapping network.
         w_avg = G.mapping.w_avg
         all_zs = self.to_device(torch.from_numpy(all_zs))
         all_cs = self.to_device(torch.from_numpy(all_cs))
-        all_ws = G.mapping(z=all_zs, c=all_cs, truncation_psi=trunc_psi, truncation_cutoff=trunc_cutoff) - w_avg
+        all_ws = G.mapping(all_zs, all_cs, truncation_psi=trunc_psi, truncation_cutoff=trunc_cutoff) - w_avg
         all_ws = dict(zip(all_seeds, all_ws))
 
         # Calculate final W.
@@ -367,11 +389,32 @@ class Renderer:
 
         hooks = [module.register_forward_hook(module_hook) for module in net.modules()]
         try:
-            out = net(*args, **kwargs)
+            out = net(*args, **_filter_forward_kwargs(net, kwargs))
         except CaptureSuccess as e:
             out = e.out
         for hook in hooks:
             hook.remove()
         return out, layers
+
+#----------------------------------------------------------------------------
+
+def _filter_forward_kwargs(module, kwargs):
+    if not kwargs:
+        return kwargs
+    forward = getattr(module, 'forward', module)
+    try:
+        signature = inspect.signature(forward)
+    except (TypeError, ValueError):
+        return kwargs
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in signature.parameters.values()):
+        return kwargs
+    allowed = {
+        name for name, param in signature.parameters.items()
+        if name != 'self' and param.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+    }
+    return {key: value for key, value in kwargs.items() if key in allowed}
 
 #----------------------------------------------------------------------------

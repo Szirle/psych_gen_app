@@ -47,7 +47,7 @@ class EquivarianceWidget:
             _clicked, self.xlate.round = imgui.checkbox('Round##xlate', self.xlate.round)
             imgui.same_line()
             with imgui_utils.item_width(-1 - viz.button_w - viz.spacing), imgui_utils.grayed_out(not self.xlate.anim):
-                changed, speed = imgui.slider_float('##xlate_speed', self.xlate.speed, 0, 0.5, format='Speed %.5f', power=5)
+                changed, speed = imgui_utils.slider_float('##xlate_speed', self.xlate.speed, 0, 0.5, format='Speed %.5f', power=5)
                 if changed:
                     self.xlate.speed = speed
             imgui.same_line()
@@ -71,7 +71,7 @@ class EquivarianceWidget:
             _clicked, self.rotate.anim = imgui.checkbox('Anim##rotate', self.rotate.anim)
             imgui.same_line()
             with imgui_utils.item_width(-1 - viz.button_w - viz.spacing), imgui_utils.grayed_out(not self.rotate.anim):
-                changed, speed = imgui.slider_float('##rotate_speed', self.rotate.speed, -1, 1, format='Speed %.4f', power=3)
+                changed, speed = imgui_utils.slider_float('##rotate_speed', self.rotate.speed, -1, 1, format='Speed %.4f', power=3)
                 if changed:
                     self.rotate.speed = speed
             imgui.same_line()

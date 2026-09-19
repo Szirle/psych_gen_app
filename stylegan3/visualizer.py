@@ -18,6 +18,7 @@ from gui_utils import imgui_utils
 from gui_utils import gl_utils
 from gui_utils import text_utils
 from viz import renderer
+from torch_utils.device import get_device
 from viz import pickle_widget
 from viz import latent_widget
 from viz import stylemix_widget
@@ -26,6 +27,7 @@ from viz import performance_widget
 from viz import capture_widget
 from viz import layer_widget
 from viz import equivariance_widget
+from viz import local_models
 
 #----------------------------------------------------------------------------
 
@@ -267,64 +269,49 @@ class AsyncRenderer:
 @click.argument('pkls', metavar='PATH', nargs=-1)
 @click.option('--capture-dir', help='Where to save screenshot captures', metavar='PATH', default=None)
 @click.option('--browse-dir', help='Specify model path for the \'Browse...\' button', metavar='PATH')
+@click.option('--smoke-test', is_flag=True, help='Create the window, draw a few frames, and exit.')
 def main(
     pkls,
     capture_dir,
-    browse_dir
+    browse_dir,
+    smoke_test,
 ):
     """Interactive model visualizer.
 
     Optional PATH argument can be used specify which .pkl file to load.
     """
+    print(f'Torch device: {get_device()}')
     viz = Visualizer(capture_dir=capture_dir)
 
+    local_paths = local_models.existing_local_models()
+    models_dir = local_models.models_browse_dir()
     if browse_dir is not None:
         viz.pickle_widget.search_dirs = [browse_dir]
+    elif models_dir is not None:
+        viz.pickle_widget.search_dirs = [models_dir]
 
-    # List pickles.
+    # List pickles. Local app.py checkpoints come first so the GUI can load
+    # StyleGAN2 / early-output weights without NVIDIA's original pickle path.
     if len(pkls) > 0:
         for pkl in pkls:
             viz.add_recent_pickle(pkl)
         viz.load_pickle(pkls[0])
     else:
-        pretrained = [
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-afhqv2-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-ffhq-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-ffhqu-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-ffhqu-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-metfaces-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-r-metfacesu-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-afhqv2-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-ffhq-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-ffhqu-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-ffhqu-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-metfaces-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan3/versions/1/files/stylegan3-t-metfacesu-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-afhqcat-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-afhqdog-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-afhqv2-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-afhqwild-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-brecahad-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-celebahq-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-cifar10-32x32.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhq-512x512.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhqu-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-ffhqu-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-lsundog-256x256.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-metfaces-1024x1024.pkl',
-            'https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-metfacesu-1024x1024.pkl'
-        ]
-
-        # Populate recent pickles list with pretrained model URLs.
-        for url in pretrained:
-            viz.add_recent_pickle(url)
+        for path in local_paths:
+            viz.add_recent_pickle(path)
+        if local_paths:
+            viz.load_pickle(local_paths[0])
 
     # Run.
+    frames = 0
     while not viz.should_close():
         viz.draw_frame()
+        frames += 1
+        if smoke_test and frames >= 8:
+            break
     viz.close()
+    if smoke_test:
+        print(f'Smoke test OK ({frames} frames)')
 
 #----------------------------------------------------------------------------
 

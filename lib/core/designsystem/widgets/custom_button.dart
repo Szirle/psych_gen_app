@@ -36,3 +36,41 @@ class CustomElevatedButton extends StatelessWidget {
     );
   }
 }
+
+/// A prominent pill-shaped action button matching the preview canvas style.
+class CustomActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final IconData? icon;
+
+  const CustomActionButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? Colors.white : const Color(0xFF2B3A55);
+    final fg = isDark ? Colors.black : Colors.white;
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: icon != null ? Icon(icon, size: 18) : const SizedBox.shrink(),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        elevation: 0,
+        backgroundColor: bg,
+        foregroundColor: fg,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(
+          fontFamily: 'WorkSans',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}

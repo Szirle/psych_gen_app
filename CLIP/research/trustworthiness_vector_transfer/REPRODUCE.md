@@ -7,7 +7,7 @@ Run from the project root with `/opt/anaconda3/envs/manip311/bin/python` outside
 To reproduce in a **new** output directory:
 
 ```python
-from CLIP.fgclip2_face_impressions import (
+from CLIP.fgclip2_legacy_research import (
     run_trust_transfer, freeze_trust_transfer_tradeoffs,
     evaluate_trust_transfer, report_trust_transfer,
 )

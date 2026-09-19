@@ -38,6 +38,30 @@ activation_funcs = {
 _plugin = None
 _null_tensor = torch.empty([0])
 
+def _is_dense(x):
+    if x.is_contiguous() or (x.ndim == 4 and x.is_contiguous(memory_format=torch.channels_last)):
+        return True
+    expected = 1
+    for stride, size in sorted((stride, size) for stride, size in zip(x.stride(), x.shape) if size > 1):
+        if stride != expected:
+            return False
+        expected *= size
+    return True
+
+
+def _match_layout(x, strides):
+    if all(size < 2 or actual == wanted for size, actual, wanted in zip(x.shape, x.stride(), strides)):
+        return x
+    return torch.empty_strided(x.shape, strides, dtype=x.dtype, device=x.device).copy_(x)
+
+
+def _native_bias_act(x, *args):
+    if x.device.type == 'mps':
+        from .mps import get_plugin
+        return get_plugin().bias_act(x, *args)
+    return _plugin.bias_act(x, *args)
+
+
 def _init():
     global _plugin
     if _plugin is None:
@@ -78,19 +102,25 @@ def bias_act(x, b=None, dim=1, act='linear', alpha=None, gain=None, clamp=None, 
         clamp:  Clamp the output values to `[-clamp, +clamp]`, or `None` to disable
                 the clamping (default).
         impl:   Name of the implementation to use. Can be `"ref"`, `"cuda"`, `"native"`,
-                or `"auto"` (default: `"cuda"`). `"native"` selects the compile-friendly
-                pure-PyTorch path. `"auto"` currently prefers legacy CUDA on CUDA
-                devices and native elsewhere.
+                `"mps"`, or `"auto"` (default: `"cuda"`). `"native"` selects the compile-friendly
+                pure-PyTorch path. `"cuda"` and `"auto"` use Metal on MPS devices;
+                `"mps"` explicitly requests Metal.
 
     Returns:
         Tensor of the same shape and datatype as `x`.
     """
     assert isinstance(x, torch.Tensor)
-    assert impl in ['ref', 'cuda', 'native', 'auto']
+    assert impl in ['ref', 'cuda', 'mps', 'native', 'auto']
     impl = get_bias_act_impl(impl)
     if impl == 'auto':
-        impl = 'cuda' if x.device.type == 'cuda' else 'native'
+        impl = 'cuda' if x.device.type in ('cuda', 'mps') and x.dtype != torch.bfloat16 else 'native'
     if impl == 'cuda' and x.device.type == 'cuda' and _init():
+        return _bias_act_cuda(dim=dim, act=act, alpha=alpha, gain=gain, clamp=clamp).apply(x, b)
+    if impl == 'mps' or (impl == 'cuda' and x.device.type == 'mps'):
+        if x.device.type != 'mps':
+            raise ValueError("impl='mps' requires an MPS tensor")
+        from .mps import get_plugin
+        get_plugin()
         return _bias_act_cuda(dim=dim, act=act, alpha=alpha, gain=gain, clamp=clamp).apply(x, b)
     if impl == 'native':
         from .bias_act_native import bias_act_native
@@ -136,7 +166,7 @@ def _bias_act_ref(x, b=None, dim=1, act='linear', alpha=None, gain=None, clamp=N
 _bias_act_cuda_cache = dict()
 
 def _bias_act_cuda(dim=1, act='linear', alpha=None, gain=None, clamp=None):
-    """Fast CUDA implementation of `bias_act()` using custom ops.
+    """CUDA/Metal implementation of `bias_act()` sharing custom autograd.
     """
     # Parse arguments.
     assert clamp is None or clamp >= 0
@@ -154,21 +184,22 @@ def _bias_act_cuda(dim=1, act='linear', alpha=None, gain=None, clamp=None):
     class BiasActCuda(torch.autograd.Function):
         @staticmethod
         def forward(ctx, x, b): # pylint: disable=arguments-differ
-            ctx.memory_format = torch.channels_last if x.ndim > 2 and x.stride(1) == 1 else torch.contiguous_format
-            x = x.contiguous(memory_format=ctx.memory_format)
+            if not _is_dense(x):
+                x = x.contiguous()
+            ctx.layout = x.stride()
             b = b.contiguous() if b is not None else _null_tensor
             y = x
             if act != 'linear' or gain != 1 or clamp >= 0 or b is not _null_tensor:
-                y = _plugin.bias_act(x, b, _null_tensor, _null_tensor, _null_tensor, 0, dim, spec.cuda_idx, alpha, gain, clamp)
+                y = _native_bias_act(x, b, _null_tensor, _null_tensor, _null_tensor, 0, dim, spec.cuda_idx, alpha, gain, clamp)
             ctx.save_for_backward(
                 x if 'x' in spec.ref or spec.has_2nd_grad else _null_tensor,
                 b if 'x' in spec.ref or spec.has_2nd_grad else _null_tensor,
-                y if 'y' in spec.ref else _null_tensor)
+                y if 'y' in spec.ref or clamp >= 0 else _null_tensor)
             return y
 
         @staticmethod
         def backward(ctx, dy): # pylint: disable=arguments-differ
-            dy = dy.contiguous(memory_format=ctx.memory_format)
+            dy = _match_layout(dy, ctx.layout)
             x, b, y = ctx.saved_tensors
             dx = None
             db = None
@@ -187,8 +218,8 @@ def _bias_act_cuda(dim=1, act='linear', alpha=None, gain=None, clamp=None):
     class BiasActCudaGrad(torch.autograd.Function):
         @staticmethod
         def forward(ctx, dy, x, b, y): # pylint: disable=arguments-differ
-            ctx.memory_format = torch.channels_last if dy.ndim > 2 and dy.stride(1) == 1 else torch.contiguous_format
-            dx = _plugin.bias_act(dy, b, x, y, _null_tensor, 1, dim, spec.cuda_idx, alpha, gain, clamp)
+            ctx.layout = dy.stride()
+            dx = _native_bias_act(dy, b, x, y, _null_tensor, 1, dim, spec.cuda_idx, alpha, gain, clamp)
             ctx.save_for_backward(
                 dy if spec.has_2nd_grad else _null_tensor,
                 x, b, y)
@@ -196,7 +227,7 @@ def _bias_act_cuda(dim=1, act='linear', alpha=None, gain=None, clamp=None):
 
         @staticmethod
         def backward(ctx, d_dx): # pylint: disable=arguments-differ
-            d_dx = d_dx.contiguous(memory_format=ctx.memory_format)
+            d_dx = _match_layout(d_dx, ctx.layout)
             dy, x, b, y = ctx.saved_tensors
             d_dy = None
             d_x = None
@@ -207,7 +238,7 @@ def _bias_act_cuda(dim=1, act='linear', alpha=None, gain=None, clamp=None):
                 d_dy = BiasActCudaGrad.apply(d_dx, x, b, y)
 
             if spec.has_2nd_grad and (ctx.needs_input_grad[1] or ctx.needs_input_grad[2]):
-                d_x = _plugin.bias_act(d_dx, b, x, y, dy, 2, dim, spec.cuda_idx, alpha, gain, clamp)
+                d_x = _native_bias_act(d_dx, b, x, y, dy, 2, dim, spec.cuda_idx, alpha, gain, clamp)
 
             if spec.has_2nd_grad and ctx.needs_input_grad[2]:
                 d_b = d_x.sum([i for i in range(d_x.ndim) if i != dim])

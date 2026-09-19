@@ -1,4 +1,4 @@
-"""Configuration and checkpoint cleanup for opt-in synthesis optimization."""
+"""Configuration and checkpoint cleanup for frozen StyleGAN inference."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def normalize_scalar_attrs(module: nn.Module) -> int:
 
 @dataclass
 class InferenceOptConfig:
-    """Single opt-in configuration for the isolated synthesis wrapper."""
+    """Synthesis options. Use inference_config() for production defaults."""
 
     shared_modconv: bool = False
     fir_compose: bool = False
@@ -50,11 +50,13 @@ class InferenceOptConfig:
     fused_epilogue: bool = False
     force_fp16_all_blocks: bool = False
     fused_modconv: Optional[bool] = None
-    low_precision: str = "fp16"  # fp16 | bf16
+    low_precision: str = "fp16"  # fp32 | fp16 | bf16
     notes: list[str] = field(default_factory=list)
 
     @property
     def low_precision_dtype(self) -> torch.dtype:
+        if self.low_precision in ("no", "fp32", "float32"):
+            return torch.float32
         if self.low_precision == "bf16":
             return torch.bfloat16
         if self.low_precision in ("fp16", "float16"):
@@ -62,11 +64,16 @@ class InferenceOptConfig:
         raise ValueError(f"Unsupported low precision {self.low_precision!r}")
 
 
-def b64_compile_config(*, low_precision: str = "fp16") -> InferenceOptConfig:
-    """Return the validated B64 compile policy."""
+def inference_config(*, low_precision: str = "fp32") -> InferenceOptConfig:
+    """Shared convolution and polyphase FIR, independent of batch or compiler."""
     return InferenceOptConfig(
         shared_modconv=True,
         fir_compose=True,
         fir_compose_mode="polyphase",
         low_precision=low_precision,
     )
+
+
+def b64_compile_config(*, low_precision: str = "fp16") -> InferenceOptConfig:
+    """Compatibility alias for historical benchmarks; not a batch-size policy."""
+    return inference_config(low_precision=low_precision)

@@ -16,7 +16,7 @@ from StyleGAN2_mps.early_output_model import (
 )
 from StyleGAN2_mps.torch_utils.ops.inference_opt import (
     InferenceOptConfig,
-    b64_compile_config,
+    inference_config,
     normalize_scalar_attrs,
 )
 from StyleGAN2_mps.torch_utils.ops.native_backend import use_native_ops
@@ -57,6 +57,9 @@ class EarlyOutputStyleGAN:
     ``device='auto'`` selects CUDA, then MPS, then CPU. ``precision='auto'``
     uses FP16 high-resolution blocks on CUDA/MPS and FP32 on CPU. Mapping stays
     FP32; the conditioned head uses CUDA autocast and FP32 on MPS/CPU.
+    Shared convolution and polyphase FIR are enabled on every device. Eager
+    execution uses Metal/CUDA kernels, with PyTorch fallback for BF16 tensors;
+    compilation uses traceable PyTorch ops.
     """
 
     def __init__(
@@ -125,18 +128,9 @@ class EarlyOutputStyleGAN:
         return value
 
     def _optimization_config(self) -> InferenceOptConfig:
-        low_precision = "bf16" if self.compute_dtype == torch.bfloat16 else "fp16"
-        if self.device.type != "cuda":
-            # CUDA's polyphase composition exceeds Metal's 65,536-channel
-            # convolution limit. The ordinary native resampling path is also
-            # the portable compiled policy for CPU.
-            return InferenceOptConfig(
-                shared_modconv=True,
-                fir_compose=False,
-                fused_modconv=False,
-                low_precision=low_precision,
-            )
-        return b64_compile_config(low_precision=low_precision)
+        # Match the benchmark's shared-convolution/polyphase policy on MPS
+        # as well as CUDA. FP32 must prepare FP32, not unused FP16 kernels.
+        return inference_config(low_precision=self.precision)
 
     def _runtime_forward(self, ws: torch.Tensor) -> torch.Tensor:
         return self._runtime(
@@ -146,6 +140,8 @@ class EarlyOutputStyleGAN:
         )
 
     def _prepare_compiler(self) -> None:
+        # Prepare only the active precision before Dynamo starts tracing.
+        self._runtime.prepare(force_fp32=self.force_fp32)
         if hasattr(torch, "_dynamo"):
             torch._dynamo.config.cache_size_limit = max(
                 int(torch._dynamo.config.cache_size_limit), 128
@@ -190,7 +186,9 @@ class EarlyOutputStyleGAN:
         truncation_psi: float = 1.0,
     ) -> torch.Tensor:
         z_tensor = self._as_float_tensor(z)
-        with torch.inference_mode():
+        with torch.inference_mode(), torch.autocast(
+            self.device.type, enabled=False
+        ), use_native_ops(upfirdn="auto", bias_act="auto"):
             return self.generator.mapping(
                 z_tensor,
                 None,
@@ -218,10 +216,13 @@ class EarlyOutputStyleGAN:
         use_compiled = (
             self._compiled_runtime is not None and selected_noise == self.noise_mode
         )
+        # Preserve explicit block precision even if the webapp caller has an
+        # outer autocast context. Only compiled calls require PyTorch-only ops.
+        backend = "native" if use_compiled else "auto"
         try:
-            with torch.inference_mode(), use_native_ops(
-                upfirdn="native", bias_act="native"
-            ):
+            with torch.inference_mode(), torch.autocast(
+                self.device.type, enabled=False
+            ), use_native_ops(upfirdn=backend, bias_act=backend):
                 if use_compiled:
                     return self._compiled_runtime(ws_tensor)
                 return self._runtime(
@@ -240,9 +241,9 @@ class EarlyOutputStyleGAN:
             )
             self._compiled_runtime = None
             self.compile_enabled = False
-            with torch.inference_mode(), use_native_ops(
-                upfirdn="native", bias_act="native"
-            ):
+            with torch.inference_mode(), torch.autocast(
+                self.device.type, enabled=False
+            ), use_native_ops(upfirdn="auto", bias_act="auto"):
                 return self._runtime(
                     ws_tensor,
                     noise_mode=selected_noise,
@@ -312,6 +313,9 @@ class EarlyOutputStyleGAN:
             "device": self.device.type,
             "precision": self.precision,
             "compiled": self._compiled_runtime is not None,
+            "optimized_synthesis": True,
+            "fir_compose_mode": self._runtime.cfg.fir_compose_mode,
+            "op_backend": "native" if self._compiled_runtime is not None else "auto",
             "resolution": self.output_resolution,
             "num_ws": self.num_ws,
         }

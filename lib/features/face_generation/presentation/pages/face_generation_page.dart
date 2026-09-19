@@ -652,20 +652,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: widget.traversalMode
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Material(
-                  color: theme.colorScheme.surface,
-                  child: TabBar(
-                      controller: _workflowTabs,
-                      onTap: _switchWorkflow,
-                      tabs: [
-                        Tab(text: 'selection.tab'.tr()),
-                        Tab(text: 'manipulation.tab'.tr())
-                      ])),
-            ),
+      appBar: null,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final viewportHeight = constraints.maxHeight;
@@ -746,7 +733,11 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                           color: theme.colorScheme.onSurface),
                                     )
                                   ]),
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 24),
+                              if (!widget.traversalMode) ...[
+                                _buildWorkflowSegmentedControl(theme, isDark),
+                                const SizedBox(height: 24),
+                              ],
                               if (_selectionActive)
                                 StimuliSelectionSettings(
                                   truncationPsi:
@@ -760,17 +751,16 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                       _loadSelection(filters: filters),
                                 ),
                               if (!_selectionActive) ...[
-                                Theme(
-                                  data: theme.copyWith(
-                                      dividerColor: Colors.transparent),
-                                  child: ExpansionTile(
+                                ExpansionTile(
                                     initiallyExpanded: true,
                                     maintainState: true,
                                     title: Text(
                                       'section.experimental_design'.tr(),
                                       style: const TextStyle(
                                         fontFamily: 'WorkSans',
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                     children: <Widget>[
@@ -825,11 +815,7 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                       ]),
                                     ],
                                   ),
-                                ),
-                                Theme(
-                                  data: theme.copyWith(
-                                      dividerColor: Colors.transparent),
-                                  child: SettingsPanel(
+                                SettingsPanel(
                                     showTruncation: widget.traversalMode,
                                     preserveIdentity: faceManipulationRequest
                                         .preserveIdentity,
@@ -864,7 +850,6 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                     },
                                     onGenerateDatasetPressed: () {},
                                   ),
-                                ),
                               ],
                             ],
                           ),
@@ -1201,6 +1186,63 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildWorkflowSegmentedControl(ThemeData theme, bool isDark) {
+    final scheme = theme.colorScheme;
+    final activeBg = isDark ? Colors.white : const Color(0xFF2B3A55);
+    final activeFg = isDark ? Colors.black : Colors.white;
+    final inactiveFg = scheme.onSurfaceVariant;
+
+    Widget segment(String label, bool active, VoidCallback onTap) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: active ? activeBg : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'WorkSans',
+                fontSize: 12.5,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                color: active ? activeFg : inactiveFg,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          segment('selection.tab'.tr(), _selectionActive, () {
+            _workflowTabs.animateTo(0);
+            _switchWorkflow(0);
+          }),
+          const SizedBox(width: 2),
+          segment('manipulation.tab'.tr(), !_selectionActive, () {
+            _workflowTabs.animateTo(1);
+            _switchWorkflow(1);
+          }),
+        ],
       ),
     );
   }

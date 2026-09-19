@@ -475,6 +475,8 @@ class SynthesisBlock(torch.nn.Module):
 
 @persistence.persistent_class
 class SynthesisNetwork(torch.nn.Module):
+    optimized_inference_api = 1
+
     def __init__(self,
         w_dim,                      # Intermediate latent (W) dimensionality.
         img_resolution,             # Output image resolution.
@@ -508,7 +510,17 @@ class SynthesisNetwork(torch.nn.Module):
                 self.num_ws += block.num_torgb
             setattr(self, f'b{res}', block)
 
+    def _apply(self, fn, recurse=True):
+        if getattr(self, 'optimized_inference', False):
+            from .torch_utils.ops.optimized_synthesis import clear_prepared_synthesis
+            clear_prepared_synthesis(self)
+        return super()._apply(fn, recurse=recurse)
+
     def forward(self, ws, **block_kwargs):
+        if getattr(self, 'optimized_inference', False):
+            from .torch_utils.ops.optimized_synthesis import direct_synthesis_forward
+            misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
+            return direct_synthesis_forward(self, ws, **block_kwargs)
         block_ws = []
         with misc.record_function('split_ws'):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
@@ -572,6 +584,16 @@ class Generator(torch.nn.Module):
         latent = self.mapping(latent_in, truncation_psi=truncation_psi).mean(0, keepdim=True)
 
         return latent
+
+    def cov_latent(self, n_latent):
+        latent_in = torch.randn(
+            n_latent, self.z_dim, device=self.device
+        )
+        latent = self.get_latent(latent_in)
+        latent = latent - latent.mean(0, keepdim=True)
+        cov = (latent.T @ latent) / (n_latent - 1)
+
+        return cov
 
     def get_latent(self, z, truncation_psi=1):
         return self.mapping(z, None, truncation_psi=truncation_psi)[:,0]

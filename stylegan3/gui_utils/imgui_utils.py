@@ -13,13 +13,13 @@ import imgui
 
 def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
     s = imgui.get_style()
-    s.window_padding        = [spacing, spacing]
-    s.item_spacing          = [spacing, spacing]
-    s.item_inner_spacing    = [spacing, spacing]
+    s.window_padding        = (spacing, spacing)
+    s.item_spacing          = (spacing, spacing)
+    s.item_inner_spacing    = (spacing, spacing)
     s.columns_min_spacing   = spacing
     s.indent_spacing        = indent
     s.scrollbar_size        = scrollbar
-    s.frame_padding         = [4, 3]
+    s.frame_padding         = (4, 3)
     s.window_border_size    = 1
     s.child_border_size     = 1
     s.popup_border_size     = 1
@@ -32,9 +32,9 @@ def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
     s.grab_rounding         = 3
 
     getattr(imgui, f'style_colors_{color_scheme}')(s)
-    c0 = s.colors[imgui.COLOR_MENUBAR_BACKGROUND]
-    c1 = s.colors[imgui.COLOR_FRAME_BACKGROUND]
-    s.colors[imgui.COLOR_POPUP_BACKGROUND] = [x * 0.7 + y * 0.3 for x, y in zip(c0, c1)][:3] + [1]
+    c0 = list(s.colors[imgui.COLOR_MENUBAR_BACKGROUND])
+    c1 = list(s.colors[imgui.COLOR_FRAME_BACKGROUND])
+    s.colors[imgui.COLOR_POPUP_BACKGROUND] = tuple([x * 0.7 + y * 0.3 for x, y in zip(c0, c1)][:3] + [1])
 
 #----------------------------------------------------------------------------
 
@@ -42,9 +42,9 @@ def set_default_style(color_scheme='dark', spacing=9, indent=23, scrollbar=27):
 def grayed_out(cond=True):
     if cond:
         s = imgui.get_style()
-        text = s.colors[imgui.COLOR_TEXT_DISABLED]
-        grab = s.colors[imgui.COLOR_SCROLLBAR_GRAB]
-        back = s.colors[imgui.COLOR_MENUBAR_BACKGROUND]
+        text = list(s.colors[imgui.COLOR_TEXT_DISABLED])
+        grab = list(s.colors[imgui.COLOR_SCROLLBAR_GRAB])
+        back = list(s.colors[imgui.COLOR_MENUBAR_BACKGROUND])
         imgui.push_style_color(imgui.COLOR_TEXT, *text)
         imgui.push_style_color(imgui.COLOR_CHECK_MARK, *grab)
         imgui.push_style_color(imgui.COLOR_SLIDER_GRAB, *grab)
@@ -95,6 +95,17 @@ def button(label, width=0, enabled=True):
 
 #----------------------------------------------------------------------------
 
+def slider_float(label, value, min_value, max_value, format='%.3f', power=1.0, flags=0):
+    """imgui 2.x removed the non-linear ``power`` slider argument.
+
+    Callers that used ``power != 1`` are mapped onto ``SLIDER_FLAGS_LOGARITHMIC``.
+    """
+    if power != 1.0:
+        flags |= imgui.SLIDER_FLAGS_LOGARITHMIC
+    return imgui.slider_float(label, value, min_value, max_value, format, flags)
+
+#----------------------------------------------------------------------------
+
 def collapsing_header(text, visible=None, flags=0, default=False, enabled=True, show=True):
     expanded = False
     if show:
@@ -139,6 +150,7 @@ def drag_previous_control(enabled=True):
     dx = 0
     dy = 0
     if imgui.begin_drag_drop_source(imgui.DRAG_DROP_SOURCE_NO_PREVIEW_TOOLTIP):
+        imgui.set_drag_drop_payload('_DRAG', b'1')
         if enabled:
             dragging = True
             dx, dy = imgui.get_mouse_drag_delta()

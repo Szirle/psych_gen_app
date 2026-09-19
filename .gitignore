@@ -42,12 +42,22 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Large files
+*.pt
 /models/*
 /checkpoints/*
 /checkpoints_tapped/*
 /runs/*
 traversal_app.py
 TRAVERSAL_APP.md
-/data
+data/*
 data/photo_to_coords.pkl
 data/dim_to_photo_to_ratings.pkl
+data/photo_to_coords.pkl
+/CLIP/research
+/stylegan3/visualizer_faces
+/tests/old_vs_new_coords_analysis/*
+/tests/old_vs_new_coords_cv
+*.pkl
+data/photo_to_coords.pkl

@@ -11,6 +11,6 @@ stylegan_early_output_resolution: 256
 stylegan_early_output_128_path: "./models/sg128_pointwise_style32.pt"
 stylegan_early_output_256_path: "./models/sg256_pointwise_style32.pt"
 gan_device: "auto"
-early_output_precision: "auto"
+early_output_precision: "fp16"
 early_output_compile: true
 early_output_compile_mode: "default"

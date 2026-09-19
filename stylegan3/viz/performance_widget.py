@@ -6,9 +6,9 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-import array
 import numpy as np
 import imgui
+from torch_utils.device import get_device
 from gui_utils import imgui_utils
 
 #----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ class PerformanceWidget:
         self.fps_limit      = 60
         self.use_vsync      = False
         self.is_async       = False
-        self.force_fp32     = False
+        self.force_fp32     = get_device().type != 'cuda'
 
     @imgui_utils.scoped_by_object_id
     def __call__(self, show=True):
@@ -35,7 +35,7 @@ class PerformanceWidget:
             imgui.text('GUI')
             imgui.same_line(viz.label_w)
             with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##gui_times', array.array('f', self.gui_times), scale_min=0)
+                imgui.plot_lines('##gui_times', np.asarray(self.gui_times, dtype=np.float32), scale_min=0)
             imgui.same_line(viz.label_w + viz.font_size * 9)
             t = [x for x in self.gui_times if x > 0]
             t = np.mean(t) if len(t) > 0 else 0
@@ -53,7 +53,7 @@ class PerformanceWidget:
             imgui.text('Render')
             imgui.same_line(viz.label_w)
             with imgui_utils.item_width(viz.font_size * 8):
-                imgui.plot_lines('##render_times', array.array('f', self.render_times), scale_min=0)
+                imgui.plot_lines('##render_times', np.asarray(self.render_times, dtype=np.float32), scale_min=0)
             imgui.same_line(viz.label_w + viz.font_size * 9)
             t = [x for x in self.render_times if x > 0]
             t = np.mean(t) if len(t) > 0 else 0

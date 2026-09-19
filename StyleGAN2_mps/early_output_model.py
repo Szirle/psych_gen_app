@@ -85,7 +85,7 @@ class SynthesisNetwork(nn.Module):
             setattr(self, f"b{resolution}", block)
         self.decoder = PointwiseStyleDecoder(img_resolution)
 
-    def forward(self, ws: torch.Tensor, **block_kwargs) -> torch.Tensor:
+    def forward(self, ws: torch.Tensor, *, decoder_dtype=None, **block_kwargs) -> torch.Tensor:
         misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
         ws = ws.float()
         features = None
@@ -95,7 +95,13 @@ class SynthesisNetwork(nn.Module):
             current = ws.narrow(1, index, block.num_conv + block.num_torgb)
             features, _ = block(features, None, current, skip_torgb=True, **block_kwargs)
             index += block.num_conv
-        return self.decoder(features, ws)
+        # The prefix controls its own activation dtypes. Autocast only the
+        # ordinary decoder layers, leaving modulation in the prefix untouched.
+        # None preserves existing callers' ambient precision behaviour.
+        if decoder_dtype is None:
+            return self.decoder(features, ws)
+        with torch.autocast(ws.device.type, dtype=decoder_dtype):
+            return self.decoder(features, ws)
 
 
 class Generator(nn.Module):
@@ -145,10 +151,13 @@ class OptimizedPointwiseStyleSynthesis(nn.Module):
         self.prefix = build_optimized_early_output_synthesis(prefix, cfg, copy_module=False)
         self.cfg = cfg
 
+    def prepare(self, *, force_fp32=False):
+        return self.prefix.prepare(force_fp32=force_fp32)
+
     def forward(self, ws, noise_mode="const", force_fp32=False):
         features = self.prefix(ws, noise_mode=noise_mode, force_fp32=force_fp32)
         context = (torch.autocast("cuda", dtype=self.cfg.low_precision_dtype)
-                   if features.device.type == "cuda" and not force_fp32 else nullcontext())
+                   if features.device.type == "cuda" and not force_fp32 and self.cfg.low_precision_dtype != torch.float32 else nullcontext())
         with context:
             return self.decoder(features, ws)
 
@@ -273,7 +282,13 @@ def load_ffhq_state_dict(path: str) -> Dict[str, torch.Tensor]:
     raise ValueError(f"Unrecognized StyleGAN checkpoint format: {path!r}")
 
 
-def _load_full_source_generator(path: str) -> FullStyleGAN2Generator:
+def _load_full_source_generator(path: str, *, use_optimized: bool = True) -> FullStyleGAN2Generator:
+    """Load a frozen, unwrapped Generator with optimized synthesis by default.
+
+    G.mapping, G.synthesis.b128, forward arguments and state-dict keys are
+    preserved. Select noise_mode, force_fp32 or low_precision on each synthesis
+    (or generator) call. use_optimized=False requests the original path.
+    """
     source = FullStyleGAN2Generator(Z_DIM, 0, W_DIM, SOURCE_RESOLUTION, IMG_CHANNELS)
     missing, unexpected = source.load_state_dict(load_ffhq_state_dict(path), strict=False)
     substantive_missing = [
@@ -291,6 +306,9 @@ def _load_full_source_generator(path: str) -> FullStyleGAN2Generator:
         raise RuntimeError(
             f"FFHQ checkpoint has {len(unexpected)} unexpected keys; first: {unexpected[:5]}"
         )
+    from .torch_utils.ops.inference_opt import normalize_scalar_attrs
+    normalize_scalar_attrs(source)
+    source.synthesis.optimized_inference = bool(use_optimized)
     source.eval()
     for parameter in source.parameters():
         parameter.requires_grad_(False)

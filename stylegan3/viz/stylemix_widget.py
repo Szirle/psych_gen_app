@@ -38,7 +38,7 @@ class StyleMixingWidget:
             pos2 = imgui.get_content_region_max()[0] - 1 - viz.button_w
             pos1 = pos2 - imgui.get_text_line_height() - viz.spacing
             pos0 = viz.label_w + viz.font_size * 12
-            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
+            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, (0, 0))
             for idx in range(num_enables):
                 imgui.same_line(round(pos0 + (pos1 - pos0) * (idx / (num_enables - 1))))
                 if idx == 0:

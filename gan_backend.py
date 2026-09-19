@@ -20,10 +20,10 @@ import pickle
 import numpy as np
 from types import SimpleNamespace
 from typing import Iterable, List, Optional, Tuple, Union
-from stylgan_distilled import run_until_resolution, _style_for_block_torgb, load_torgb_head
+from stylegan_distilled import run_until_resolution, _style_for_block_torgb
 import PIL.Image
 from PIL import Image
-from utils import load_generator, load_distilled_generator, _to_nhwc_uint8, _get_device, _ensure_tensor, _to01, _grid_preview, _device_synchronize, _reset_peak_mem, _get_mem_bytes
+from utils import load_generator, _to_nhwc_uint8, _get_device, _ensure_tensor, _to01, _grid_preview, _device_synchronize, _reset_peak_mem, _get_mem_bytes
 import torch
 import torch.nn.functional as F
 
@@ -173,9 +173,6 @@ def _mapping(G, z: torch.Tensor, truncation_psi: float = 1.0) -> torch.Tensor:
     # G.mapping returns [N, num_ws, w_dim]
     return G.mapping(z, None, truncation_psi=truncation_psi)
 
-# Old:
-# def _synthesis(G, w: torch.Tensor, noise_mode: str = 'const') -> torch.Tensor:
-#     return G.synthesis(w, noise_mode=noise_mode)
    
 # New (e.g., first 6 style layers):
 def _synthesis(
@@ -285,19 +282,8 @@ class Build_model:
         self.num_ws = _shape_num_ws(self.G)
 
 
-        if distilled_network_pkl:
-            self.G_distilled, self.device = load_distilled_generator(distilled_network_pkl, self.device)
-            # compile the generator
-            self.head =  load_torgb_head(
-            self.G, 64,
-            checkpoint="./models/torgb_64to128_lpips.pth",
-            use_sr_head=True,
-            device=device,
-            eval_mode=True,
-        )
-        else:
-            self.head = None
-            self.G_distilled = self.G
+        self.head = None
+        self.G_distilled = self.G
 
         # Minimal wrappers to emulate TF API used downstream
         class _MappingWrapper:

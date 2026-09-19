@@ -20,7 +20,7 @@ difference_b_minus_a = float(means[1] - means[0])
 For a directory, replace `/path/to/hidden_faces` and choose an output directory:
 
 ```bash
-/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_face_impressions trust-predict \
+/opt/anaconda3/envs/manip311/bin/python -m CLIP.fgclip2_legacy_research trust-predict \
   --bundle CLIP/research/trustworthiness/trustworthiness_model.joblib \
   --images /path/to/hidden_faces \
   --output /private/tmp/trustworthiness_predictions
@@ -50,31 +50,34 @@ High-region RMSE was .03900; close-pair ordering was 68.7% across 438 same-fold 
 
 ## Reusable research pipeline
 
-All functions live in `CLIP/fgclip2_face_impressions.py`:
+Reusable model, CV, and inference functions live in
+`CLIP/fgclip2_face_impressions.py`. Dataset-specific research orchestration and
+reporting live in `CLIP/fgclip2_legacy_research.py`:
 
 | Function | Purpose |
 |---|---|
-| `extract_impression_features`, `load_trust_data` | Cached logits, ratings and aligned feature banks |
-| `trust_recipe_grid`, `evolve_trust_groups` | Finite recipe search and evolutionary cue-group subsets |
+| `extract_impression_features` | Cached logits and aligned feature banks |
+| `load_trust_data` | Legacy experiment artifact loading |
+| `trust_recipe_grid`, `evolve_trust_groups` | Reusable recipe search and evolutionary cue-group subsets |
 | `trust_candidate_cv` | Complete inner OOF predictions with training-only preprocessing |
 | `choose_trust_strategy` | MSE-based recipe or convex-blend selection |
 | `trust_outer_cv` | Evaluation with development faces kept in training |
 | `fit_trust_recipe`, `fit_trust_strategy`, `predict_trust_readout` | Reusable readouts |
 | `trust_tail_metrics` | High-rating error and close-pair ordering |
-| `evaluate_trustworthiness` | Evaluation, final fit and artifact export |
+| `evaluate_trustworthiness` | Legacy evaluation, final fit and artifact export |
 | `TrustworthinessPredictor` | Label-free image or score inference |
-| `validate_trust_inference` | Fresh-image/cache/batch numerical checks |
-| `report_trustworthiness` | Regenerate report and figures without fitting |
+| `validate_trust_inference` | Legacy fresh-image/cache/batch numerical checks |
+| `report_trustworthiness` | Legacy report and figure regeneration |
 
 CLI stages are `trust-encode`, `trust-explore`, `trust-evaluate`, `trust-validate`, and `trust-report`, each with `--output CLIP/research/trustworthiness`. Encoding accepts `--images` and `--ratings`; defaults point to the original images and ratings file. The frozen bank is `phrase_groups.json`; provenance is `literature.json`. Exploration uses seed 20260910 and 400 development faces. For a new experiment, copy those bank/provenance files into a new output directory to preserve this frozen experiment.
 
 ```bash
 # Rebuild presentation only:
 MPLCONFIGDIR=/private/tmp/fgclip-mpl /opt/anaconda3/envs/manip311/bin/python \
-  -m CLIP.fgclip2_face_impressions trust-report --output CLIP/research/trustworthiness
+  -m CLIP.fgclip2_legacy_research trust-report --output CLIP/research/trustworthiness
 
 # Numerical, cache, serialization and held-out-label leakage tests:
-/opt/anaconda3/envs/manip311/bin/python -W error -m CLIP.test_fgclip2_research
+/opt/anaconda3/envs/manip311/bin/python -W error -m CLIP.tests.test_fgclip2_research
 ```
 
 `evaluation_source.py.txt` preserves the evaluation implementation. Later report/deployment additions have separate runtime/report source hashes. The report includes all 256 phrases, 14 literature sources, all tested model families and high-end diagnostics. Figures are exported as PNG and SVG.

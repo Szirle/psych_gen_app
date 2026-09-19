@@ -1,8 +1,7 @@
-"""Isolated, opt-in StyleGAN2 synthesis optimization experiments.
+"""Prepared frozen synthesis with shared convolution and composed resampling.
 
-The benchmark harness deep-copies the generator before preparing and executing
-``OptimizedSynthesis``.  The original ``synthesis.b{resolution}`` registration,
-state-dict keys, defaults, and checkpoint behavior therefore remain unchanged.
+Only the active precision and FIR representation are cached. Parameters and
+checkpoint keys remain on the source synthesis; derived buffers are nonpersistent.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from .fused_up_modconv import compose_weight_with_fir_expanded
 from .upfirdn2d_native import _filter_2d
 
 
-_PREFIX = "_b64opt_"
+_PREFIX = "_inference_"
 
 
 def _suffix_for_dtype(dtype: torch.dtype) -> str:
@@ -38,70 +37,81 @@ def _set_buffer(module: nn.Module, name: str, value: torch.Tensor) -> None:
     module.register_buffer(name, value.detach().contiguous(), persistent=False)
 
 
-def _prepare_layer(layer: nn.Module, *, prepare_fir: bool) -> None:
-    """Precompute frozen shared weights, energies, and optional FIR kernels."""
-    weight32 = layer.weight.detach().float()
-    _, in_channels, kh, kw = weight32.shape
-    scale = (
-        weight32.abs()
-        .amax(dim=(1, 2, 3), keepdim=True)
-        .clamp_min(1e-8)
-        .reciprocal()
-        * float(1.0 / (in_channels * kh * kw) ** 0.5)
-    )
-    weight16_norm32 = weight32 * scale
-    energy32 = weight32.square().sum(dim=(2, 3))
-
-    _set_buffer(layer, f"{_PREFIX}weight_fp32", weight32)
-    _set_buffer(layer, f"{_PREFIX}weight_fp16", weight16_norm32.half())
-    _set_buffer(layer, f"{_PREFIX}weight_bf16", weight32.bfloat16())
-    _set_buffer(layer, f"{_PREFIX}energy_fp32", energy32)
-    _set_buffer(layer, f"{_PREFIX}energy_fp16", weight16_norm32.square().sum(dim=(2, 3)))
-    _set_buffer(layer, f"{_PREFIX}energy_bf16", energy32)
-
-    if not prepare_fir or int(layer.up) != 2:
-        return
-
-    fir, _ = _filter_2d(
-        layer.resample_filter,
-        device=weight32.device,
-        dtype=torch.float32,
-        gain=4.0,
-        force_dense=True,
-    )
-    if fir.ndim == 1:
-        fir = fir[:, None] * fir[None, :]
-
-    for suffix, weight in (
-        ("fp32", weight32),
-        ("fp16", weight16_norm32.half()),
-        ("bf16", weight32.bfloat16()),
-    ):
-        fir_t = fir.to(dtype=weight.dtype)
-        composed = compose_weight_with_fir_expanded(weight, fir_t)
-        _set_buffer(
-            layer,
-            f"{_PREFIX}expanded_{suffix}",
-            composed.transpose(0, 1),
-        )
-        phase_order = ((0, 0), (0, 1), (1, 0), (1, 1))
-        phases = [
-            composed[:, :, oy::2, ox::2].flip((2, 3))
-            for oy, ox in phase_order
-        ]
-        _set_buffer(layer, f"{_PREFIX}polyphase_{suffix}", torch.cat(phases))
+def clear_prepared_synthesis(synthesis: nn.Module) -> None:
+    """Discard derived buffers before changing precision, weights or device."""
+    for layer in synthesis.modules():
+        for name in list(layer._buffers):
+            if name.startswith((_PREFIX, "_b64opt_")):
+                delattr(layer, name)
+        layer.__dict__.pop("_inference_signature", None)
 
 
-def prepare_optimized_synthesis(synthesis: nn.Module, cfg: Any) -> None:
-    """Prepare an isolated candidate synthesis network in place."""
-    wants_shared = bool(cfg.shared_modconv or cfg.fir_compose)
-    if not wants_shared:
-        return
+def _tensor_signature(tensor):
+    return (id(tensor), tensor._version, tensor.device, tensor.dtype)
+
+
+def _prepare_layer(layer: nn.Module, *, dtype: torch.dtype, fir_mode: str | None) -> bool:
+    """Keep one representation per layer; rebuild after source weights change."""
+    signature = (dtype, fir_mode, _tensor_signature(layer.weight),
+                 _tensor_signature(layer.resample_filter))
+    if layer.__dict__.get("_inference_signature") == signature:
+        return False
+    clear_prepared_synthesis(layer)
+    # Preparation may first happen inside an inference_mode call. These constants
+    # must remain ordinary tensors so subsequent latent-gradient calls can save them.
+    with torch.inference_mode(False), torch.no_grad():
+        weight32 = layer.weight.detach().float()
+        if dtype == torch.float16:
+            _, in_channels, kh, kw = weight32.shape
+            scale = (weight32.abs().amax(dim=(1, 2, 3), keepdim=True)
+                     .clamp_min(1e-8).reciprocal()
+                     * float(1.0 / (in_channels * kh * kw) ** 0.5))
+            weight32 = weight32 * scale
+        suffix = _suffix_for_dtype(dtype)
+        _set_buffer(layer, f"{_PREFIX}energy_{suffix}", weight32.square().sum(dim=(2, 3)))
+        weight = weight32.to(dtype)
+        if fir_mode is None:
+            _set_buffer(layer, f"{_PREFIX}weight_{suffix}", weight)
+        else:
+            if tuple(weight.shape[2:]) != (3, 3) or tuple(layer.resample_filter.shape) != (4, 4) or layer.padding != 1:
+                raise ValueError("Composed FIR requires a 3x3 convolution, 4x4 filter and padding=1")
+            fir, _ = _filter_2d(layer.resample_filter, device=weight.device,
+                               dtype=torch.float32, gain=4.0, force_dense=True)
+            composed = compose_weight_with_fir_expanded(weight, fir.to(dtype))
+            if fir_mode == "expanded":
+                prepared = composed.transpose(0, 1)
+            elif fir_mode == "polyphase":
+                prepared = torch.cat([composed[:, :, oy::2, ox::2].flip((2, 3))
+                                      for oy, ox in ((0, 0), (0, 1), (1, 0), (1, 1))])
+            else:
+                raise ValueError(f"Unsupported FIR mode {fir_mode!r}")
+            _set_buffer(layer, f"{_PREFIX}{fir_mode}_{suffix}", prepared)
+    layer._inference_signature = signature
+    return True
+
+
+def prepare_optimized_synthesis(synthesis: nn.Module, cfg: Any, *, force_fp32=False) -> bool:
+    """Prepare the active profile. Return whether any derived buffer changed.
+
+    Call before torch.compile tracing; eager forwards also check for weight updates.
+    Weight training uses the original model, since these kernels are frozen constants.
+    """
+    if any(p.requires_grad for p in synthesis.parameters()):
+        raise RuntimeError("Optimized synthesis requires frozen weights; use the original synthesis for weight training")
+    if not (cfg.shared_modconv or cfg.fir_compose):
+        return False
+    changed = False
     for resolution in synthesis.block_resolutions:
         block = getattr(synthesis, f"b{resolution}")
-        if hasattr(block, "conv0"):
-            _prepare_layer(block.conv0, prepare_fir=bool(cfg.fir_compose))
-        _prepare_layer(block.conv1, prepare_fir=False)
+        dtype = (cfg.low_precision_dtype
+                 if (block.use_fp16 or cfg.force_fp16_all_blocks) and not force_fp32
+                 else torch.float32)
+        for name in ("conv0", "conv1"):
+            if hasattr(block, name):
+                layer = getattr(block, name)
+                mode = cfg.fir_compose_mode if cfg.fir_compose and layer.up == 2 else None
+                changed = _prepare_layer(layer, dtype=dtype, fir_mode=mode) or changed
+    return changed
 
 
 def _noise(layer: nn.Module, x: torch.Tensor, noise_mode: str) -> torch.Tensor | None:
@@ -163,7 +173,6 @@ def _shared_layer(
             styles.detach().abs().amax(dim=1, keepdim=True).clamp_min(1e-8).reciprocal()
         )
     suffix = _suffix_for_dtype(x.dtype)
-    weight = getattr(layer, f"{_PREFIX}weight_{suffix}")
     energy = getattr(layer, f"{_PREFIX}energy_{suffix}")
 
     x = x * styles.to(x.dtype).reshape(x.shape[0], -1, 1, 1)
@@ -172,7 +181,7 @@ def _shared_layer(
     else:
         x = conv2d_resample.conv2d_resample(
             x=x,
-            w=weight,
+            w=getattr(layer, f"{_PREFIX}weight_{suffix}"),
             f=layer.resample_filter,
             up=int(layer.up),
             padding=int(layer.padding),
@@ -239,14 +248,22 @@ def _layer(
 
 
 class OptimizedSynthesis(nn.Module):
-    """Experimental synthesis wrapper with no changes to production classes."""
+    """Frozen inference with gradients with respect to styles and inputs."""
 
     def __init__(self, synthesis: nn.Module, cfg: Any):
         super().__init__()
         self.synthesis = synthesis
         self.cfg = cfg
         self.resolutions = tuple(int(r) for r in synthesis.block_resolutions)
-        prepare_optimized_synthesis(synthesis, cfg)
+        synthesis.requires_grad_(False)
+        self.prepare()
+
+    def prepare(self, *, force_fp32=False):
+        return prepare_optimized_synthesis(self.synthesis, self.cfg, force_fp32=force_fp32)
+
+    def _apply(self, fn, recurse=True):
+        clear_prepared_synthesis(self.synthesis)
+        return super()._apply(fn, recurse=recurse)
 
     def forward(
         self,
@@ -254,94 +271,101 @@ class OptimizedSynthesis(nn.Module):
         noise_mode: str = "const",
         force_fp32: bool = False,
     ) -> torch.Tensor:
-        ws = ws.to(torch.float32)
-        x = None
-        img = None
-        w_base = 0
+        return optimized_synthesis_forward(self.synthesis, ws, self.cfg,
+                                           noise_mode=noise_mode, force_fp32=force_fp32)
 
-        for resolution in self.resolutions:
-            block = getattr(self.synthesis, f"b{resolution}")
-            low_dtype = getattr(self.cfg, "low_precision_dtype", torch.float16)
-            dtype = (
-                low_dtype
-                if (block.use_fp16 or bool(self.cfg.force_fp16_all_blocks))
-                and not force_fp32
-                else torch.float32
+
+def optimized_synthesis_forward(synthesis, ws, cfg, *, noise_mode="random", force_fp32=False):
+    """Evaluate the source synthesis directly, preserving its registered structure."""
+    if not torch.compiler.is_compiling():
+        prepare_optimized_synthesis(synthesis, cfg, force_fp32=force_fp32)
+    ws = ws.to(torch.float32)
+    x = None
+    img = None
+    w_base = 0
+
+    for resolution in synthesis.block_resolutions:
+        block = getattr(synthesis, f"b{resolution}")
+        low_dtype = getattr(cfg, "low_precision_dtype", torch.float16)
+        dtype = (
+            low_dtype
+            if (block.use_fp16 or bool(cfg.force_fp16_all_blocks))
+            and not force_fp32
+            else torch.float32
+        )
+        memory_format = (
+            torch.channels_last
+            if block.channels_last and not force_fp32
+            else torch.contiguous_format
+        )
+        if block.in_channels == 0:
+            x = block.const.to(dtype=dtype, memory_format=memory_format)
+            x = x.unsqueeze(0).repeat([ws.shape[0], 1, 1, 1])
+        else:
+            x = x.to(dtype=dtype, memory_format=memory_format)
+
+        w_idx = w_base
+        if block.in_channels == 0:
+            x = _layer(
+                block.conv1,
+                x,
+                ws[:, w_idx],
+                cfg=cfg,
+                noise_mode=noise_mode,
             )
-            memory_format = (
-                torch.channels_last
-                if block.channels_last and not force_fp32
-                else torch.contiguous_format
+            w_idx += 1
+        elif block.architecture == "resnet":
+            y = block.skip(x, gain=float(0.5**0.5))
+            x = _layer(
+                block.conv0,
+                x,
+                ws[:, w_idx],
+                cfg=cfg,
+                noise_mode=noise_mode,
             )
-            if block.in_channels == 0:
-                x = block.const.to(dtype=dtype, memory_format=memory_format)
-                x = x.unsqueeze(0).repeat([ws.shape[0], 1, 1, 1])
-            else:
-                x = x.to(dtype=dtype, memory_format=memory_format)
+            w_idx += 1
+            x = _layer(
+                block.conv1,
+                x,
+                ws[:, w_idx],
+                cfg=cfg,
+                noise_mode=noise_mode,
+                gain=float(0.5**0.5),
+            )
+            w_idx += 1
+            x = y.add_(x)
+        else:
+            x = _layer(
+                block.conv0,
+                x,
+                ws[:, w_idx],
+                cfg=cfg,
+                noise_mode=noise_mode,
+            )
+            w_idx += 1
+            x = _layer(
+                block.conv1,
+                x,
+                ws[:, w_idx],
+                cfg=cfg,
+                noise_mode=noise_mode,
+            )
+            w_idx += 1
 
-            w_idx = w_base
-            if block.in_channels == 0:
-                x = _layer(
-                    block.conv1,
-                    x,
-                    ws[:, w_idx],
-                    cfg=self.cfg,
-                    noise_mode=noise_mode,
-                )
-                w_idx += 1
-            elif block.architecture == "resnet":
-                y = block.skip(x, gain=float(0.5**0.5))
-                x = _layer(
-                    block.conv0,
-                    x,
-                    ws[:, w_idx],
-                    cfg=self.cfg,
-                    noise_mode=noise_mode,
-                )
-                w_idx += 1
-                x = _layer(
-                    block.conv1,
-                    x,
-                    ws[:, w_idx],
-                    cfg=self.cfg,
-                    noise_mode=noise_mode,
-                    gain=float(0.5**0.5),
-                )
-                w_idx += 1
-                x = y.add_(x)
-            else:
-                x = _layer(
-                    block.conv0,
-                    x,
-                    ws[:, w_idx],
-                    cfg=self.cfg,
-                    noise_mode=noise_mode,
-                )
-                w_idx += 1
-                x = _layer(
-                    block.conv1,
-                    x,
-                    ws[:, w_idx],
-                    cfg=self.cfg,
-                    noise_mode=noise_mode,
-                )
-                w_idx += 1
+        if img is not None:
+            img = upfirdn2d.upsample2d(img, block.resample_filter)
+        if block.is_last or block.architecture == "skip":
+            y = block.torgb(x, ws[:, w_idx], fused_modconv=True)
+            y = y.to(
+                dtype=torch.float32,
+                memory_format=torch.contiguous_format,
+            )
+            img = img.add_(y) if img is not None else y
 
-            if img is not None:
-                img = upfirdn2d.upsample2d(img, block.resample_filter)
-            if block.is_last or block.architecture == "skip":
-                y = block.torgb(x, ws[:, w_idx], fused_modconv=True)
-                y = y.to(
-                    dtype=torch.float32,
-                    memory_format=torch.contiguous_format,
-                )
-                img = img.add_(y) if img is not None else y
+        # ToRGB overlaps the next block's first style in StyleGAN2.
+        w_base += int(block.num_conv)
 
-            # ToRGB overlaps the next block's first style in StyleGAN2.
-            w_base += int(block.num_conv)
-
-        return img
-
+    return img
 
 class OptimizedEarlyOutputSynthesis(nn.Module):
     """Prepared StyleGAN prefix followed by an early-output decoder.
@@ -358,7 +382,15 @@ class OptimizedEarlyOutputSynthesis(nn.Module):
         self.synthesis = synthesis
         self.cfg = cfg
         self.resolutions = tuple(int(r) for r in synthesis.block_resolutions)
-        prepare_optimized_synthesis(synthesis, cfg)
+        synthesis.requires_grad_(False)
+        self.prepare()
+
+    def prepare(self, *, force_fp32=False):
+        return prepare_optimized_synthesis(self.synthesis, self.cfg, force_fp32=force_fp32)
+
+    def _apply(self, fn, recurse=True):
+        clear_prepared_synthesis(self.synthesis)
+        return super()._apply(fn, recurse=recurse)
 
     def forward(
         self,
@@ -366,6 +398,8 @@ class OptimizedEarlyOutputSynthesis(nn.Module):
         noise_mode: str = "const",
         force_fp32: bool = False,
     ) -> torch.Tensor:
+        if not torch.compiler.is_compiling():
+            self.prepare(force_fp32=force_fp32)
         ws = ws.to(torch.float32)
         features = None
         w_base = 0
@@ -444,7 +478,7 @@ class OptimizedEarlyOutputSynthesis(nn.Module):
 
         autocast = (
             torch.autocast(device_type="cuda", dtype=low_dtype)
-            if features.device.type == "cuda" and not force_fp32
+            if features.device.type == "cuda" and not force_fp32 and low_dtype != torch.float32
             else nullcontext()
         )
         with autocast:
@@ -458,7 +492,7 @@ def build_optimized_synthesis(
     *,
     copy_module: bool = True,
 ) -> OptimizedSynthesis:
-    """Build an opt-in wrapper without mutating the source module by default."""
+    """Build frozen inference, copying the source unless explicitly shared."""
     candidate = copy.deepcopy(synthesis) if copy_module else synthesis
     optimized = OptimizedSynthesis(candidate, cfg)
     optimized.eval()
@@ -480,3 +514,31 @@ def build_optimized_early_output_synthesis(
     for parameter in optimized.parameters():
         parameter.requires_grad_(False)
     return optimized
+
+
+def direct_synthesis_forward(synthesis, ws, *, noise_mode="random", force_fp32=False,
+                             low_precision=None, fused_modconv=None, update_emas=False):
+    """Per-call inference policy for a directly loaded Generator.
+
+    Unspecified precision follows ambient autocast, otherwise the original
+    CUDA-FP16 / non-CUDA-FP32 policy. Explicit low_precision selects the tagged
+    high blocks; force_fp32 overrides both it and ambient autocast. The shared
+    algorithm does not construct per-sample fused convolution weights, so the
+    original fused_modconv hint is accepted but is not needed here.
+    """
+    from .inference_opt import inference_config
+    from .native_backend import get_bias_act_impl, get_upfirdn_impl, use_native_ops
+
+    if low_precision is None:
+        if torch.is_autocast_enabled(ws.device.type):
+            low_precision = {torch.float16: "fp16", torch.bfloat16: "bf16"}[torch.get_autocast_dtype(ws.device.type)]
+        else:
+            low_precision = "fp16" if ws.device.type == "cuda" else "fp32"
+    cfg = inference_config(low_precision="fp32" if force_fp32 else low_precision)
+    # Respect explicit caller backend contexts; default to CUDA/Metal with BF16
+    # fallback. Disable outer AMP after reading its requested precision so it
+    # cannot silently change FP32 low blocks or cache construction arithmetic.
+    with use_native_ops(upfirdn=get_upfirdn_impl("auto"), bias_act=get_bias_act_impl("auto")), \
+         torch.autocast(ws.device.type, enabled=False):
+        return optimized_synthesis_forward(synthesis, ws, cfg,
+                                           noise_mode=noise_mode, force_fp32=force_fp32)

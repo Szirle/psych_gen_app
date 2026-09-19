@@ -20,6 +20,7 @@ import tqdm
 import dnnlib
 
 import legacy
+from torch_utils.device import get_device
 from training import dataset
 
 #----------------------------------------------------------------------------
@@ -118,8 +119,10 @@ def main():
 @click.option('--source', help='Network pkl, dataset zip, or directory', metavar='[PKL|ZIP|DIR]', required=True)
 @click.option('--num', help='Number of images to process  [default: all]', metavar='INT', type=click.IntRange(min=1))
 @click.option('--seed', help='Random seed for selecting the images', metavar='INT', type=click.IntRange(min=0), default=0, show_default=True)
-def stats(source, num, seed, device=torch.device('cuda')):
+def stats(source, num, seed, device=None):
     """Calculate dataset mean and standard deviation needed by 'calc'."""
+    if device is None:
+        device = get_device()
     torch.multiprocessing.set_start_method('spawn')
     num_images, _image_size, image_iter = stream_source_images(source=source, num=num, seed=seed, device=device)
 
@@ -146,8 +149,10 @@ def stats(source, num, seed, device=torch.device('cuda')):
 @click.option('--seed', help='Random seed for selecting the images', metavar='INT', type=click.IntRange(min=0), default=0, show_default=True)
 @click.option('--beta', help='Shape parameter for the Kaiser window', metavar='FLOAT', type=click.FloatRange(min=0), default=8, show_default=True)
 @click.option('--interp', help='Frequency-domain interpolation factor', metavar='INT', type=click.IntRange(min=1), default=4, show_default=True)
-def calc(source, dest, mean, std, num, seed, beta, interp, device=torch.device('cuda')):
+def calc(source, dest, mean, std, num, seed, beta, interp, device=None):
     """Calculate average power spectrum and store it in .npz file."""
+    if device is None:
+        device = get_device()
     torch.multiprocessing.set_start_method('spawn')
     num_images, image_size, image_iter = stream_source_images(source=source, num=num, seed=seed, device=device)
     spectrum_size = image_size * interp

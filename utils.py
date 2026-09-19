@@ -69,16 +69,6 @@ def load_generator(network_pkl: Optional[str] = None, device: Optional[str] = No
     return G, dev
 
 
-@torch.no_grad()
-def load_distilled_generator(pkl_path: str, device: Optional[torch.device] = None) -> nn.Module:
-    if pkl_path is None:
-        return None, device
-    with open(pkl_path, "rb") as f:
-        obj = pickle.load(f)
-    G_tapped = obj["G_ema"].eval().to(device)
-    return G_tapped, device
-
-
 def load_psychGAN_data(data_path):
     if not data_path.endswith("/"):
         data_path += "/"

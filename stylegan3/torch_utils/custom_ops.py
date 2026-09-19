@@ -42,7 +42,16 @@ def _find_compiler_bindir():
 #----------------------------------------------------------------------------
 
 def _get_mangled_gpu_name():
-    name = torch.cuda.get_device_name().lower()
+    try:
+        if torch.cuda.is_available():
+            name = torch.cuda.get_device_name().lower()
+        else:
+            name = torch.device('cpu').type
+            mps = getattr(torch.backends, 'mps', None)
+            if mps is not None and mps.is_available():
+                name = 'mps'
+    except Exception:
+        name = 'unknown'
     out = []
     for c in name:
         if re.match('[a-z0-9_-]+', c):

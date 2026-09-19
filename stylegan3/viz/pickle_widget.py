@@ -119,7 +119,7 @@ class PickleWidget:
                         imgui.menu_item('No results found')
             recurse(self.search_dirs)
             if self.browse_refocus:
-                imgui.set_scroll_here()
+                imgui.set_scroll_here_y()
                 viz.skip_frame() # Focus will change on next frame.
                 self.browse_refocus = False
             imgui.end_popup()
@@ -133,7 +133,7 @@ class PickleWidget:
     def list_runs_and_pkls(self, parents):
         items = []
         run_regex = re.compile(r'\d+-.*')
-        pkl_regex = re.compile(r'network-snapshot-\d+\.pkl')
+        pkl_regex = re.compile(r'(network-snapshot-\d+\.pkl|.*\.(pkl|pt))$')
         for parent in set(parents):
             if os.path.isdir(parent):
                 for entry in os.scandir(parent):

@@ -115,13 +115,13 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
                           decoration: InputDecoration(
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(5.0),
-                              borderSide: const BorderSide(
-                                  color: Colors.black26, width: 1.0),
+                              borderSide: BorderSide(
+                                  color: scheme.primary, width: 1.0),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(5.0),
-                              borderSide: const BorderSide(
-                                  color: Colors.black26, width: 1.0),
+                              borderSide: BorderSide(
+                                  color: scheme.outlineVariant, width: 1.0),
                             ),
                             contentPadding: const EdgeInsets.only(
                                 top: 12, left: 12, right: 12),
@@ -270,15 +270,18 @@ class _CharacteristicSelectorState extends State<CharacteristicSelector> {
     );
   }
 
-  InputDecoration _dropdownDecoration() => InputDecoration(
+  InputDecoration _dropdownDecoration() {
+    final scheme = Theme.of(context).colorScheme;
+    return InputDecoration(
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5.0),
-          borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+          borderSide: BorderSide(color: scheme.primary, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5.0),
-          borderSide: const BorderSide(color: Colors.black26, width: 1.0),
+          borderSide: BorderSide(color: scheme.outlineVariant, width: 1.0),
         ),
         contentPadding: const EdgeInsets.only(top: 12, left: 12, right: 12),
       );
+  }
 }

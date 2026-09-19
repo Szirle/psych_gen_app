@@ -48,7 +48,7 @@ class LayerWidget:
             # Begin list.
             width = viz.font_size * 28
             height = imgui.get_text_line_height_with_spacing() * 12 + viz.spacing
-            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, [0, 0])
+            imgui.push_style_var(imgui.STYLE_FRAME_PADDING, (0, 0))
             imgui.push_style_color(imgui.COLOR_CHILD_BACKGROUND, *bg_color)
             imgui.push_style_color(imgui.COLOR_HEADER, 0, 0, 0, 0)
             imgui.push_style_color(imgui.COLOR_HEADER_HOVERED, 0.16, 0.29, 0.48, 0.5)
@@ -64,7 +64,7 @@ class LayerWidget:
                 if selected:
                     self.cur_layer = layer.name
                     if self.refocus:
-                        imgui.set_scroll_here()
+                        imgui.set_scroll_here_y()
                         viz.skip_frame() # Focus will change on next frame.
                         self.refocus = False
                 imgui.same_line(width - viz.font_size * 13)
@@ -165,7 +165,7 @@ class LayerWidget:
             # FFT beta.
             with imgui_utils.grayed_out(not self.fft_show):
                 with imgui_utils.item_width(-1 - viz.button_w - viz.spacing):
-                    _changed, self.fft_beta = imgui.slider_float('##fft_beta', self.fft_beta, min_value=0, max_value=50, format='Kaiser beta %.2f', power=2.63)
+                    _changed, self.fft_beta = imgui_utils.slider_float('##fft_beta', self.fft_beta, min_value=0, max_value=50, format='Kaiser beta %.2f', power=2.63)
                 imgui.same_line()
                 if imgui_utils.button('Reset##fft_beta', width=-1, enabled=(self.fft_beta != 8)):
                     self.fft_beta = 8

@@ -21,6 +21,13 @@ from .native_backend import get_upfirdn_impl
 
 _plugin = None
 
+def _native_upfirdn2d(x, *args):
+    if x.device.type == 'mps':
+        from .mps import get_plugin
+        return get_plugin().upfirdn2d(x, *args)
+    return _plugin.upfirdn2d(x, *args)
+
+
 def _init():
     global _plugin
     if _plugin is None:
@@ -153,20 +160,26 @@ def upfirdn2d(x, f, up=1, down=1, padding=0, flip_filter=False, gain=1, impl='cu
         flip_filter: False = convolution, True = correlation (default: False).
         gain:        Overall scaling factor for signal magnitude (default: 1).
         impl:        Implementation to use. Can be `'ref'`, `'cuda'`, `'native'`,
-                     or `'auto'` (default: `'cuda'`).
+                     `'mps'`, or `'auto'` (default: `'cuda'`).
                      `'native'` selects the compile-friendly PyTorch path.
-                     `'auto'` currently prefers legacy CUDA on CUDA devices and
-                     native elsewhere; it does not yet perform shape autotuning.
+                     `'auto'` selects CUDA or Metal on those devices and native elsewhere.
+                     `'mps'` explicitly requests Metal; `'cuda'` also selects Metal on MPS.
 
     Returns:
         Tensor of the shape `[batch_size, num_channels, out_height, out_width]`.
     """
     assert isinstance(x, torch.Tensor)
-    assert impl in ['ref', 'cuda', 'native', 'auto']
+    assert impl in ['ref', 'cuda', 'mps', 'native', 'auto']
     impl = get_upfirdn_impl(impl)
     if impl == 'auto':
-        impl = 'cuda' if x.device.type == 'cuda' else 'native'
+        impl = 'cuda' if x.device.type in ('cuda', 'mps') and x.dtype != torch.bfloat16 else 'native'
     if impl == 'cuda' and x.device.type == 'cuda' and _init():
+        return _upfirdn2d_cuda(up=up, down=down, padding=padding, flip_filter=flip_filter, gain=gain).apply(x, f)
+    if impl == 'mps' or (impl == 'cuda' and x.device.type == 'mps'):
+        if x.device.type != 'mps':
+            raise ValueError("impl='mps' requires an MPS tensor")
+        from .mps import get_plugin
+        get_plugin()
         return _upfirdn2d_cuda(up=up, down=down, padding=padding, flip_filter=flip_filter, gain=gain).apply(x, f)
     if impl == 'native':
         from .upfirdn2d_native import upfirdn2d_native
@@ -227,7 +240,7 @@ def _upfirdn2d_ref(x, f, up=1, down=1, padding=0, flip_filter=False, gain=1):
 _upfirdn2d_cuda_cache = dict()
 
 def _upfirdn2d_cuda(up=1, down=1, padding=0, flip_filter=False, gain=1):
-    """Fast CUDA implementation of `upfirdn2d()` using custom ops.
+    """CUDA/Metal implementation of `upfirdn2d()` sharing custom autograd.
     """
     # Parse arguments.
     upx, upy = _parse_scaling(up)
@@ -246,15 +259,16 @@ def _upfirdn2d_cuda(up=1, down=1, padding=0, flip_filter=False, gain=1):
             assert isinstance(x, torch.Tensor) and x.ndim == 4
             if f is None:
                 f = torch.ones([1, 1], dtype=torch.float32, device=x.device)
+            assert isinstance(f, torch.Tensor) and f.ndim in [1, 2]
+            assert f.dtype == torch.float32 and not f.requires_grad
             if f.ndim == 1 and f.shape[0] == 1:
                 f = f.square().unsqueeze(0) # Convert separable-1 into full-1x1.
-            assert isinstance(f, torch.Tensor) and f.ndim in [1, 2]
             y = x
             if f.ndim == 2:
-                y = _plugin.upfirdn2d(y, f, upx, upy, downx, downy, padx0, padx1, pady0, pady1, flip_filter, gain)
+                y = _native_upfirdn2d(y, f, upx, upy, downx, downy, padx0, padx1, pady0, pady1, flip_filter, gain)
             else:
-                y = _plugin.upfirdn2d(y, f.unsqueeze(0), upx, 1, downx, 1, padx0, padx1, 0, 0, flip_filter, 1.0)
-                y = _plugin.upfirdn2d(y, f.unsqueeze(1), 1, upy, 1, downy, 0, 0, pady0, pady1, flip_filter, gain)
+                y = _native_upfirdn2d(y, f.unsqueeze(0), upx, 1, downx, 1, padx0, padx1, 0, 0, flip_filter, 1.0)
+                y = _native_upfirdn2d(y, f.unsqueeze(1), 1, upy, 1, downy, 0, 0, pady0, pady1, flip_filter, gain)
             ctx.save_for_backward(f)
             ctx.x_shape = x.shape
             return y

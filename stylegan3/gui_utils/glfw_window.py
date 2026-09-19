@@ -6,10 +6,26 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+import sys
 import time
 import glfw
 import OpenGL.GL as gl
 from . import gl_utils
+
+#----------------------------------------------------------------------------
+
+def _request_gl_context():
+    """Request an OpenGL 3.3 (or 4.1) core profile.
+
+    macOS only implements the Core profile, and requires forward-compatible
+    3.2+ contexts. imgui 2.x's programmable renderer needs GLSL 330.
+    """
+    glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+    glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+    glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+    glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+    if sys.platform == 'darwin':
+        glfw.window_hint(glfw.COCOA_RETINA_FRAMEBUFFER, True)
 
 #----------------------------------------------------------------------------
 
@@ -29,14 +45,26 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         self._capture_next_frame    = False
         self._captured_frame        = None
 
-        # Create window.
-        glfw.init()
+        if not glfw.init():
+            raise RuntimeError('Failed to initialize GLFW')
+
         glfw.window_hint(glfw.VISIBLE, False)
+        _request_gl_context()
         self._glfw_window = glfw.create_window(width=window_width, height=window_height, title=title, monitor=None, share=None)
+        if self._glfw_window is None:
+            glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 4)
+            glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
+            self._glfw_window = glfw.create_window(width=window_width, height=window_height, title=title, monitor=None, share=None)
+        if self._glfw_window is None:
+            raise RuntimeError('Failed to create an OpenGL 3.3+ core context. The visualizer cannot run.')
         self._attach_glfw_callbacks()
         self.make_context_current()
 
-        # Adjust window.
+        gl_version = gl.glGetString(gl.GL_VERSION)
+        if isinstance(gl_version, bytes):
+            gl_version = gl_version.decode('utf-8', 'replace')
+        print(f'OpenGL {gl_version}')
+
         self.set_vsync(False)
         self.set_window_size(window_width, window_height)
         if not self._deferred_show:
@@ -48,12 +76,11 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
         if self._glfw_window is not None:
             glfw.destroy_window(self._glfw_window)
             self._glfw_window = None
-        #glfw.terminate() # Commented out to play it nice with other glfw clients.
 
     def __del__(self):
         try:
             self.close()
-        except:
+        except Exception:
             pass
 
     @property
@@ -72,6 +99,16 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
     @property
     def content_height(self):
         _width, height = glfw.get_window_size(self._glfw_window)
+        return height
+
+    @property
+    def framebuffer_width(self):
+        width, _height = glfw.get_framebuffer_size(self._glfw_window)
+        return width
+
+    @property
+    def framebuffer_height(self):
+        _width, height = glfw.get_framebuffer_size(self._glfw_window)
         return height
 
     @property
@@ -151,7 +188,6 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
 
     def draw_frame(self): # To be overridden by subclass.
         self.begin_frame()
-        # Rendering code goes here.
         self.end_frame()
 
     def make_context_current(self):
@@ -159,11 +195,9 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
             glfw.make_context_current(self._glfw_window)
 
     def begin_frame(self):
-        # End previous frame.
         if self._drawing_frame:
             self.end_frame()
 
-        # Apply FPS limit.
         if self._frame_start_time is not None and self._fps_limit is not None:
             delay = self._frame_start_time - time.perf_counter() + 1 / self._fps_limit
             if delay > 0:
@@ -173,43 +207,24 @@ class GlfwWindow: # pylint: disable=too-many-public-methods
             self._frame_delta = cur_time - self._frame_start_time
         self._frame_start_time = cur_time
 
-        # Process events.
         glfw.poll_events()
 
-        # Begin frame.
         self._drawing_frame = True
         self.make_context_current()
-
-        # Initialize GL state.
-        gl.glViewport(0, 0, self.content_width, self.content_height)
-        gl.glMatrixMode(gl.GL_PROJECTION)
-        gl.glLoadIdentity()
-        gl.glTranslate(-1, 1, 0)
-        gl.glScale(2 / max(self.content_width, 1), -2 / max(self.content_height, 1), 1)
-        gl.glMatrixMode(gl.GL_MODELVIEW)
-        gl.glLoadIdentity()
-        gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_ONE, gl.GL_ONE_MINUS_SRC_ALPHA) # Pre-multiplied alpha.
-
-        # Clear.
-        gl.glClearColor(0, 0, 0, 1)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl_utils.begin_frame(self.content_width, self.content_height, self.framebuffer_width, self.framebuffer_height)
 
     def end_frame(self):
         assert self._drawing_frame
         self._drawing_frame = False
 
-        # Skip frames if requested.
         if self._skip_frames > 0:
             self._skip_frames -= 1
             return
 
-        # Capture frame if requested.
         if self._capture_next_frame:
-            self._captured_frame = gl_utils.read_pixels(self.content_width, self.content_height)
+            self._captured_frame = gl_utils.read_pixels(self.framebuffer_width, self.framebuffer_height)
             self._capture_next_frame = False
 
-        # Update window.
         if self._deferred_show:
             glfw.show_window(self._glfw_window)
             self._deferred_show = False

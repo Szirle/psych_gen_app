@@ -3,7 +3,7 @@
 Use `/opt/anaconda3/envs/manip311/bin/python` from the project root. PyTorch/MPS must run outside the Codex sandbox.
 
 ```python
-from CLIP.fgclip2_face_impressions import (
+from CLIP.fgclip2_legacy_research import (
     encode_trust_testset, analyze_trust_testset, report_trust_testset,
 )
 output = 'CLIP/research/trustworthiness_hidden_test'
