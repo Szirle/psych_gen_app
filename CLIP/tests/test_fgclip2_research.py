@@ -57,7 +57,7 @@ class ResearchTests(unittest.TestCase):
         self.assertEqual(a.lasso(), b.lasso())
 
     def test_oof_matches_sklearn_manual_and_rejects_bad_coverage(self):
-        splits = make_cv_splits(72, 3, 12)
+        splits = make_cv_splits(72, 3, 12)x
         predicted, _ = cross_validate_predictor(self.x, self.y,
             lambda x,y,t,f: predict_score_model(fit_score_model(x,y,'linear'),t), splits=splits)
         for train, test in splits:

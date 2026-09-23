@@ -1,0 +1,13 @@
+# PyTorch and torchvision come from the CUDA image; the bootstrap constrains
+# their installed versions. Core remote-code API versions are pinned.
+transformers==4.57.6
+huggingface-hub==0.36.2
+accelerate>=1.2,<2
+safetensors>=0.5,<1
+sentencepiece>=0.2,<0.3
+numpy>=1.26,<3
+scipy>=1.13,<2
+scikit-learn>=1.6,<2
+pillow>=10,<13
+psutil>=5.9,<8
+threadpoolctl>=3.5,<4

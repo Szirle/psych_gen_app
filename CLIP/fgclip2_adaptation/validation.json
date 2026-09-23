@@ -1,0 +1,787 @@
+{
+  "date": "2026-09-19",
+  "device": "mps",
+  "model_checkpoints_saved": 0,
+  "purpose": "Execution, finite gradients/predictions, parameter updates, and split isolation. Not accuracy evaluation.",
+  "results_directory": "/tmp/fgclip2-adaptation-validation",
+  "runs": [
+    {
+      "name": "main",
+      "model": "qihoo360/fg-clip2-so400m",
+      "revision": "d57d30fe94a107dd6a2610eb4e9a135004d823a4",
+      "tested_source_hash": "8fe076fe6c1f3d6fb12277bd3149ce5c65296ae9b686142afd98aac897eed7bf",
+      "config": {
+        "methods": [
+          "ridge",
+          "kernel",
+          "phrase-kernel",
+          "hybrid",
+          "adapter",
+          "prototypes",
+          "phrase-adapter",
+          "soft-prompt",
+          "local",
+          "lora",
+          "partial",
+          "pool"
+        ],
+        "mode": "holdout",
+        "images": "/Users/adamsobieszek/PycharmProjects/psychGAN/omi/images",
+        "ratings": "/Users/adamsobieszek/PycharmProjects/psych_gen_app/data/dim_to_photo_to_ratings.pkl",
+        "targets": [
+          "asian",
+          "middle-eastern",
+          "hispanic",
+          "islander",
+          "native",
+          "black",
+          "white",
+          "skin-color"
+        ],
+        "groups": null,
+        "model": "so400m",
+        "device": "auto",
+        "patches": [
+          256
+        ],
+        "limit": 32,
+        "cache_dir": null,
+        "output": "/tmp/fgclip2-adaptation-validation/main",
+        "save_checkpoint": false,
+        "smoke": true,
+        "epochs": 1,
+        "warmup_epochs": 0,
+        "patience": 5,
+        "max_steps": 1,
+        "batch_size": 4,
+        "encode_batch": 2,
+        "head_lr": 0.0005,
+        "encoder_lr": 5e-05,
+        "weight_decay": 0.01,
+        "rank": 4,
+        "blocks": 1,
+        "bottleneck": 32,
+        "context_tokens": 4,
+        "levels": 5,
+        "auxiliary": "none",
+        "aux_weight": 0.05,
+        "anchor_weight": 0.1,
+        "preserve": "feature",
+        "preserve_weight": 0.1,
+        "visual_lora": false,
+        "no_checkpointing": false,
+        "folds": 4,
+        "inner_folds": 2,
+        "seed": 20260919
+      },
+      "methods": [
+        {
+          "method": "ridge",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 0.07,
+          "gradient_checks": []
+        },
+        {
+          "method": "kernel",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 0.01,
+          "gradient_checks": []
+        },
+        {
+          "method": "phrase-kernel",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 16.56,
+          "gradient_checks": []
+        },
+        {
+          "method": "hybrid",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 0.06,
+          "gradient_checks": []
+        },
+        {
+          "method": "adapter",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 1.07,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "prototypes",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 1.6,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 143072,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 143072,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "phrase-adapter",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 0.64,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 152552,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 152552,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "soft-prompt",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 13.61,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 142912,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 142912,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "local",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 4.73,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 203312,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 203312,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "lora",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 4.64,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "partial",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 5.21,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 15239504,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 15239504,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "pool",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 4.3,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 1152,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 1152,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "joint-distribution",
+      "model": "qihoo360/fg-clip2-so400m",
+      "revision": "d57d30fe94a107dd6a2610eb4e9a135004d823a4",
+      "tested_source_hash": "8fe076fe6c1f3d6fb12277bd3149ce5c65296ae9b686142afd98aac897eed7bf",
+      "config": {
+        "methods": [
+          "prototypes",
+          "soft-prompt",
+          "local",
+          "adapter",
+          "phrase-adapter"
+        ],
+        "mode": "holdout",
+        "images": "/Users/adamsobieszek/PycharmProjects/psychGAN/omi/images",
+        "ratings": "/Users/adamsobieszek/PycharmProjects/psych_gen_app/data/dim_to_photo_to_ratings.pkl",
+        "targets": [
+          "asian",
+          "middle-eastern",
+          "hispanic",
+          "islander",
+          "native",
+          "black",
+          "white",
+          "skin-color"
+        ],
+        "groups": null,
+        "model": "so400m",
+        "device": "auto",
+        "patches": [
+          256
+        ],
+        "limit": 32,
+        "cache_dir": null,
+        "output": "/tmp/fgclip2-adaptation-validation/joint-distribution",
+        "save_checkpoint": false,
+        "smoke": true,
+        "epochs": 1,
+        "warmup_epochs": 0,
+        "patience": 5,
+        "max_steps": 1,
+        "batch_size": 4,
+        "encode_batch": 2,
+        "head_lr": 0.0005,
+        "encoder_lr": 5e-05,
+        "weight_decay": 0.01,
+        "rank": 4,
+        "blocks": 1,
+        "bottleneck": 32,
+        "context_tokens": 4,
+        "levels": 5,
+        "auxiliary": "distribution",
+        "aux_weight": 0.05,
+        "anchor_weight": 0.1,
+        "preserve": "feature",
+        "preserve_weight": 0.1,
+        "visual_lora": true,
+        "no_checkpointing": false,
+        "folds": 4,
+        "inner_folds": 2,
+        "seed": 20260919
+      },
+      "methods": [
+        {
+          "method": "prototypes",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 5.72,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 143072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 143072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "soft-prompt",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 17.92,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 142912,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 142912,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "local",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 7.69,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 203312,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 203312,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "adapter",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 4.17,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        },
+        {
+          "method": "phrase-adapter",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 23.25,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 152552,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 152552,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pairwise-gram",
+      "model": "qihoo360/fg-clip2-so400m",
+      "revision": "d57d30fe94a107dd6a2610eb4e9a135004d823a4",
+      "tested_source_hash": "8fe076fe6c1f3d6fb12277bd3149ce5c65296ae9b686142afd98aac897eed7bf",
+      "config": {
+        "methods": [
+          "adapter",
+          "lora"
+        ],
+        "mode": "holdout",
+        "images": "/Users/adamsobieszek/PycharmProjects/psychGAN/omi/images",
+        "ratings": "/Users/adamsobieszek/PycharmProjects/psych_gen_app/data/dim_to_photo_to_ratings.pkl",
+        "targets": [
+          "asian",
+          "middle-eastern",
+          "hispanic",
+          "islander",
+          "native",
+          "black",
+          "white",
+          "skin-color"
+        ],
+        "groups": null,
+        "model": "so400m",
+        "device": "auto",
+        "patches": [
+          256
+        ],
+        "limit": 32,
+        "cache_dir": null,
+        "output": "/tmp/fgclip2-adaptation-validation/pairwise-gram",
+        "save_checkpoint": false,
+        "smoke": true,
+        "epochs": 1,
+        "warmup_epochs": 0,
+        "patience": 5,
+        "max_steps": 1,
+        "batch_size": 4,
+        "encode_batch": 2,
+        "head_lr": 0.0005,
+        "encoder_lr": 5e-05,
+        "weight_decay": 0.01,
+        "rank": 4,
+        "blocks": 1,
+        "bottleneck": 32,
+        "context_tokens": 4,
+        "levels": 5,
+        "auxiliary": "pairwise",
+        "aux_weight": 0.05,
+        "anchor_weight": 0.1,
+        "preserve": "gram",
+        "preserve_weight": 0.1,
+        "visual_lora": false,
+        "no_checkpointing": false,
+        "folds": 4,
+        "inner_folds": 2,
+        "seed": 20260919
+      },
+      "methods": [
+        {
+          "method": "adapter",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 0.46,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "lora",
+          "status": "passed",
+          "evaluated_faces": 8,
+          "outer_fits": 1,
+          "seconds": 4.48,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            },
+            {
+              "steps": 1,
+              "trainable_head": 129072,
+              "trainable_backbone": 18432,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ordinal-two-view-cv",
+      "model": "qihoo360/fg-clip2-so400m",
+      "revision": "d57d30fe94a107dd6a2610eb4e9a135004d823a4",
+      "tested_source_hash": "8fe076fe6c1f3d6fb12277bd3149ce5c65296ae9b686142afd98aac897eed7bf",
+      "config": {
+        "methods": [
+          "adapter",
+          "ridge",
+          "kernel",
+          "phrase-kernel",
+          "hybrid"
+        ],
+        "mode": "cv",
+        "images": "/Users/adamsobieszek/PycharmProjects/psychGAN/omi/images",
+        "ratings": "/Users/adamsobieszek/PycharmProjects/psych_gen_app/data/dim_to_photo_to_ratings.pkl",
+        "targets": [
+          "asian",
+          "middle-eastern",
+          "hispanic",
+          "islander",
+          "native",
+          "black",
+          "white",
+          "skin-color"
+        ],
+        "groups": null,
+        "model": "so400m",
+        "device": "auto",
+        "patches": [
+          128,
+          256
+        ],
+        "limit": 32,
+        "cache_dir": null,
+        "output": "/tmp/fgclip2-adaptation-validation/ordinal-two-view-cv",
+        "save_checkpoint": false,
+        "smoke": true,
+        "epochs": 1,
+        "warmup_epochs": 0,
+        "patience": 5,
+        "max_steps": 1,
+        "batch_size": 4,
+        "encode_batch": 2,
+        "head_lr": 0.0005,
+        "encoder_lr": 5e-05,
+        "weight_decay": 0.01,
+        "rank": 4,
+        "blocks": 1,
+        "bottleneck": 32,
+        "context_tokens": 4,
+        "levels": 5,
+        "auxiliary": "ordinal",
+        "aux_weight": 0.05,
+        "anchor_weight": 0.1,
+        "preserve": "none",
+        "preserve_weight": 0.1,
+        "visual_lora": false,
+        "no_checkpointing": false,
+        "folds": 4,
+        "inner_folds": 2,
+        "seed": 20260919
+      },
+      "methods": [
+        {
+          "method": "adapter",
+          "status": "passed",
+          "evaluated_faces": 32,
+          "outer_fits": 4,
+          "seconds": 1.82,
+          "gradient_checks": [
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            },
+            {
+              "steps": 1,
+              "trainable_head": 202800,
+              "trainable_backbone": 0,
+              "head_changed": true,
+              "adaptation_changed": true,
+              "backbone_changed": false
+            }
+          ]
+        },
+        {
+          "method": "ridge",
+          "status": "passed",
+          "evaluated_faces": 32,
+          "outer_fits": 4,
+          "seconds": 0.11,
+          "gradient_checks": []
+        },
+        {
+          "method": "kernel",
+          "status": "passed",
+          "evaluated_faces": 32,
+          "outer_fits": 4,
+          "seconds": 0.02,
+          "gradient_checks": []
+        },
+        {
+          "method": "phrase-kernel",
+          "status": "passed",
+          "evaluated_faces": 32,
+          "outer_fits": 4,
+          "seconds": 20.28,
+          "gradient_checks": []
+        },
+        {
+          "method": "hybrid",
+          "status": "passed",
+          "evaluated_faces": 32,
+          "outer_fits": 4,
+          "seconds": 0.23,
+          "gradient_checks": []
+        }
+      ]
+    }
+  ],
+  "total_neural_optimizer_updates": 38
+}
