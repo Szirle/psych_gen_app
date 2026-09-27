@@ -45,10 +45,13 @@ class AnchoredTokens(nn.Module):
         super().__init__()
         self.engine, self.chunk = engine, chunk
         inputs, _ = engine.prepare_text(phrases, mode='short')
-        ids, mask = inputs['input_ids'], inputs['attention_mask']
+        ids, mask = inputs['input_ids'], inputs.get('attention_mask')
         with torch.no_grad():
             base = engine.model.text_model.embeddings.token_embedding(ids).detach().clone()
-        valid = mask.bool()
+        # Native FG-CLIP2 leaves attention unmasked when the tokenizer omits
+        # this field. Padding still participates in attention/final pooling;
+        # special tokens are excluded only from learned token displacement.
+        valid = torch.ones_like(ids, dtype=torch.bool) if mask is None else mask.bool()
         for special in engine.tokenizer.all_special_ids:
             valid = valid & (ids != special)
         valid = valid & (valid.cumsum(1) <= tokens)
@@ -79,12 +82,17 @@ class AnchoredTokens(nn.Module):
             shift = shift*self.valid[start:end, :, None]
             embeds = self.base[start:end] + shift.to(self.base.dtype)
             h = tower.embeddings(inputs_embeds=embeds, use_short_position_ids=True)
-            mask = _prepare_4d_attention_mask(self.mask[start:end], h.dtype)
+            mask = None
+            implementation = getattr(getattr(tower, 'config', None), '_attn_implementation', '') or ''
+            if self.mask is not None and 'flash' not in implementation:
+                mask = _prepare_4d_attention_mask(self.mask[start:end], h.dtype)
             for block in tower.encoder.layers:
                 h = checkpoint(block, h, mask, use_reentrant=False) if torch.is_grad_enabled() and delta.requires_grad else block(h, mask)
             pooled = tower.final_layer_norm(h)[:, -1]
-            short.append(F.normalize(tower.head(pooled).float(), dim=-1))
-            box.append(F.normalize(pooled.float(), dim=-1))
+            # Match get_text_features, including its distinct local projection.
+            # The native short path applies its head one phrase at a time.
+            short.append(F.normalize(torch.cat([tower.head(row) for row in pooled.split(1)]).float(), dim=-1))
+            box.append(F.normalize(self.engine.model.boxtext_head(pooled).float(), dim=-1))
         return torch.cat(short), torch.cat(box)
 
     def penalties(self, embeddings):

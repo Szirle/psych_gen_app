@@ -82,6 +82,7 @@ class SettingsPanel extends StatelessWidget {
     final onBrandColor = isDark ? const Color(0xFF2B3A55) : Colors.white;
 
     return ExpansionTile(
+      key: const PageStorageKey('settings_panel_expansion_tile'),
       initiallyExpanded: true,
       maintainState: true,
       title: Text(

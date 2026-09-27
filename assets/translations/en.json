@@ -66,5 +66,9 @@
   "selection.empty": "Adjust the filters or resample to preview the distribution.",
   "selection.generator_sample": "9 independent draws from the generator prior.",
   "selection.ratings_sample": "9 draws from {count} eligible stored faces.",
-  "selection.repeats": " Faces may repeat because fewer than nine are eligible."
+  "selection.repeats": " Faces may repeat because fewer than nine are eligible.",
+  "manipulation.generating": "Generating manipulated faces…",
+  "manipulation.ready": "Preview ready — {count} images across {dims} dimension(s).",
+  "manipulation.empty": "Configure variables and preview to see generated faces.",
+  "manipulation.error": "Generation failed. Adjust settings and retry."
 }

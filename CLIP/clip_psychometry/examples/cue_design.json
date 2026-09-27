@@ -1,0 +1,51 @@
+{
+  "status": "Candidate designs requiring detector validation; no new phrases have been encoded or selected as winners.",
+  "items": [
+    {
+      "cue": "clear_spectacles",
+      "kind": "unipolar_presence",
+      "alternatives": [["a face wearing clear eyeglasses", "a face without glasses"], ["a person wearing eyeglasses", "a person without eyeglasses"]],
+      "rubric": "Visible corrective-style clear lenses or frames; sunglasses are a separate category; occluded/ambiguous is unclear.",
+      "roles": ["eye_visibility", "eyewear", "possible_context_moderator"],
+      "falsifier": "Top retrieval is dominated by sunglasses or absence score orders unrelated facial traits.",
+      "evidence": "Hypothesis informed by eyewear literature; intelligence utility must be measured on this dataset.",
+      "source": "https://pubmed.ncbi.nlm.nih.gov/31006340/"
+    },
+    {
+      "cue": "dark_eyewear",
+      "kind": "unipolar_presence",
+      "alternatives": [["a face wearing dark sunglasses", "a face with both eyes clearly visible"], ["a person wearing sunglasses", "a person without sunglasses"]],
+      "rubric": "Distinguish dark lenses, reflective lenses, frame-only occlusion, and eyes hidden by hair/shadow.",
+      "roles": ["eye_visibility", "eyewear"],
+      "falsifier": "Detects generic dark regions without localizing eyewear.",
+      "source": "https://pubmed.ncbi.nlm.nih.gov/31006340/"
+    },
+    {
+      "cue": "square_jaw_in_presentation_context",
+      "kind": "configural",
+      "alternatives": [["a woman", "a face with a strong square jaw"], ["a woman with a strong square jaw"], ["a woman", "a face with a strong square jaw", "a woman with a strong square jaw"]],
+      "rubric": "Annotate apparent jaw geometry separately from perceived gender presentation. These are appearance judgments, not identity labels.",
+      "roles": ["jaw_geometry", "presentation_context", "cue_conjunction"],
+      "falsifier": "The lexical conjunction ranks apparent presentation but ignores jaw form.",
+      "evidence": "Proposed operationalization from the project framework; exact wording and utility unvalidated."
+    },
+    {
+      "cue": "smile_components",
+      "kind": "graded_and_configural",
+      "alternatives": [["a joyful face", "a serious facial expression"], ["a face with upturned mouth corners", "a face with raised cheeks", "a face with wrinkles beside the outer corners of the eyes"]],
+      "rubric": "Annotate visible mouth curvature, cheek raising and outer-eye wrinkling separately; do not annotate actual sincerity.",
+      "roles": ["expression", "mouth", "eyes"],
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4053432/"
+    },
+    {
+      "cue": "illumination_and_color",
+      "kind": "image_condition",
+      "alternatives": [["a brightly illuminated face", "a face partly hidden in shadow"], ["a face lit by warm orange light", "a face lit by cool blue light"]],
+      "rubric": "Distinguish illumination from intrinsic skin reflectance; mark if the two cannot be separated visually.",
+      "roles": ["image_condition", "visibility"],
+      "falsifier": "Warm-light prompt detects skin tone despite matched illumination anchors.",
+      "evidence": "Image-condition mechanism is plausible; exact color-temperature detector and impression effects are hypotheses."
+    }
+  ],
+  "comparison_rule": "Replace whole alternative sets with the background bank fixed. Compare retrieval validity and predictive utility separately. No default semantic cutoff or hand-assigned coefficient sign."
+}

@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import json
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -13,6 +14,57 @@ from ..fgclip2_face_impressions import (
     array_hash, merge_groups, make_cv_splits, fit_score_model, predict_score_model,
 )
 from .phrases import hierarchy
+
+
+def batched_mutual_information(x, y, *, seed, device, memory_gib=4.):
+    """Continuous KSG-1 (k=3), using batched exhaustive Chebyshev neighbors.
+
+    Same scaling, jitter/RNG order, strict radius counts and nonnegative clipping
+    as sklearn mutual_info_regression. Float64 preserves its 1e-10 tie jitter;
+    float32 distances would silently change the estimator on repeated scores.
+    CPU tensors are supported for parity checks; production uses CUDA here.
+    """
+    import torch
+    from scipy.special import digamma
+    from sklearn.preprocessing import scale
+
+    n, features = x.shape
+    if n < 4 or memory_gib <= 0:
+        raise ValueError('MI requires at least four rows and a positive memory budget')
+    rng = np.random.RandomState(seed)
+    # Preserve sklearn's dtype of y (including float32 jitter rounding).
+    x = scale(np.asarray(x, dtype=np.float64).copy(), with_mean=False, copy=False)
+    x += 1e-10*np.maximum(1, np.abs(x).mean(0))*rng.standard_normal(x.shape)
+    y = scale(np.asarray(y), with_mean=False)
+    y += 1e-10*max(1, np.abs(y).mean())*rng.standard_normal(n)
+    device = torch.device(device)
+    budget = memory_gib*1024**3
+    if device.type == 'cuda':
+        with torch.cuda.device(device):
+            free, _ = torch.cuda.mem_get_info()
+        budget = min(budget, free*.4)
+    # Bound two distance tensors, masks, top-k workspace and temporary buffers.
+    chunk = min(features, max(1, int(budget//(40*n*n))))
+    result = []
+    with torch.no_grad():
+        yt = torch.as_tensor(np.asarray(y, dtype=np.float64), device=device)
+        dy = (yt[:, None]-yt[None, :]).abs()
+        psi = torch.as_tensor(digamma(np.arange(1, n+1)), device=device)
+        for start in range(0, features, chunk):
+            values = torch.as_tensor(x[:, start:start+chunk].T.copy(), device=device)
+            dx = (values[:, :, None]-values[:, None, :]).abs_()
+            joint = torch.maximum(dx, dy)
+            joint.diagonal(dim1=-2, dim2=-1).fill_(torch.inf)
+            radius = joint.topk(3, dim=-1, largest=False).values[:, :, -1]
+            del joint
+            radius = torch.nextafter(radius, torch.zeros_like(radius))[:, :, None]
+            # Includes self: count == nx+1 / ny+1 in sklearn's formula.
+            nx = (dx <= radius).sum(-1).clamp_min(1)
+            ny = (dy <= radius).sum(-1).clamp_min(1)
+            result.append((digamma(n)+digamma(3)-psi[nx-1].mean(-1)
+                           -psi[ny-1].mean(-1)).clamp_min(0).cpu().numpy())
+            del dx, radius, nx, ny
+    return np.concatenate(result)
 
 
 @dataclass
@@ -104,6 +156,14 @@ def select_phrases(scores, data, rows, bank, args):
     """No validation/test labels enter MI, OOF difficulty, or residual sampling."""
     rng = np.random.default_rng(args.seed)
     count, width = len(data.targets), len(bank['phrases'])
+    backend = getattr(args, 'selection_backend', 'auto')
+    device = str(args.device)
+    if backend == 'auto':
+        backend = 'cuda' if device.startswith('cuda') else 'sklearn'
+    if backend == 'cuda' and not device.startswith('cuda'):
+        raise ValueError('--selection-backend cuda requires a CUDA training device')
+    started = perf_counter()
+    print(f'  MI: {backend}, {count} targets × {args.mi_repeats} repeats × {2*width} features', flush=True)
     information = np.zeros((count, width))
     for t in range(count):
         labeled = rows[data.mask[rows, t]]
@@ -111,10 +171,22 @@ def select_phrases(scores, data, rows, bank, args):
             raise ValueError(f'Insufficient training ratings for {data.targets[t]}')
         for repeat in range(args.mi_repeats):
             selected = rng.choice(labeled, max(8, int(.8*len(labeled))), replace=False)
-            mi = mutual_info_regression(scores[selected], data.y[selected, t],
-                                        random_state=args.seed+repeat, n_neighbors=3)
+            if backend == 'cuda':
+                mi = batched_mutual_information(scores[selected], data.y[selected, t], seed=args.seed+repeat,
+                    device=device, memory_gib=getattr(args, 'selection_memory_gib', 4.))
+            else:
+                mi = mutual_info_regression(scores[selected], data.y[selected, t],
+                    random_state=args.seed+repeat, n_neighbors=3, n_jobs=getattr(args, 'cpu_threads', 1))
             information[t] += mi.reshape(2, width).max(0)  # global OR local evidence
+        # print(f'  MI {t+1}/{count}: {data.targets[t]} ({perf_counter()-started:.1f}s elapsed)', flush=True)
     information /= args.mi_repeats
+    mi_seconds = perf_counter()-started
+    # All greedy selections use the same training-only GLOBAL correlations.
+    # Compute once, instead of centering/multiplying again at every greedy step.
+    centered = scores[rows, :width].astype(np.float64)
+    centered -= centered.mean(0)
+    norms = np.linalg.norm(centered, axis=0)
+    correlation = np.abs(centered.T@centered)/np.maximum(norms[:, None]*norms[None, :], 1e-8)
     # A redundancy penalty discourages selecting only near-identical paraphrases.
     def diverse(values, eligible, number):
         eligible = list(eligible)
@@ -122,10 +194,7 @@ def select_phrases(scores, data, rows, bank, args):
         while eligible and len(chosen) < number:
             value = values[eligible].copy()
             if chosen:
-                a, b = scores[rows][:, eligible], scores[rows][:, chosen]
-                a, b = a-a.mean(0), b-b.mean(0)
-                correlation = np.abs(a.T@b) / np.maximum(np.linalg.norm(a, axis=0)[:, None]*np.linalg.norm(b, axis=0), 1e-8)
-                value -= args.redundancy * correlation.max(1)
+                value -= args.redundancy * correlation[np.ix_(eligible, chosen)].max(1)
             j = eligible.pop(int(value.argmax()))
             chosen.append(j)
         return chosen
@@ -146,13 +215,25 @@ def select_phrases(scores, data, rows, bank, args):
     # here, so each difficulty estimate's fitted predictor excludes its label.
     oof = np.full((len(rows), count), np.nan)
     position = {int(i): j for j, i in enumerate(rows)}
-    for train, valid in split_rows(data, rows, args.inner_folds, args.seed+19):
+    selection_seconds = perf_counter()-started-mi_seconds
+    solves = 0
+    for fold, (train, valid) in enumerate(split_rows(data, rows, args.inner_folds, args.seed+19)):
+        # Targets sharing observed rows share scaling and a single factorization.
+        # Cholesky solves the same alpha=100 ridge objective as former LSQR,
+        # without separate iterative solves or their stopping tolerance.
+        groups = {}
         for t in range(count):
-            labeled = train[data.mask[train, t]]
+            groups.setdefault(data.mask[train, t].tobytes(), []).append(t)
+        for targets in groups.values():
+            labeled = train[data.mask[train, targets[0]]]
             if len(labeled) < 3:
-                raise ValueError(f'Insufficient inner-training labels for {data.targets[t]}')
-            readout = fit_score_model(scores[labeled], data.y[labeled, t], estimator=Ridge(alpha=100., solver='lsqr'))
-            oof[[position[int(i)] for i in valid], t] = np.asarray(predict_score_model(readout, scores[valid])).reshape(-1)
+                raise ValueError(f'Insufficient inner-training labels for {data.targets[targets[0]]}')
+            readout = fit_score_model(scores[labeled], data.y[np.ix_(labeled, targets)],
+                                     estimator=Ridge(alpha=100., solver='cholesky'))
+            values = np.asarray(predict_score_model(readout, scores[valid])).reshape(len(valid), len(targets))
+            oof[np.ix_([position[int(i)] for i in valid], targets)] = values
+            solves += 1
+        print(f'  Difficulty fold {fold+1}/{args.inner_folds}: {len(groups)} shared ridge solve(s)', flush=True)
     error = (oof-data.y[rows])**2
     skill = []
     for t in range(count):
@@ -162,9 +243,15 @@ def select_phrases(scores, data, rows, bank, args):
     difficulty = (weighted*data.mask[rows]).sum(1)/np.maximum(data.mask[rows].sum(1), 1)
     difficulty = np.minimum(difficulty, np.quantile(difficulty, .9)) + 1e-6
     probability = (1-args.hard_fraction)/len(rows) + args.hard_fraction*difficulty/difficulty.sum()
+    timing = dict(mi=mi_seconds, selection=selection_seconds,
+                  difficulty=perf_counter()-started-mi_seconds-selection_seconds, total=perf_counter()-started)
+    print(f'  Selection complete in {timing["total"]:.1f}s '
+          f'(MI {mi_seconds:.1f}s, diversity {selection_seconds:.1f}s, ridge {timing["difficulty"]:.1f}s)', flush=True)
     return dict(phrases=[e[0] for e in entries], owners=[e[1] for e in entries],
                 bank_indices=[e[2] for e in entries], target_indices=target_indices,
                 mi=information[:, [e[2] for e in entries]].tolist(), skill=skill,
                 levels=hierarchy(data.targets, skill, args.hierarchy_spec, args.order),
                 sampling=probability.tolist(), training_rows=rows.tolist(),
-                oof_mse=[float(error[data.mask[rows, t], t].mean()) for t in range(count)])
+                oof_mse=[float(error[data.mask[rows, t], t].mean()) for t in range(count)],
+                computation=dict(mi_backend=backend, ridge_solver='shared-cholesky', ridge_solves=solves,
+                                 seconds=timing))

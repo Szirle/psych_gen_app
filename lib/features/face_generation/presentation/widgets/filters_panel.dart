@@ -40,6 +40,7 @@ class FiltersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     return ExpansionTile(
+      key: const PageStorageKey('filters_panel_expansion_tile'),
       initiallyExpanded: initiallyExpanded,
       maintainState: true,
       title: Text(

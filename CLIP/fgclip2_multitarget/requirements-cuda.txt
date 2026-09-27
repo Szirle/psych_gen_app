@@ -11,3 +11,5 @@ scikit-learn>=1.6,<2
 pillow>=10,<13
 psutil>=5.9,<8
 threadpoolctl>=3.5,<4
+tabm==0.0.3
+rtdl_num_embeddings==0.0.12

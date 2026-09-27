@@ -5,7 +5,7 @@ set -euo pipefail
 # Run from anywhere after cloning the repository. No torch/torchvision upgrade.
 # Examples:
 #   IMAGES=/data/images RATINGS=/data/ratings.pkl bash CLIP/scripts/setup_fgclip2_multitarget.sh
-#   PROTOCOL=holdout VARIANTS="chain-fixed chain-pool chain-prompt" bash ...
+#   PROTOCOL=holdout VARIANTS="shared-tabm-chain shared-tabm-chain-prompt" bash ...
 #   IMAGES=/data/images RATINGS=/data/ratings.pkl RUN_SMOKE=0 bash ...
 #   RUN_DIR=/workspace/run1 RESUME=1 bash ...
 #   bash ... --tail-target attractive --protocol holdout
@@ -13,7 +13,7 @@ set -euo pipefail
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 PYTHON="${PYTHON:-python3}"
 PACKAGE="$ROOT/CLIP/fgclip2_multitarget"
-RUN_DIR="${RUN_DIR:-$PACKAGE/runs/cuda96}"
+RUN_DIR="${RUN_DIR:-$PACKAGE/runs/agop-kernel-v1}"
 MODEL_CACHE="${MODEL_CACHE:-$ROOT/models/fgclip2}"
 FEATURE_CACHE="${FEATURE_CACHE:-$PACKAGE/.cache}"
 DATA_DIR="${DATA_DIR:-$PACKAGE/data/omi}"
@@ -25,18 +25,20 @@ DATA_ARCHIVE="${DATA_ARCHIVE:-}"
 DATA_SHA256="${DATA_SHA256:-}"
 INSTALL_REQUIREMENTS="${INSTALL_REQUIREMENTS:-1}"
 SKIP_DOWNLOAD="${SKIP_DOWNLOAD:-0}"
-RUN_SMOKE="${RUN_SMOKE:-1}"
+RUN_SMOKE="${RUN_SMOKE:-0}"
+SMOKE_VARIANTS="${SMOKE_VARIANTS:-shared-tabm shared-tabm-chain-prompt shared-transformer-chain-joint}"
 RUN_TRAINING="${RUN_TRAINING:-1}"
 RESUME="${RESUME:-1}"
 FINAL_FIT="${FINAL_FIT:-1}"
 MODEL="${MODEL:-so400m}"
 PRECISION="${PRECISION:-bf16}"
 PROTOCOL="${PROTOCOL:-cv}"
-VARIANTS="${VARIANTS:-frozen-kernel independent chain-fixed chain-pool chain-prompt chain-lora chain-joint}"
+VARIANTS="${VARIANTS:-agop-kernel}"
 PATCHES="${PATCHES:-576}"
-BATCH_SIZE="${BATCH_SIZE:-32}"
-ENCODE_BATCH="${ENCODE_BATCH:-16}"
-ACCUMULATE="${ACCUMULATE:-2}"
+BATCH_SIZE="${BATCH_SIZE:-64}"
+ENCODE_BATCH="${ENCODE_BATCH:-64}"
+AUGMENTATION_ENCODE_BATCH="${AUGMENTATION_ENCODE_BATCH:-512}"
+ACCUMULATE="${ACCUMULATE:-1}"
 TEXT_CHUNK="${TEXT_CHUNK:-16}"
 FOLDS="${FOLDS:-5}"
 INNER_FOLDS="${INNER_FOLDS:-4}"
@@ -139,10 +141,12 @@ PY
 fi
 
 COMMON=(--images "$IMAGES" --ratings "$RATINGS" --model "$MODEL"
-        --model-cache "$MODEL_CACHE" --cache "$FEATURE_CACHE" --device cuda --precision "$PRECISION")
+        --model-cache "$MODEL_CACHE" --cache "$FEATURE_CACHE" --device cuda --precision "$PRECISION"
+        --augmentation-encode-batch "$AUGMENTATION_ENCODE_BATCH")
 if [[ "$RUN_SMOKE" == "1" ]]; then
+  read -r -a SMOKE_VARIANT_ARGS <<< "$SMOKE_VARIANTS"
   "$PYTHON" -m CLIP.fgclip2_multitarget "${COMMON[@]}" \
-    --variants chain-joint --smoke --patches 128 \
+    --variants "${SMOKE_VARIANT_ARGS[@]}" --smoke --patches 128 \
     --output "${RUN_DIR}-smoke-$STAMP" 2>&1 | tee "$SETUP_DIR/smoke.log"
 fi
 

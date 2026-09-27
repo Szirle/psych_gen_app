@@ -61,3 +61,4 @@ data/photo_to_coords.pkl
 /tests/old_vs_new_coords_cv
 *.pkl
 data/photo_to_coords.pkl
+/build

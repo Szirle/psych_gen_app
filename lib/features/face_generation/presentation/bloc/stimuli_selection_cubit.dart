@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
+import 'package:psych_gen_app/core/errors/exceptions.dart';
 import '../../domain/entities/stimuli_selection_request.dart';
 
 class StimuliSelectionState {
@@ -34,6 +35,11 @@ class StimuliSelectionCubit extends Cubit<StimuliSelectionState> {
         final preview = await fetchPreview(request);
         if (!isClosed && generation == _generation) {
           emit(StimuliSelectionState(preview: preview));
+        }
+      } on ObsoletePreviewException {
+        if (!isClosed && generation == _generation) {
+          emit(StimuliSelectionState(
+              preview: state.preview, error: state.error, isLoading: false));
         }
       } catch (error) {
         if (!isClosed && generation == _generation) {

@@ -752,6 +752,8 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                 ),
                               if (!_selectionActive) ...[
                                 ExpansionTile(
+                                    key: const PageStorageKey(
+                                        'experimental_design_expansion_tile'),
                                     initiallyExpanded: true,
                                     maintainState: true,
                                     title: Text(
@@ -1091,11 +1093,12 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                         },
                                       ),
                                     ),
+                                    // Recenter button
                                     if (!_isPreviewCentered)
                                       Positioned(
                                         left: 0,
                                         right: 0,
-                                        bottom: 24,
+                                        bottom: 60,
                                         child: Center(
                                           child: FilledButton(
                                             key: const ValueKey(
@@ -1110,6 +1113,35 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
                                           ),
                                         ),
                                       ),
+                                    // Status chip
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 16,
+                                      child: BlocBuilder<
+                                          FaceManipulationBloc,
+                                          FaceManipulationState>(
+                                        builder: (context, chipState) {
+                                          return Align(
+                                            alignment: _isPreviewCentered
+                                                ? Alignment.bottomCenter
+                                                : Alignment.bottomRight,
+                                            child: Padding(
+                                              padding: EdgeInsets.only(
+                                                  right: _isPreviewCentered
+                                                      ? 0
+                                                      : 16),
+                                              child:
+                                                  _buildManipulationStatusChip(
+                                                chipState,
+                                                isDark,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    // Header bar
                                     Positioned(
                                       left: 0,
                                       top: 0,
@@ -1186,6 +1218,56 @@ class _FaceGenerationPageState extends State<FaceGenerationPage>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildManipulationStatusChip(
+      FaceManipulationState state, bool isDark) {
+    final scheme = Theme.of(context).colorScheme;
+    final String text;
+    final IconData icon;
+
+    if (state is FaceManipulationLoading) {
+      text = 'manipulation.generating'.tr();
+      icon = Icons.hourglass_top_rounded;
+    } else if (state is FaceManipulationLoaded) {
+      final count = state.grid.images.length;
+      final dims = faceManipulationRequest.manipulatedDimensions.length;
+      text = 'manipulation.ready'
+          .tr(namedArgs: {'count': '$count', 'dims': '$dims'});
+      icon = Icons.check_circle_outline_rounded;
+    } else if (state is FaceManipulationError) {
+      text = 'manipulation.error'.tr();
+      icon = Icons.warning_amber_rounded;
+    } else {
+      text = 'manipulation.empty'.tr();
+      icon = Icons.tune_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'WorkSans',
+                  fontSize: 11.5,
+                  color: scheme.onSurfaceVariant,
+                )),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,20 @@
+{
+  "full_training_run": false,
+  "metric_checkpoint_parity_max_errors": {
+    "unweighted": 1.1102230246251565e-16,
+    "diag_50": 1.1102230246251565e-16,
+    "diag_100": 0.0,
+    "full_25": 1.1102230246251565e-16,
+    "full_50": 1.1102230246251565e-16,
+    "full_100": 6.661338147750939e-16
+  },
+  "benchmark_selected_prediction_max_error": 6.661338147750939e-16,
+  "ensemble_reload_max_error": 0.0,
+  "real_rating_alignment": {
+    "images": 1004,
+    "targets": 34,
+    "min_raters": 30
+  },
+  "report_exports_generated_in_temporary_directory": true,
+  "visual_verification": false
+}

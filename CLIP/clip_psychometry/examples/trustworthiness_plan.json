@@ -1,0 +1,10 @@
+{
+  "question": "Does the nominal direct-impression family add unique predictive value to the remaining literature-guided bank?",
+  "status": "Prespecified development comparison, not a confirmation test or automatic pruning rule.",
+  "config": {"outer_folds": 5, "inner_folds": 3, "seed": 20260924, "bootstrap": 1000},
+  "variants": {
+    "full": {},
+    "without_direct": {"drop_roles": ["direct_impressions"], "closure": true}
+  },
+  "contrasts": {"direct_family_utility": ["without_direct", "full"]}
+}

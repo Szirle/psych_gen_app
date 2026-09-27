@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:psych_gen_app/core/errors/exceptions.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/face_manipulation_request.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/manipulated_dimension.dart';
 import 'package:psych_gen_app/features/face_generation/domain/usecases/generate_face_images.dart';
@@ -43,6 +44,9 @@ class FaceManipulationBloc
       emit(FaceManipulationLoaded(
         FaceImageGrid.fromRequest(images, request),
       ));
+    } on ObsoletePreviewException {
+      // Ignored: request was superseded by a newer preview revision.
+      return;
     } catch (e) {
       if (requestId != _latestRequest || emit.isDone) return;
       emit(FaceManipulationError(

@@ -44,6 +44,20 @@ def image_inputs(engine, paths, patches, augment=False):
     return inputs
 
 
+def stage_encoder(engine, mode):
+    """Swap frozen MPS encoder residency without altering precision or outputs."""
+    if engine.device.type != 'mps':
+        return
+    text = ('text_model', 'longtext_head', 'boxtext_head')
+    vision = ('vision_model', 'dense_feature_head')
+    active, inactive = (text, vision) if mode == 'text' else (vision, text)
+    for name in inactive:
+        getattr(engine.model, name).to('cpu')
+    torch.mps.empty_cache()
+    for name in active:
+        getattr(engine.model, name).to(engine.device)
+
+
 class Assets:
     def __init__(self, engine, data, bank, args):
         self.engine, self.data, self.args, self.bank = engine, data, args, bank
@@ -56,12 +70,14 @@ class Assets:
         if path.exists():
             self.features = torch.load(path, map_location='cpu', weights_only=True)
         else:
+            if getattr(args, 'stage_frozen_encoders', False): stage_encoder(engine, 'vision')
             print(f'Encoding {len(data.paths)} images at p{args.patches} (global + dense)…', flush=True)
             batches = []
             with torch.no_grad():
                 for start in range(0, len(data.paths), args.encode_batch):
                     inputs = image_inputs(engine, data.paths[start:start+args.encode_batch], args.patches)
                     output = visual_features(engine, inputs)
+                    if start % 100 == 0: print(f'Encoded {start+len(output[0])}/{len(data.paths)} images', flush=True)
                     batches.append(tuple(t.detach().cpu() if t.dtype == torch.bool else t.detach().half().cpu() for t in output))
             self.features = tuple(torch.cat([batch[k] for batch in batches]) for k in range(4))
             atomic_save(self.features, path)
@@ -69,6 +85,7 @@ class Assets:
         if text_path.exists():
             self.text = torch.load(text_path, map_location='cpu', weights_only=True)
         else:
+            if getattr(args, 'stage_frozen_encoders', False): stage_encoder(engine, 'text')
             with torch.no_grad():
                 self.text = tuple(torch.cat([engine.encode_text(bank['phrases'][i:i+args.text_chunk], mode=mode).float().cpu()
                                               for i in range(0, len(bank['phrases']), args.text_chunk)])

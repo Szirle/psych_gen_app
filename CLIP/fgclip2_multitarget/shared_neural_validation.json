@@ -1,0 +1,151 @@
+{
+  "scope": "CPU synthetic surrogate with official TabM; no pretrained FG-CLIP2 or CUDA run",
+  "training": {
+    "scope": "CPU synthetic surrogate, not pretrained FG-CLIP2 or CUDA validation",
+    "variants": [
+      {
+        "variant": "shared-tabm",
+        "durations": {
+          "head": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-tabm-chain",
+        "durations": {
+          "head": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-tabm-chain-pool",
+        "durations": {
+          "head": 1,
+          "pool": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-tabm-chain-prompt",
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-tabm-chain-joint",
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1,
+          "vision": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-transformer",
+        "durations": {
+          "head": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-transformer-chain",
+        "durations": {
+          "head": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-transformer-chain-pool",
+        "durations": {
+          "head": 1,
+          "pool": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-transformer-chain-prompt",
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1
+        },
+        "finite_predictions": true
+      },
+      {
+        "variant": "shared-transformer-chain-joint",
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1,
+          "vision": 1
+        },
+        "finite_predictions": true
+      }
+    ],
+    "checkpoints_saved": 0
+  },
+  "structure_and_inference": {
+    "structural": [
+      {
+        "family": "tabm",
+        "all_tasks_update_shared_weights": true,
+        "full_input_gradients": true,
+        "chain_gradients": true,
+        "causal_order": true
+      },
+      {
+        "family": "transformer",
+        "all_tasks_update_shared_weights": true,
+        "full_input_gradients": true,
+        "chain_gradients": true,
+        "causal_order": true
+      }
+    ],
+    "roundtrips": [
+      {
+        "variant": "shared-tabm",
+        "max_error": 2.9206275939941406e-06,
+        "durations": {
+          "head": 1
+        }
+      },
+      {
+        "variant": "shared-transformer",
+        "max_error": 2.2709369659423828e-05,
+        "durations": {
+          "head": 1
+        }
+      },
+      {
+        "variant": "shared-tabm-chain-joint",
+        "max_error": 0.0,
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1,
+          "vision": 1
+        }
+      },
+      {
+        "variant": "shared-transformer-chain-joint",
+        "max_error": 0.0,
+        "durations": {
+          "head": 1,
+          "pool": 1,
+          "prompt": 1,
+          "vision": 1
+        }
+      }
+    ],
+    "checkpoints_saved": 0
+  },
+  "not_validated": [
+    "real-data accuracy",
+    "CUDA execution or peak VRAM",
+    "on-disk checkpoint resume"
+  ]
+}

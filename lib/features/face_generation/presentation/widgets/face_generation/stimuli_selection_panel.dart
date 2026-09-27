@@ -149,11 +149,38 @@ class StimuliSelectionCanvas extends StatefulWidget {
 
 class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
   final _transform = TransformationController();
+  bool _isCentered = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _transform.addListener(_handleTransformChanged);
+  }
 
   @override
   void dispose() {
+    _transform.removeListener(_handleTransformChanged);
     _transform.dispose();
     super.dispose();
+  }
+
+  void _handleTransformChanged() {
+    final values = _transform.value.storage;
+    final scaleX = math.sqrt(values[0] * values[0] + values[1] * values[1]);
+    final scaleY = math.sqrt(values[4] * values[4] + values[5] * values[5]);
+    final translation = Offset(values[12], values[13]);
+    final centered = (scaleX - 1).abs() < 0.01 &&
+        (scaleY - 1).abs() < 0.01 &&
+        translation.distance < 3;
+    if (centered != _isCentered && mounted) {
+      setState(() => _isCentered = centered);
+    }
+  }
+
+  void _resetTransform() {
+    try {
+      _transform.value = Matrix4.identity();
+    } catch (_) {}
   }
 
   @override
@@ -164,13 +191,11 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
     final dotColor =
         isDark ? const Color(0xFF3D3F43) : const Color(0xFFC7CBD0);
 
-    // Stack layout: canvas extends under the header bar, matching
-    // the manipulation tab's layout.
     return ColoredBox(
       color: isDark ? AppTheme.darkCanvas : AppTheme.lightCanvas,
       child: Stack(
         children: [
-          // Full-bleed canvas with interactive viewer
+          // Full-bleed canvas
           Positioned.fill(
             child: BlocBuilder<StimuliSelectionCubit, StimuliSelectionState>(
               bloc: widget.cubit,
@@ -201,7 +226,6 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          // Dots inside InteractiveViewer so they pan/zoom
                           CustomPaint(
                             painter: DottedBackgroundPainter(
                               color: dotColor,
@@ -245,7 +269,7 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
             ),
           ),
 
-          // Header bar overlaying the canvas (like manipulation tab)
+          // Header bar overlay
           Positioned(
             left: 0,
             top: 0,
@@ -260,11 +284,27 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
             ),
           ),
 
-          // Status chip at bottom + error
+          // Recenter button (only when moved from initial position)
+          if (!_isCentered)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: _bottomPadding(true),
+              child: Center(
+                child: FilledButton(
+                  key: const ValueKey('selection-recenter-button'),
+                  style: previewCanvasPillStyle(isDark),
+                  onPressed: _resetTransform,
+                  child: Text('tooltip.recenter_preview'.tr()),
+                ),
+              ),
+            ),
+
+          // Status chip at bottom
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: 16,
             child: BlocBuilder<StimuliSelectionCubit, StimuliSelectionState>(
               bloc: widget.cubit,
               builder: (context, state) {
@@ -274,7 +314,8 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
                   children: [
                     if (state.error != null)
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.only(
+                            left: 16, right: 16, bottom: 8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 10),
@@ -300,9 +341,17 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
                           ),
                         ),
                       ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: _buildStatusChip(context, state, preview, isDark),
+                    // Move status chip to bottom-right when recenter is visible
+                    Align(
+                      alignment: _isCentered
+                          ? Alignment.bottomCenter
+                          : Alignment.bottomRight,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                            right: _isCentered ? 0 : 16),
+                        child: _buildStatusChip(
+                            context, state, preview, isDark),
+                      ),
                     ),
                   ],
                 );
@@ -313,6 +362,8 @@ class _StimuliSelectionCanvasState extends State<StimuliSelectionCanvas> {
       ),
     );
   }
+
+  double _bottomPadding(bool hasStatusChip) => hasStatusChip ? 60 : 24;
 
   Widget _buildStatusChip(BuildContext context, StimuliSelectionState state,
       dynamic preview, bool isDark) {

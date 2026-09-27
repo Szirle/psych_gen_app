@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:psych_gen_app/core/constants/api_config.dart';
+import 'package:psych_gen_app/core/errors/exceptions.dart';
 import '../../domain/entities/stimuli_selection_request.dart';
 import 'preview_image_codec.dart';
 
@@ -23,6 +24,9 @@ class StimuliSelectionApiDataSource {
         final body = jsonDecode(response.body);
         if (body is Map && body['error'] is String) message = body['error'];
       } catch (_) {}
+      if (response.statusCode == 409) {
+        throw ObsoletePreviewException(message);
+      }
       throw Exception(message);
     }
     final body = jsonDecode(response.body);

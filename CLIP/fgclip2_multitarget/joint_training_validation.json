@@ -1,0 +1,465 @@
+{
+  "policy": "joint-v2",
+  "scope": "Tiny CPU surrogate; no pretrained FG-CLIP2, CUDA or held-out real-data accuracy validation",
+  "training": {
+    "scope": "CPU synthetic surrogate, not pretrained FG-CLIP2 or CUDA validation",
+    "variants": [
+      {
+        "variant": "independent",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.11989078857004642,
+          "token_anchor": 0.0,
+          "text_anchor": 8.278423502261489e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "chain-fixed",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.11990046128630638,
+          "token_anchor": 0.0,
+          "text_anchor": 8.278423502261489e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "chain-pool",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.11990609019994736,
+          "token_anchor": 0.0,
+          "text_anchor": 8.278423502261489e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "chain-prompt",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.11990608833730221,
+          "token_anchor": 7.916142567843121e-11,
+          "text_anchor": 4.4151588548396736e-10,
+          "phrase_preservation": 1.168465268985841e-09
+        }
+      },
+      {
+        "variant": "chain-joint",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": true
+        },
+        "losses": {
+          "objective": 0.1352680902928114,
+          "token_anchor": 8.053019709408638e-11,
+          "text_anchor": 3.725290163153483e-10,
+          "phrase_preservation": 1.1141327860286765e-09
+        }
+      },
+      {
+        "variant": "chain-partial",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": true
+        },
+        "losses": {
+          "objective": 0.13526809215545654,
+          "token_anchor": 8.052980331185733e-11,
+          "text_anchor": 3.725290163153483e-10,
+          "phrase_preservation": 1.1141327860286765e-09
+        }
+      },
+      {
+        "variant": "kernel-residual",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.15368175134062767,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "kernel-chain",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.15369822084903717,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "kernel-chain-pool",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.15369818732142448,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "kernel-chain-prompt",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.15369818732142448,
+          "token_anchor": 2.3223464725732838e-11,
+          "text_anchor": 3.7252903366258305e-10,
+          "phrase_preservation": 1.3278474986222477e-09
+        }
+      },
+      {
+        "variant": "kernel-chain-joint",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": true
+        },
+        "losses": {
+          "objective": 0.1824767328798771,
+          "token_anchor": 2.824235968276348e-11,
+          "text_anchor": 2.4034131022171445e-10,
+          "phrase_preservation": 1.7669844476486674e-09
+        }
+      },
+      {
+        "variant": "shared-tabm",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.074067497625947,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-tabm-chain",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07406728900969028,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-tabm-chain-pool",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07407955266535282,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-tabm-chain-prompt",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07407955452799797,
+          "token_anchor": 2.9439237506090343e-10,
+          "text_anchor": -1.5622184622310353e-10,
+          "phrase_preservation": 1.769790425321105e-09
+        }
+      },
+      {
+        "variant": "shared-tabm-chain-joint",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": true
+        },
+        "losses": {
+          "objective": 0.084267757833004,
+          "token_anchor": 2.8866214279998914e-10,
+          "text_anchor": 1.2017065467717636e-10,
+          "phrase_preservation": 8.240833015982219e-10
+        }
+      },
+      {
+        "variant": "shared-transformer",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07414253801107407,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-transformer-chain",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": false,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07490836642682552,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-transformer-chain-pool",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": false,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07482662610709667,
+          "token_anchor": 0.0,
+          "text_anchor": 4.806826048309176e-10,
+          "phrase_preservation": 0.0
+        }
+      },
+      {
+        "variant": "shared-transformer-chain-prompt",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": false
+        },
+        "losses": {
+          "objective": 0.07482662983238697,
+          "token_anchor": 2.69593274787594e-10,
+          "text_anchor": 3.1244369244620707e-10,
+          "phrase_preservation": 1.2994981757330493e-09
+        }
+      },
+      {
+        "variant": "shared-transformer-chain-joint",
+        "durations": {
+          "joint": 1
+        },
+        "finite_predictions": true,
+        "gradient_checks": {
+          "head": true,
+          "pool": true,
+          "prompt": true,
+          "vision": true
+        },
+        "losses": {
+          "objective": 0.08606206811964512,
+          "token_anchor": 1.8718296357356223e-10,
+          "text_anchor": 9.613652408868578e-11,
+          "phrase_preservation": 8.869761244922891e-10
+        }
+      }
+    ],
+    "preservation_check": {
+      "native_loss": 0.0,
+      "perturbed_loss": 0.20789392292499542,
+      "both_text_modes_receive_gradients": true,
+      "frozen_teacher_and_vision": true
+    },
+    "checkpoints_saved": 0
+  },
+  "inference": {
+    "roundtrips": [
+      {
+        "variant": "shared-tabm",
+        "max_error": 2.9206275939941406e-06,
+        "durations": {
+          "joint": 1
+        }
+      },
+      {
+        "variant": "shared-transformer",
+        "max_error": 2.2709369659423828e-05,
+        "durations": {
+          "joint": 1
+        }
+      },
+      {
+        "variant": "shared-tabm-chain-joint",
+        "max_error": 0.0,
+        "durations": {
+          "joint": 1
+        }
+      },
+      {
+        "variant": "shared-transformer-chain-joint",
+        "max_error": 5.960464477539063e-08,
+        "durations": {
+          "joint": 1
+        }
+      },
+      {
+        "variant": "chain-joint",
+        "max_error": 0.0,
+        "durations": {
+          "joint": 1
+        }
+      },
+      {
+        "variant": "kernel-chain-joint",
+        "max_error": 9.262561798095703e-05,
+        "durations": {
+          "joint": 0
+        }
+      }
+    ],
+    "old_neural_format_rejected": true,
+    "checkpoints_saved": 0
+  },
+  "on_disk_resume_exercised": false,
+  "checkpoints_saved": 0
+}

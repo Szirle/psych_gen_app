@@ -5,6 +5,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:psych_gen_app/core/constants/api_config.dart';
+import 'package:psych_gen_app/core/errors/exceptions.dart';
 import 'package:psych_gen_app/core/utils/logging.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/face_manipulation_request.dart';
 import 'package:psych_gen_app/features/face_generation/domain/entities/full_resolution_face.dart';
@@ -196,7 +197,13 @@ class FaceManipulationApiDataSource {
           if (body is Map && body['error'] is String) {
             serverMessage = body['error'] as String;
           }
-        } catch (_) {}
+        if (response.statusCode == 409) {
+          developer.log(
+            'POST $postRoute | preview superseded (409): $serverMessage',
+            name: _logName,
+          );
+          throw ObsoletePreviewException(serverMessage);
+        }
         developer.log(
           'POST $postRoute | failure status=${response.statusCode} | body=${truncateForLog(response.body)}',
           name: _logName,
@@ -205,6 +212,8 @@ class FaceManipulationApiDataSource {
         throw Exception(
             'Request failed (${response.statusCode}): $serverMessage');
       }
+    } on ObsoletePreviewException {
+      rethrow;
     } catch (e, stack) {
       developer.log(
         'POST $postRoute | exception=$e',

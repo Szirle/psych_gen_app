@@ -37,6 +37,7 @@ class ControlledVariablesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = ManipulatedDimensionName.values;
     return ExpansionTile(
+      key: const PageStorageKey('controlled_variables_expansion_tile'),
       initiallyExpanded: false,
       maintainState: true,
       title: Text(
